@@ -8,7 +8,7 @@ import { MCPClientCard } from '@/components/MCPClientCard';
 
 export default function MCPClientsPage() {
   const navigate = useNavigate();
-  
+
   // API Hooks
   const { data: clients = [], isLoading: clientsLoading } = useClientsWithStatus();
 
@@ -33,7 +33,9 @@ export default function MCPClientsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">MCP Clients</h1>
-          <p className="text-muted-foreground mt-1">Manage and configure your MCP client connections</p>
+          <p className="text-muted-foreground mt-1">
+            Manage and configure your MCP client connections
+          </p>
         </div>
         <Button className="gap-2" onClick={handleNewMCPClient}>
           <Plus className="h-4 w-4" />

@@ -1,20 +1,12 @@
 import apiClient from './apiClient';
-import { 
-  MCPServerConfig,
-  SuccessResponse
-} from '../types';
+import { MCPServerConfig, SuccessResponse } from '../types';
+import { ApiError, TimeoutError, CancellationError, ToolDetails } from '@aurite/api-client';
 import {
-  ApiError,
-  TimeoutError,
-  CancellationError,
-  ToolDetails,
-} from '@aurite/api-client';
-import { 
   validateMCPServerConfig,
   formToMCPServerConfig,
   mcpServerConfigToForm,
   getDefaultMCPServerForm,
-  validateMCPServerForm
+  validateMCPServerForm,
 } from '../utils/mcpValidation';
 
 class MCPServersService {
@@ -40,7 +32,7 @@ class MCPServersService {
   }
 
   // Create new MCP server configuration
-  async createMCPServer(name: string, config: MCPServerConfig): Promise<{message: string}> {
+  async createMCPServer(name: string, config: MCPServerConfig): Promise<{ message: string }> {
     try {
       return await apiClient.config.createConfig('mcp_server', { name, config });
     } catch (error) {
@@ -50,7 +42,7 @@ class MCPServersService {
   }
 
   // Update MCP server configuration
-  async updateMCPServer(id: string, config: MCPServerConfig): Promise<{message: string}> {
+  async updateMCPServer(id: string, config: MCPServerConfig): Promise<{ message: string }> {
     try {
       return await apiClient.config.updateConfig('mcp_server', id, { config });
     } catch (error) {
@@ -60,7 +52,7 @@ class MCPServersService {
   }
 
   // Delete MCP server configuration
-  async deleteMCPServer(id: string): Promise<{message: string}> {
+  async deleteMCPServer(id: string): Promise<{ message: string }> {
     try {
       return await apiClient.config.deleteConfig('mcp_server', id);
     } catch (error) {
@@ -80,7 +72,10 @@ class MCPServersService {
   }
 
   // Create with validation
-  async createMCPServerWithValidation(name: string, config: MCPServerConfig): Promise<{message: string}> {
+  async createMCPServerWithValidation(
+    name: string,
+    config: MCPServerConfig
+  ): Promise<{ message: string }> {
     const errors = validateMCPServerConfig(config);
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
@@ -89,7 +84,10 @@ class MCPServersService {
   }
 
   // Update with validation
-  async updateMCPServerWithValidation(id: string, config: MCPServerConfig): Promise<{message: string}> {
+  async updateMCPServerWithValidation(
+    id: string,
+    config: MCPServerConfig
+  ): Promise<{ message: string }> {
     const errors = validateMCPServerConfig(config);
     if (errors.length > 0) {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
@@ -103,7 +101,7 @@ class MCPServersService {
       await apiClient.host.registerServerByName(serverName);
       return {
         status: 'success',
-        message: `MCP server ${serverName} registered successfully`
+        message: `MCP server ${serverName} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register MCP server ${serverName}`);
@@ -117,7 +115,7 @@ class MCPServersService {
       await apiClient.host.unregisterServer(serverName);
       return {
         status: 'success',
-        message: `MCP server ${serverName} unregistered successfully`
+        message: `MCP server ${serverName} unregistered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to unregister MCP server ${serverName}`);
@@ -175,7 +173,7 @@ class MCPServersService {
     try {
       const [registeredServers, activeServers] = await Promise.all([
         this.listMCPServers(),
-        this.listActiveMCPServers()
+        this.listActiveMCPServers(),
       ]);
 
       const registered = registeredServers.includes(serverName);
@@ -193,13 +191,13 @@ class MCPServersService {
       return {
         registered,
         active,
-        config
+        config,
       };
     } catch (error) {
       this.handleError(error, `Failed to get MCP server status for ${serverName}`);
       return {
         registered: false,
-        active: false
+        active: false,
       };
     }
   }
@@ -217,19 +215,19 @@ class MCPServersService {
 
   // Create and register MCP server in one operation
   async createAndRegisterMCPServer(config: MCPServerConfig): Promise<{
-    creation: {message: string};
+    creation: { message: string };
     registration: SuccessResponse;
   }> {
     try {
       // First create the config
       const creation = await this.createMCPServerWithValidation(config.name, config);
-      
+
       // Then register the server
       const registration = await this.registerMCPServer(config.name);
-      
+
       return {
         creation,
-        registration
+        registration,
       };
     } catch (error) {
       this.handleError(error, `Failed to create and register MCP server ${config.name}`);
@@ -254,7 +252,7 @@ class MCPServersService {
   private mapToMCPServerConfig(apiConfig: any): MCPServerConfig {
     return {
       name: apiConfig.name,
-      type: "mcp_server",
+      type: 'mcp_server',
       capabilities: apiConfig.capabilities || [],
       description: apiConfig.description,
       transport_type: apiConfig.transport_type,

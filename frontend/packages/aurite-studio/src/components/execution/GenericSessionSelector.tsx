@@ -40,14 +40,16 @@ export function GenericSessionSelector<T extends BaseSessionInfo>({
   sessions = [],
   formatSessionMetadata,
   disabled = false,
-  isLoading = false
+  isLoading = false,
 }: GenericSessionSelectorProps<T>) {
   const [showNewSession, setShowNewSession] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
 
   const handleCreateSession = () => {
-    if (!newSessionName.trim()) return;
-    
+    if (!newSessionName.trim()) {
+      return;
+    }
+
     onSessionCreate(newSessionName.trim());
     setNewSessionName('');
     setShowNewSession(false);
@@ -64,20 +66,19 @@ export function GenericSessionSelector<T extends BaseSessionInfo>({
       return `${diffMins}m ago`;
     } else if (diffHours < 24) {
       return `${diffHours}h ago`;
-    } else {
-      return `${diffDays}d ago`;
     }
+    return `${diffDays}d ago`;
   };
 
   return (
     <div className="space-y-3">
       <Label className="text-sm font-medium text-foreground">Session</Label>
-      
+
       {!showNewSession ? (
         <div className="space-y-2">
-          <Select 
-            value={selectedSessionId || 'new'} 
-            onValueChange={(value) => {
+          <Select
+            value={selectedSessionId || 'new'}
+            onValueChange={value => {
               if (value === 'new') {
                 onSessionSelect(null);
               } else if (value === 'create-new') {
@@ -98,25 +99,26 @@ export function GenericSessionSelector<T extends BaseSessionInfo>({
                   New conversation
                 </div>
               </SelectItem>
-              
+
               {sessions.length > 0 && (
                 <>
                   <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b">
                     Previous sessions
                   </div>
-                  {sessions.map((session) => (
+                  {sessions.map(session => (
                     <SelectItem key={session.id} value={session.id}>
                       <div className="flex flex-col gap-1">
                         <span className="text-sm font-medium">{session.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          {formatSessionMetadata(session)} • {formatLastActivity(session.last_activity)}
+                          {formatSessionMetadata(session)} •{' '}
+                          {formatLastActivity(session.last_activity)}
                         </span>
                       </div>
                     </SelectItem>
                   ))}
                 </>
               )}
-              
+
               <SelectItem value="create-new">
                 <div className="flex items-center gap-2 text-primary">
                   <Plus className="h-3 w-3" />
@@ -131,8 +133,8 @@ export function GenericSessionSelector<T extends BaseSessionInfo>({
           <Input
             placeholder="Enter session name..."
             value={newSessionName}
-            onChange={(e) => setNewSessionName(e.target.value)}
-            onKeyDown={(e) => {
+            onChange={e => setNewSessionName(e.target.value)}
+            onKeyDown={e => {
               if (e.key === 'Enter') {
                 handleCreateSession();
               } else if (e.key === 'Escape') {
@@ -165,18 +167,14 @@ export function GenericSessionSelector<T extends BaseSessionInfo>({
           </div>
         </div>
       )}
-      
+
       {selectedSessionId && (
         <div className="text-xs text-muted-foreground">
           Continuing conversation in existing session
         </div>
       )}
-      
-      {isLoading && (
-        <div className="text-xs text-muted-foreground">
-          Loading sessions...
-        </div>
-      )}
+
+      {isLoading && <div className="text-xs text-muted-foreground">Loading sessions...</div>}
     </div>
   );
 }

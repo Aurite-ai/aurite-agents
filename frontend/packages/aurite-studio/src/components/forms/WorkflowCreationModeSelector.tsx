@@ -4,8 +4,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, FileText, Workflow } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-
-
 export default function WorkflowCreationModeSelector(): React.ReactElement {
   const navigate = useNavigate();
 
@@ -39,9 +37,7 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-3xl font-bold text-primary">
-                Create New Workflow
-              </h1>
+              <h1 className="text-3xl font-bold text-primary">Create New Workflow</h1>
             </div>
 
             {/* Mode Selection Cards */}
@@ -63,12 +59,13 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
                     <p className="text-sm text-muted-foreground">Traditional list-based approach</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <p className="text-sm text-foreground">
-                    Create workflows by selecting agents from a dropdown and arranging them in a sequential list.
+                    Create workflows by selecting agents from a dropdown and arranging them in a
+                    sequential list.
                   </p>
-                  
+
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Simple and familiar interface</li>
                     <li>• Quick sequential workflow creation</li>
@@ -76,9 +73,9 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
                   </ul>
                 </div>
 
-                <Button 
+                <Button
                   className="w-full"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     handleTextMode();
                   }}
@@ -104,12 +101,13 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
                     <p className="text-sm text-muted-foreground">Drag-and-drop canvas interface</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <p className="text-sm text-foreground">
-                    Build workflows visually by dragging agents onto a canvas and connecting them with flow lines.
+                    Build workflows visually by dragging agents onto a canvas and connecting them
+                    with flow lines.
                   </p>
-                  
+
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Intuitive drag-and-drop interface</li>
                     <li>• Visual flow representation</li>
@@ -117,9 +115,9 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
                   </ul>
                 </div>
 
-                <Button 
+                <Button
                   className="w-full"
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     handleVisualMode();
                   }}
@@ -137,8 +135,8 @@ export default function WorkflowCreationModeSelector(): React.ReactElement {
               className="bg-muted/20 border border-border rounded-lg p-4"
             >
               <p className="text-sm text-muted-foreground text-center">
-                Both workflow types are fully compatible and can be executed in the same way. 
-                Choose the creation method that best fits your workflow complexity and personal preference.
+                Both workflow types are fully compatible and can be executed in the same way. Choose
+                the creation method that best fits your workflow complexity and personal preference.
               </p>
             </motion.div>
           </motion.div>

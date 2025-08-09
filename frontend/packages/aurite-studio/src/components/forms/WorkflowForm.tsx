@@ -14,7 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAgentsWithConfigs } from '@/hooks/useAgents';
-import { useWorkflowConfigByName, useUpdateWorkflow, useCreateWorkflow, useDeleteWorkflow } from '@/hooks/useWorkflows';
+import {
+  useWorkflowConfigByName,
+  useUpdateWorkflow,
+  useCreateWorkflow,
+  useDeleteWorkflow,
+} from '@/hooks/useWorkflows';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface WorkflowFormProps {
@@ -28,7 +33,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
   // Form state
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
-  const [workflowSteps, setWorkflowSteps] = useState<Array<{id: number, agent: string}>>([]);
+  const [workflowSteps, setWorkflowSteps] = useState<Array<{ id: number; agent: string }>>([]);
   const [selectedAgentToAdd, setSelectedAgentToAdd] = useState('');
   const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
   const [showWorkflowDeleteConfirmation, setShowWorkflowDeleteConfirmation] = useState(false);
@@ -57,9 +62,8 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       return String((agent.name as any).name);
     } else if (agent.name) {
       return String(agent.name);
-    } else {
-      return 'Unknown Agent';
     }
+    return 'Unknown Agent';
   };
 
   // Effect to populate workflow form when workflow config is loaded
@@ -73,7 +77,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
       if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
         const stepsWithIds = workflowConfig.steps.map((step, index) => ({
           id: Date.now() + index,
-          agent: step
+          agent: step,
         }));
         setWorkflowSteps(stepsWithIds);
       } else {
@@ -116,38 +120,41 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
     // Build the workflow config object from form state
     const workflowConfig = {
       name: workflowName,
-      type: "linear_workflow" as const,
+      type: 'linear_workflow' as const,
       steps: workflowSteps.map(step => step.agent), // Convert UI format to API format
-      description: workflowDescription || undefined
+      description: workflowDescription || undefined,
     };
 
     if (editMode && workflowNameParam) {
       // Edit mode - update existing workflow using PUT method
-      updateWorkflow.mutate({
-        filename: workflowNameParam,
-        config: workflowConfig
-      }, {
-        onSuccess: () => {
-          // Invalidate workflow config cache to force fresh data load
-          queryClient.invalidateQueries({
-            queryKey: ['workflow-config-by-name', workflowNameParam]
-          });
-
-          navigate('/workflows');
+      updateWorkflow.mutate(
+        {
+          filename: workflowNameParam,
+          config: workflowConfig,
         },
-        onError: (error) => {
-          console.error('❌ Failed to update workflow:', error);
+        {
+          onSuccess: () => {
+            // Invalidate workflow config cache to force fresh data load
+            queryClient.invalidateQueries({
+              queryKey: ['workflow-config-by-name', workflowNameParam],
+            });
+
+            navigate('/workflows');
+          },
+          onError: error => {
+            console.error('❌ Failed to update workflow:', error);
+          },
         }
-      });
+      );
     } else {
       // Create mode - create new workflow using POST method
       createWorkflow.mutate(workflowConfig, {
         onSuccess: () => {
           navigate('/workflows');
         },
-        onError: (error) => {
+        onError: error => {
           console.error('❌ Failed to create workflow:', error);
-        }
+        },
       });
     }
   };
@@ -162,7 +169,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
         onSuccess: () => {
           setShowWorkflowDeleteConfirmation(false);
           navigate('/workflows');
-        }
+        },
       });
     }
   };
@@ -211,24 +218,31 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
 
               {/* Workflow Name */}
               <div className="space-y-2">
-                <Label htmlFor="workflow-name" className="text-sm font-medium text-foreground">Workflow Name</Label>
+                <Label htmlFor="workflow-name" className="text-sm font-medium text-foreground">
+                  Workflow Name
+                </Label>
                 <Input
                   id="workflow-name"
                   placeholder="e.g., Daily Briefing Workflow"
                   value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
+                  onChange={e => setWorkflowName(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="workflow-description" className="text-sm font-medium text-foreground">Description (Optional)</Label>
+                <Label
+                  htmlFor="workflow-description"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Description (Optional)
+                </Label>
                 <Textarea
                   id="workflow-description"
                   placeholder="A brief description of what this workflow does."
                   value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
+                  onChange={e => setWorkflowDescription(e.target.value)}
                   className="min-h-[100px] resize-none"
                 />
               </div>
@@ -242,7 +256,9 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-primary">Workflow Steps (Agent Sequence)</h2>
+                <h2 className="text-lg font-semibold text-primary">
+                  Workflow Steps (Agent Sequence)
+                </h2>
               </div>
 
               {workflowSteps.length === 0 ? (
@@ -250,8 +266,13 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
               ) : (
                 <div className="space-y-2">
                   {workflowSteps.map((step, index) => (
-                    <div key={step.id} className="flex items-center justify-between gap-2 p-3 bg-muted/20 rounded-md border border-border hover:bg-muted/30 transition-colors">
-                      <span className="text-sm font-medium">{index + 1}. {step.agent}</span>
+                    <div
+                      key={step.id}
+                      className="flex items-center justify-between gap-2 p-3 bg-muted/20 rounded-md border border-border hover:bg-muted/30 transition-colors"
+                    >
+                      <span className="text-sm font-medium">
+                        {index + 1}. {step.agent}
+                      </span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -295,11 +316,7 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
                     )}
                   </SelectContent>
                 </Select>
-                <Button
-                  onClick={addWorkflowStep}
-                  variant="outline"
-                  disabled={!selectedAgentToAdd}
-                >
+                <Button onClick={addWorkflowStep} variant="outline" disabled={!selectedAgentToAdd}>
                   Add Step
                 </Button>
               </div>
@@ -337,15 +354,22 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
               <Button
                 className="px-8"
                 onClick={handleSubmit}
-                disabled={(updateWorkflow.isPending || createWorkflow.isPending) || !workflowName.trim() || workflowSteps.length === 0}
+                disabled={
+                  updateWorkflow.isPending ||
+                  createWorkflow.isPending ||
+                  !workflowName.trim() ||
+                  workflowSteps.length === 0
+                }
               >
-                {(updateWorkflow.isPending || createWorkflow.isPending) ? (
+                {updateWorkflow.isPending || createWorkflow.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     {editMode ? 'Updating...' : 'Creating...'}
                   </>
+                ) : editMode ? (
+                  'Update Linear Workflow'
                 ) : (
-                  editMode ? 'Update Linear Workflow' : 'Save Linear Workflow'
+                  'Save Linear Workflow'
                 )}
               </Button>
             </motion.div>
@@ -367,13 +391,12 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-foreground">
-              Delete Workflow
-            </h3>
+            <h3 className="text-lg font-semibold text-foreground">Delete Workflow</h3>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete the workflow "{workflowName}"? This action cannot be undone.
+              Are you sure you want to delete the workflow "{workflowName}"? This action cannot be
+              undone.
             </p>
             <div className="flex gap-3 justify-end">
               <Button

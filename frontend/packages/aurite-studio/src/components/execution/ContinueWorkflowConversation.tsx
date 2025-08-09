@@ -9,14 +9,16 @@ export const ContinueWorkflowConversation: React.FC<ContinueWorkflowConversation
   sessionId,
   workflowName,
   onSendMessage,
-  disabled = false
+  disabled = false,
 }) => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || disabled || isLoading) return;
+    if (!message.trim() || disabled || isLoading) {
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -40,30 +42,24 @@ export const ContinueWorkflowConversation: React.FC<ContinueWorkflowConversation
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium">Continue Workflow Conversation</Label>
-        <span className="text-xs text-muted-foreground">
-          Session: {sessionId.slice(0, 8)}...
-        </span>
+        <span className="text-xs text-muted-foreground">Session: {sessionId.slice(0, 8)}...</span>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="space-y-3">
         <Textarea
           placeholder={`Continue the ${workflowName} workflow conversation...`}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={e => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           className="min-h-[80px] resize-none"
           disabled={disabled || isLoading}
         />
-        
+
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
             Press Enter to send, Shift+Enter for new line
           </div>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!message.trim() || disabled || isLoading}
-          >
+          <Button type="submit" size="sm" disabled={!message.trim() || disabled || isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -78,7 +74,7 @@ export const ContinueWorkflowConversation: React.FC<ContinueWorkflowConversation
           </Button>
         </div>
       </form>
-      
+
       <div className="text-xs text-muted-foreground">
         This will continue the workflow execution with your additional input.
       </div>

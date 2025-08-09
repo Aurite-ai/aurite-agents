@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  MCPServerConfig, 
-  MCPServerFormFields,
-  RootConfig 
-} from '../types';
+import { MCPServerConfig, MCPServerFormFields, RootConfig } from '../types';
 import mcpServersService from '../services/mcpServers.service';
 
 interface MCPServerManagerProps {
@@ -101,7 +97,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
     const errors = mcpServersService.validateForm(formData);
     if (Object.keys(errors).length > 0) {
@@ -190,7 +186,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
             <input
               type="text"
               value={formData.server_path}
-              onChange={(e) => handleFormChange('server_path', e.target.value)}
+              onChange={e => handleFormChange('server_path', e.target.value)}
               className="w-full p-2 border rounded"
               placeholder="path/to/server.py"
             />
@@ -208,7 +204,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
               <input
                 type="url"
                 value={formData.http_endpoint}
-                onChange={(e) => handleFormChange('http_endpoint', e.target.value)}
+                onChange={e => handleFormChange('http_endpoint', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="https://api.example.com/mcp"
               />
@@ -223,7 +219,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                   <input
                     type="text"
                     value={header.key}
-                    onChange={(e) => {
+                    onChange={e => {
                       const newHeaders = [...formData.headers];
                       newHeaders[index] = { ...header, key: e.target.value };
                       handleFormChange('headers', newHeaders);
@@ -234,7 +230,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                   <input
                     type="text"
                     value={header.value}
-                    onChange={(e) => {
+                    onChange={e => {
                       const newHeaders = [...formData.headers];
                       newHeaders[index] = { ...header, value: e.target.value };
                       handleFormChange('headers', newHeaders);
@@ -276,7 +272,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
               <input
                 type="text"
                 value={formData.command}
-                onChange={(e) => handleFormChange('command', e.target.value)}
+                onChange={e => handleFormChange('command', e.target.value)}
                 className="w-full p-2 border rounded"
                 placeholder="./my-server"
               />
@@ -291,7 +287,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                   <input
                     type="text"
                     value={arg}
-                    onChange={(e) => {
+                    onChange={e => {
                       const newArgs = [...formData.args];
                       newArgs[index] = e.target.value;
                       handleFormChange('args', newArgs);
@@ -384,7 +380,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
 
         {/* Server Details/Form */}
         <div className="flex-1 p-4">
-          {(isCreating || isEditing) ? (
+          {isCreating || isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">
@@ -415,20 +411,18 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  onChange={e => handleFormChange('name', e.target.value)}
                   className="w-full p-2 border rounded"
                   disabled={isEditing} // Can't change name when editing
                 />
-                {formErrors.name && (
-                  <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
-                )}
+                {formErrors.name && <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>}
               </div>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">Description</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => handleFormChange('description', e.target.value)}
+                  onChange={e => handleFormChange('description', e.target.value)}
                   className="w-full p-2 border rounded"
                   rows={2}
                 />
@@ -438,7 +432,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                 <label className="block text-sm font-medium mb-2">Transport Type</label>
                 <select
                   value={formData.transport_type}
-                  onChange={(e) => handleFormChange('transport_type', e.target.value)}
+                  onChange={e => handleFormChange('transport_type', e.target.value)}
                   className="w-full p-2 border rounded"
                 >
                   <option value="stdio">Stdio</option>
@@ -459,7 +453,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                       <input
                         type="checkbox"
                         checked={formData.capabilities.includes(capability)}
-                        onChange={(e) => {
+                        onChange={e => {
                           const newCapabilities = e.target.checked
                             ? [...formData.capabilities, capability]
                             : formData.capabilities.filter(c => c !== capability);
@@ -485,18 +479,22 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                     <input
                       type="number"
                       value={formData.timeout}
-                      onChange={(e) => handleFormChange('timeout', parseFloat(e.target.value))}
+                      onChange={e => handleFormChange('timeout', parseFloat(e.target.value))}
                       className="w-full p-2 border rounded"
                       min="0.1"
                       step="0.1"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Registration Timeout (seconds)</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Registration Timeout (seconds)
+                    </label>
                     <input
                       type="number"
                       value={formData.registration_timeout}
-                      onChange={(e) => handleFormChange('registration_timeout', parseFloat(e.target.value))}
+                      onChange={e =>
+                        handleFormChange('registration_timeout', parseFloat(e.target.value))
+                      }
                       className="w-full p-2 border rounded"
                       min="0.1"
                       step="0.1"
@@ -507,7 +505,7 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                     <input
                       type="number"
                       value={formData.routing_weight}
-                      onChange={(e) => handleFormChange('routing_weight', parseFloat(e.target.value))}
+                      onChange={e => handleFormChange('routing_weight', parseFloat(e.target.value))}
                       className="w-full p-2 border rounded"
                       min="0.1"
                       step="0.1"
@@ -560,7 +558,8 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                   <strong>Description:</strong> {selectedServer.description || 'No description'}
                 </div>
                 <div>
-                  <strong>Transport Type:</strong> {selectedServer.transport_type || 'Not specified'}
+                  <strong>Transport Type:</strong>{' '}
+                  {selectedServer.transport_type || 'Not specified'}
                 </div>
                 <div>
                   <strong>Capabilities:</strong> {selectedServer.capabilities.join(', ')}
@@ -584,7 +583,8 @@ const MCPServerManager: React.FC<MCPServerManagerProps> = ({ className }) => {
                   <strong>Timeout:</strong> {selectedServer.timeout || 10.0}s
                 </div>
                 <div>
-                  <strong>Registration Timeout:</strong> {selectedServer.registration_timeout || 30.0}s
+                  <strong>Registration Timeout:</strong>{' '}
+                  {selectedServer.registration_timeout || 30.0}s
                 </div>
                 <div>
                   <strong>Routing Weight:</strong> {selectedServer.routing_weight || 1.0}

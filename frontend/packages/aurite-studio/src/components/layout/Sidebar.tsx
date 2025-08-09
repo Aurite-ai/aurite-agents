@@ -24,22 +24,32 @@ export default function Sidebar() {
   // Determine active tab based on current path
   const getActiveTab = () => {
     const path = location.pathname;
-    if (path === '/') return 'home';
-    if (path.startsWith('/agents')) return 'agents';
-    if (path.startsWith('/workflows')) return 'workflows';
-    if (path.startsWith('/mcp-clients')) return 'mcp';
-    if (path.startsWith('/llm-configs')) return 'llm';
+    if (path === '/') {
+      return 'home';
+    }
+    if (path.startsWith('/agents')) {
+      return 'agents';
+    }
+    if (path.startsWith('/workflows')) {
+      return 'workflows';
+    }
+    if (path.startsWith('/mcp-clients')) {
+      return 'mcp';
+    }
+    if (path.startsWith('/llm-configs')) {
+      return 'llm';
+    }
     return '';
   };
 
   const activeTab = getActiveTab();
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ x: -80 }}
-      animate={{ 
+      animate={{
         x: 0,
-        width: sidebarHovered ? 250 : 80
+        width: sidebarHovered ? 250 : 80,
       }}
       transition={{ duration: 0.3 }}
       onMouseEnter={() => setSidebarHovered(true)}
@@ -75,7 +85,7 @@ export default function Sidebar() {
           >
             <Link to={item.path} className="block">
               <Button
-                variant={activeTab === item.id ? "default" : "ghost"}
+                variant={activeTab === item.id ? 'default' : 'ghost'}
                 className={`${sidebarHovered ? 'w-full justify-start gap-3 h-11' : 'w-12 h-12'} rounded-xl`}
               >
                 <item.icon className="h-5 w-5" />
@@ -99,7 +109,9 @@ export default function Sidebar() {
           </motion.div>
         ))}
 
-        <div className={`${sidebarHovered ? 'w-full h-px' : 'w-8 h-px'} bg-border my-6 ${!sidebarHovered && 'mx-auto'}`} />
+        <div
+          className={`${sidebarHovered ? 'w-full h-px' : 'w-8 h-px'} bg-border my-6 ${!sidebarHovered && 'mx-auto'}`}
+        />
 
         {sidebarHovered && (
           <motion.div
@@ -122,7 +134,7 @@ export default function Sidebar() {
           >
             <Link to={item.path} className="block">
               <Button
-                variant={activeTab === item.id ? "default" : "ghost"}
+                variant={activeTab === item.id ? 'default' : 'ghost'}
                 className={`${sidebarHovered ? 'w-full justify-start gap-3 h-11' : 'w-12 h-12'} rounded-xl`}
               >
                 <item.icon className="h-5 w-5" />

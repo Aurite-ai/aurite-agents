@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
-import { 
-  X, 
-  Settings, 
-  Bot, 
-  Brain, 
-  Server, 
-  Shield,
-  Loader2
-} from 'lucide-react';
+import { X, Settings, Bot, Brain, Server, Shield, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { AgentConfig } from '@/types/api.generated';
 import { useAgentConfig } from '@/hooks/useAgents';
 import { useClientsWithStatus } from '@/hooks/useClients';
@@ -28,32 +26,54 @@ interface AgentConfigModalProps {
 }
 
 // Simple Switch component using checkbox
-const Switch = ({ checked, onCheckedChange, id }: { checked: boolean; onCheckedChange: (checked: boolean) => void; id?: string }) => (
+const Switch = ({
+  checked,
+  onCheckedChange,
+  id,
+}: {
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  id?: string;
+}) => (
   <label className="relative inline-flex items-center cursor-pointer">
     <input
       type="checkbox"
       id={id}
       checked={checked}
-      onChange={(e) => onCheckedChange(e.target.checked)}
+      onChange={e => onCheckedChange(e.target.checked)}
       className="sr-only"
     />
-    <div className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-gray-200'}`}>
-      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+    <div
+      className={`relative w-11 h-6 rounded-full transition-colors ${checked ? 'bg-primary' : 'bg-gray-200'}`}
+    >
+      <div
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+      />
     </div>
   </label>
 );
 
 // Simple Badge component
-const Badge = ({ children, variant = 'default', className = '', onClick }: { children: React.ReactNode; variant?: 'default' | 'secondary' | 'destructive'; className?: string; onClick?: () => void }) => {
+const Badge = ({
+  children,
+  variant = 'default',
+  className = '',
+  onClick,
+}: {
+  children: React.ReactNode;
+  variant?: 'default' | 'secondary' | 'destructive';
+  className?: string;
+  onClick?: () => void;
+}) => {
   const baseClasses = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium';
   const variantClasses = {
     default: 'bg-primary text-primary-foreground',
     secondary: 'bg-secondary text-secondary-foreground',
-    destructive: 'bg-destructive text-destructive-foreground'
+    destructive: 'bg-destructive text-destructive-foreground',
   };
-  
+
   return (
-    <span 
+    <span
       className={`${baseClasses} ${variantClasses[variant]} ${className} ${onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
       onClick={onClick}
     >
@@ -71,21 +91,21 @@ export default function AgentConfigModal({
   onSave,
   initialConfig = {},
   agentName,
-  availableLLMConfigs = []
+  availableLLMConfigs = [],
 }: AgentConfigModalProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [formPopulated, setFormPopulated] = useState(false);
   const [llmConfigOption, setLlmConfigOption] = useState('existing');
-  
+
   // Fetch agent configuration from API
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
     agentName || '',
     !!(agentName && isOpen)
   );
-  
+
   // Fetch MCP clients with connection status
   const { data: clients = [] } = useClientsWithStatus();
-  
+
   // Form state
   const [config, setConfig] = useState<Partial<AgentConfig>>({
     type: 'agent',
@@ -98,19 +118,20 @@ export default function AgentConfigModal({
     system_prompt: '',
     max_iterations: 10,
     mcp_servers: [],
-    exclude_components: []
+    exclude_components: [],
   });
 
   // Effect to populate form when agent config is loaded
   useEffect(() => {
     if (agentConfig && agentName && !formPopulated && isOpen) {
       // Safely extract agent name according to canonical AgentConfig model
-      const safeName = typeof agentConfig.name === 'string' 
-        ? agentConfig.name 
-        : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
-          ? String((agentConfig.name as any).name)
-          : String(agentConfig.name || agentName);
-      
+      const safeName =
+        typeof agentConfig.name === 'string'
+          ? agentConfig.name
+          : agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name
+            ? String((agentConfig.name as any).name)
+            : String(agentConfig.name || agentName);
+
       // Populate form fields with fetched configuration
       setConfig({
         type: 'agent',
@@ -123,22 +144,25 @@ export default function AgentConfigModal({
         model: agentConfig.model || '',
         temperature: agentConfig.temperature !== undefined ? agentConfig.temperature : 0.7,
         max_tokens: agentConfig.max_tokens || 4096,
-        exclude_components: agentConfig.exclude_components || []
+        exclude_components: agentConfig.exclude_components || [],
       });
-      
+
       // Set LLM config option based on existing configuration
       if (agentConfig.llm_config_id) {
         setLlmConfigOption('existing');
-      } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens) {
+      } else if (
+        agentConfig.model ||
+        agentConfig.temperature !== undefined ||
+        agentConfig.max_tokens
+      ) {
         setLlmConfigOption('inline');
       } else {
         setLlmConfigOption('existing');
       }
-      
+
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
     } else if (agentName && !agentConfig && !configLoading && isOpen && !formPopulated) {
-      
       // Fallback to initialConfig if API fetch fails
       setConfig({
         type: 'agent',
@@ -152,7 +176,7 @@ export default function AgentConfigModal({
         max_iterations: 10,
         mcp_servers: [],
         exclude_components: [],
-        ...initialConfig
+        ...initialConfig,
       });
       setFormPopulated(true);
     }
@@ -175,8 +199,10 @@ export default function AgentConfigModal({
       ...(config.description && { description: config.description }),
       ...(config.system_prompt && { system_prompt: config.system_prompt }),
       ...(config.max_iterations !== undefined && { max_iterations: Number(config.max_iterations) }),
-      ...(config.mcp_servers && config.mcp_servers.length > 0 && { mcp_servers: config.mcp_servers }),
-      ...(config.exclude_components && config.exclude_components.length > 0 && { exclude_components: config.exclude_components })
+      ...(config.mcp_servers &&
+        config.mcp_servers.length > 0 && { mcp_servers: config.mcp_servers }),
+      ...(config.exclude_components &&
+        config.exclude_components.length > 0 && { exclude_components: config.exclude_components }),
     };
 
     // Handle LLM configuration based on selected option
@@ -186,9 +212,15 @@ export default function AgentConfigModal({
       }
     } else if (llmConfigOption === 'inline') {
       // Include inline parameters when defining inline LLM parameters
-      if (config.model) cleanConfig.model = config.model;
-      if (config.temperature !== undefined) cleanConfig.temperature = Number(config.temperature);
-      if (config.max_tokens !== undefined) cleanConfig.max_tokens = Number(config.max_tokens);
+      if (config.model) {
+        cleanConfig.model = config.model;
+      }
+      if (config.temperature !== undefined) {
+        cleanConfig.temperature = Number(config.temperature);
+      }
+      if (config.max_tokens !== undefined) {
+        cleanConfig.max_tokens = Number(config.max_tokens);
+      }
     }
 
     onSave(cleanConfig);
@@ -200,7 +232,7 @@ export default function AgentConfigModal({
       ...prev,
       mcp_servers: prev.mcp_servers?.includes(serverName)
         ? prev.mcp_servers.filter(name => name !== serverName)
-        : [...(prev.mcp_servers || []), serverName]
+        : [...(prev.mcp_servers || []), serverName],
     }));
   };
 
@@ -208,7 +240,7 @@ export default function AgentConfigModal({
     if (component.trim() && !config.exclude_components?.includes(component.trim())) {
       setConfig(prev => ({
         ...prev,
-        exclude_components: [...(prev.exclude_components || []), component.trim()]
+        exclude_components: [...(prev.exclude_components || []), component.trim()],
       }));
     }
   };
@@ -216,17 +248,19 @@ export default function AgentConfigModal({
   const handleExcludeComponentRemove = (component: string) => {
     setConfig(prev => ({
       ...prev,
-      exclude_components: prev.exclude_components?.filter(c => c !== component) || []
+      exclude_components: prev.exclude_components?.filter(c => c !== component) || [],
     }));
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="relative bg-card border border-border rounded-lg shadow-lg max-w-4xl w-full h-[80vh] mx-4 flex flex-col overflow-hidden">
         {/* Header */}
@@ -256,7 +290,7 @@ export default function AgentConfigModal({
               { id: 'basic', label: 'Basic', icon: Bot },
               { id: 'llm', label: 'LLM', icon: Brain },
               { id: 'capabilities', label: 'Capabilities', icon: Server },
-            ].map((tab) => {
+            ].map(tab => {
               const Icon = tab.icon;
               return (
                 <button
@@ -296,14 +330,14 @@ export default function AgentConfigModal({
                     <Bot className="h-4 w-4" />
                     Agent Identity
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="agent-name">Agent Name</Label>
                       <Input
                         id="agent-name"
                         value={config.name || ''}
-                        onChange={(e) => setConfig(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={e => setConfig(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="e.g., Data Processing Agent"
                       />
                     </div>
@@ -312,7 +346,9 @@ export default function AgentConfigModal({
                       <Input
                         id="agent-description"
                         value={config.description || ''}
-                        onChange={(e) => setConfig(prev => ({ ...prev, description: e.target.value }))}
+                        onChange={e =>
+                          setConfig(prev => ({ ...prev, description: e.target.value }))
+                        }
                         placeholder="Brief description of agent's purpose"
                       />
                     </div>
@@ -323,13 +359,16 @@ export default function AgentConfigModal({
                     <Textarea
                       id="system-prompt"
                       value={config.system_prompt || ''}
-                      onChange={(e) => setConfig(prev => ({ ...prev, system_prompt: e.target.value }))}
+                      onChange={e =>
+                        setConfig(prev => ({ ...prev, system_prompt: e.target.value }))
+                      }
                       placeholder="Define the agent's role, personality, and instructions..."
                       rows={6}
                       className="resize-none"
                     />
                     <p className="text-xs text-muted-foreground">
-                      This prompt defines the agent's identity and behavior. Be specific about what the agent should do.
+                      This prompt defines the agent's identity and behavior. Be specific about what
+                      the agent should do.
                     </p>
                   </div>
 
@@ -342,7 +381,12 @@ export default function AgentConfigModal({
                       max="100"
                       step="1"
                       value={config.max_iterations || 10}
-                      onChange={(e) => setConfig(prev => ({ ...prev, max_iterations: parseInt(e.target.value) }))}
+                      onChange={e =>
+                        setConfig(prev => ({
+                          ...prev,
+                          max_iterations: parseInt(e.target.value, 10),
+                        }))
+                      }
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -355,9 +399,9 @@ export default function AgentConfigModal({
                     </p>
                   </div>
                 </div>
-          )}
+              )}
 
-          {activeTab === 'llm' && (
+              {activeTab === 'llm' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Brain className="h-4 w-4" />
@@ -391,9 +435,11 @@ export default function AgentConfigModal({
                   {llmConfigOption === 'existing' && (
                     <div className="space-y-2">
                       <Label htmlFor="llm-config">Select LLM Config</Label>
-                      <Select 
-                        value={config.llm_config_id || ''} 
-                        onValueChange={(value) => setConfig(prev => ({ ...prev, llm_config_id: value }))}
+                      <Select
+                        value={config.llm_config_id || ''}
+                        onValueChange={value =>
+                          setConfig(prev => ({ ...prev, llm_config_id: value }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select an LLM configuration" />
@@ -401,9 +447,13 @@ export default function AgentConfigModal({
                         <SelectContent>
                           {availableLLMConfigs.map((llmConfig, index) => {
                             // Handle both string names and full config objects
-                            const configName = typeof llmConfig === 'string' ? llmConfig : llmConfig.name;
-                            const configKey = typeof llmConfig === 'string' ? llmConfig : `${llmConfig.name}-${index}`;
-                            
+                            const configName =
+                              typeof llmConfig === 'string' ? llmConfig : llmConfig.name;
+                            const configKey =
+                              typeof llmConfig === 'string'
+                                ? llmConfig
+                                : `${llmConfig.name}-${index}`;
+
                             return (
                               <SelectItem key={configKey} value={configName}>
                                 {configName}
@@ -423,7 +473,7 @@ export default function AgentConfigModal({
                           <Input
                             id="model-override"
                             value={config.model || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                            onChange={e => setConfig(prev => ({ ...prev, model: e.target.value }))}
                             placeholder="e.g., gpt-4, claude-3-opus"
                           />
                         </div>
@@ -435,7 +485,12 @@ export default function AgentConfigModal({
                             min="1"
                             max="32768"
                             value={config.max_tokens || ''}
-                            onChange={(e) => setConfig(prev => ({ ...prev, max_tokens: parseInt(e.target.value) || 4096 }))}
+                            onChange={e =>
+                              setConfig(prev => ({
+                                ...prev,
+                                max_tokens: parseInt(e.target.value, 10) || 4096,
+                              }))
+                            }
                             placeholder="2048"
                           />
                         </div>
@@ -450,7 +505,12 @@ export default function AgentConfigModal({
                           max="2"
                           step="0.1"
                           value={config.temperature || 0.7}
-                          onChange={(e) => setConfig(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+                          onChange={e =>
+                            setConfig(prev => ({
+                              ...prev,
+                              temperature: parseFloat(e.target.value),
+                            }))
+                          }
                           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                         />
                         <div className="flex justify-between text-xs text-muted-foreground">
@@ -462,11 +522,9 @@ export default function AgentConfigModal({
                     </div>
                   )}
                 </div>
-          )}
+              )}
 
-
-
-          {activeTab === 'capabilities' && (
+              {activeTab === 'capabilities' && (
                 <div className="space-y-6">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -491,7 +549,7 @@ export default function AgentConfigModal({
                           </Label>
                           {config.mcp_servers && config.mcp_servers.length > 0 ? (
                             <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border rounded-lg min-h-[44px]">
-                              {config.mcp_servers.map((server) => (
+                              {config.mcp_servers.map(server => (
                                 <div
                                   key={server}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium"
@@ -503,8 +561,18 @@ export default function AgentConfigModal({
                                     className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
                                     aria-label={`Remove ${server}`}
                                   >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    <svg
+                                      className="w-3 h-3"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
                                     </svg>
                                   </button>
                                 </div>
@@ -512,19 +580,23 @@ export default function AgentConfigModal({
                             </div>
                           ) : (
                             <div className="p-3 bg-muted/20 border border-border rounded-lg min-h-[44px] flex items-center">
-                              <span className="text-sm text-muted-foreground">No servers selected</span>
+                              <span className="text-sm text-muted-foreground">
+                                No servers selected
+                              </span>
                             </div>
                           )}
                         </div>
 
                         {/* Available Servers */}
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium text-foreground">Available MCP Servers</Label>
+                          <Label className="text-sm font-medium text-foreground">
+                            Available MCP Servers
+                          </Label>
                           <div className="space-y-2">
-                            {clients.map((client) => {
+                            {clients.map(client => {
                               const isSelected = config.mcp_servers?.includes(client.name) || false;
                               const isConnected = client.status === 'connected';
-                              
+
                               return (
                                 <button
                                   key={client.name}
@@ -539,29 +611,41 @@ export default function AgentConfigModal({
                                     isSelected
                                       ? 'bg-primary/10 border-primary text-primary'
                                       : isConnected
-                                      ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
-                                      : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
+                                        ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
+                                        : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                                      isSelected
-                                        ? 'bg-primary border-primary'
-                                        : 'border-muted-foreground'
-                                    }`}>
+                                    <div
+                                      className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                        isSelected
+                                          ? 'bg-primary border-primary'
+                                          : 'border-muted-foreground'
+                                      }`}
+                                    >
                                       {isSelected && (
-                                        <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        <svg
+                                          className="w-2.5 h-2.5 text-primary-foreground"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path
+                                            fillRule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clipRule="evenodd"
+                                          />
                                         </svg>
                                       )}
                                     </div>
                                     <span className="text-sm font-medium">{client.name}</span>
                                   </div>
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    isConnected
-                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                  }`}>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded-full ${
+                                      isConnected
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                    }`}
+                                  >
                                     {client.status}
                                   </span>
                                 </button>
@@ -588,17 +672,17 @@ export default function AgentConfigModal({
                       <div className="flex gap-2">
                         <Input
                           placeholder="Enter component name to exclude"
-                          onKeyDown={(e) => {
+                          onKeyDown={e => {
                             if (e.key === 'Enter') {
                               handleExcludeComponentAdd(e.currentTarget.value);
                               e.currentTarget.value = '';
                             }
                           }}
                         />
-                        <Button 
-                          type="button" 
+                        <Button
+                          type="button"
                           variant="outline"
-                          onClick={(e) => {
+                          onClick={e => {
                             const input = e.currentTarget.parentElement?.querySelector('input');
                             if (input) {
                               handleExcludeComponentAdd(input.value);
@@ -614,10 +698,10 @@ export default function AgentConfigModal({
                         <div className="space-y-2">
                           <Label>Excluded Components:</Label>
                           <div className="flex flex-wrap gap-1">
-                            {config.exclude_components.map((component) => (
-                              <Badge 
-                                key={component} 
-                                variant="destructive" 
+                            {config.exclude_components.map(component => (
+                              <Badge
+                                key={component}
+                                variant="destructive"
                                 className="text-xs cursor-pointer"
                                 onClick={() => handleExcludeComponentRemove(component)}
                               >
@@ -637,15 +721,11 @@ export default function AgentConfigModal({
 
         {/* Footer */}
         <div className="p-6 border-t border-border flex justify-between">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            disabled={configLoading}
-          >
+          <Button variant="outline" onClick={onClose} disabled={configLoading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             className="min-w-[100px]"
             disabled={configLoading || !config.name}
           >

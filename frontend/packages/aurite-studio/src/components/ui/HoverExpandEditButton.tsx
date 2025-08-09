@@ -8,19 +8,15 @@ interface HoverExpandEditButtonProps {
   className?: string;
 }
 
-export default function HoverExpandEditButton({ 
-  workflow, 
-  onEdit, 
-  className = '' 
+export default function HoverExpandEditButton({
+  workflow,
+  onEdit,
+  className = '',
 }: HoverExpandEditButtonProps) {
   return (
     <div className={`relative group ${className}`}>
       {/* Default State - Single Edit Button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="transition-all duration-200 ease-out"
-      >
+      <Button variant="outline" size="sm" className="transition-all duration-200 ease-out">
         <Edit className="h-4 w-4 mr-2" />
         Edit
       </Button>
@@ -30,7 +26,7 @@ export default function HoverExpandEditButton({
         <div className="bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[140px] whitespace-nowrap">
           {/* Text Edit Option */}
           <button
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onEdit(workflow, 'text');
             }}
@@ -42,7 +38,7 @@ export default function HoverExpandEditButton({
 
           {/* Visual Edit Option */}
           <button
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation();
               onEdit(workflow, 'visual');
             }}

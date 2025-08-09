@@ -13,7 +13,7 @@ interface DebugSectionProps {
 export const DebugSection: React.FC<DebugSectionProps> = ({
   toolCalls,
   streamEvents,
-  isVisible
+  isVisible,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<'tools' | 'events'>('tools');
@@ -22,15 +22,15 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
     return null;
   }
 
-  const toolCallEvents = streamEvents.filter(event => 
-    event.type === 'tool_call' || event.type === 'tool_output'
+  const toolCallEvents = streamEvents.filter(
+    event => event.type === 'tool_call' || event.type === 'tool_output'
   );
 
   const handleCopyDebugData = () => {
     const debugData = {
       toolCalls,
       toolCallEvents,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
   };
@@ -48,7 +48,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
             {toolCalls.length} tool calls • {toolCallEvents.length} events
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -59,7 +59,7 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
             <Copy className="h-3 w-3 mr-1" />
             Copy Debug Data
           </Button>
-          
+
           <Button
             size="sm"
             variant="ghost"
@@ -106,12 +106,8 @@ export const DebugSection: React.FC<DebugSectionProps> = ({
           {activeTab === 'tools' && (
             <div className="space-y-2">
               {toolCalls.length > 0 ? (
-                toolCalls.map((toolCall) => (
-                  <ToolCallIndicator
-                    key={toolCall.id}
-                    toolCall={toolCall}
-                    showDetails={true}
-                  />
+                toolCalls.map(toolCall => (
+                  <ToolCallIndicator key={toolCall.id} toolCall={toolCall} showDetails={true} />
                 ))
               ) : (
                 <div className="text-xs text-orange-600 dark:text-orange-400 italic p-2 bg-orange-100 dark:bg-orange-900/40 rounded">
