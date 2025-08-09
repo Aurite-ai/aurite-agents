@@ -51,6 +51,10 @@ class GraphWorkflowExecutor:
         logger.debug(f"GraphWorkflowExecutor initialized for workflow: {self.config.name}")
 
     def _build_and_verify_graph(self):
+        node_list = [node.node_id for node in self.config.nodes]
+        if len(node_list) != len(set(node_list)):
+            raise ValueError("Graph workflow nodes contains duplicate node_ids")
+
         node_config_map = {node.node_id: node for node in self.config.nodes}
         for edge in self.config.edges:
             if edge.from_node not in node_config_map:
