@@ -42,7 +42,7 @@
             {
                 "type": "agent",
                 "name": "Yellow Agent",
-                "node_id": "y1----------"
+                "node_id": "y1"
             },
             {
                 "type": "agent",
@@ -58,7 +58,7 @@
         "edges": [
             {
                 "from": "r1",
-                "to": "y1----------"
+                "to": "y1"
             },
             {
                 "from": "r1",
@@ -69,7 +69,7 @@
                 "to": "r2"
             },
             {
-                "from": "y1----------",
+                "from": "y1",
                 "to": "r2"
             }
         ]
