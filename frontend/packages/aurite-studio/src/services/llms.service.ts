@@ -1,13 +1,6 @@
 import apiClient from './apiClient';
-import { 
-  LLMConfig as LocalLLMConfig,
-  SuccessResponse
-} from '../types';
-import {
-  ApiError,
-  TimeoutError,
-  CancellationError,
-} from '@aurite/api-client';
+import { LLMConfig as LocalLLMConfig, SuccessResponse } from '../types';
+import { ApiError, TimeoutError, CancellationError } from '@aurite/api-client';
 
 class LLMsService {
   // List all registered LLM configurations
@@ -59,7 +52,7 @@ class LLMsService {
       // The API client will wrap this in { name, config } structure
       const requestBody = {
         name: config.name, // Use name as the identifier
-        ...apiConfig       // Let API client wrap this in 'config' key
+        ...apiConfig, // Let API client wrap this in 'config' key
       };
       const result = await apiClient.config.createConfig('llm', requestBody);
       return this.mapToLocalLLMConfig(result);
@@ -97,7 +90,7 @@ class LLMsService {
       await apiClient.config.reloadConfigs();
       return {
         status: 'success',
-        message: `LLM ${config.name} registered successfully`
+        message: `LLM ${config.name} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register LLM ${config.name}`);
@@ -117,17 +110,17 @@ class LLMsService {
     registration: SuccessResponse;
   }> {
     const filename = this.generateConfigFilename(config.name);
-    
+
     try {
       // First create the config file
       await this.createLLMConfig(filename, config);
-      
+
       // Then register the LLM
       const registration = await this.registerLLM(config);
-      
+
       return {
         configFile: filename,
-        registration
+        registration,
       };
     } catch (error) {
       this.handleError(error, `Failed to create and register LLM ${config.name}`);
@@ -144,7 +137,7 @@ class LLMsService {
         model: 'gpt-4',
         description: 'OpenAI GPT-4 model for general use',
         temperature: 0.7,
-        max_tokens: 2048
+        max_tokens: 2048,
       },
       {
         type: 'llm',
@@ -152,7 +145,7 @@ class LLMsService {
         model: 'gpt-3.5-turbo',
         description: 'OpenAI GPT-3.5 Turbo model for faster responses',
         temperature: 0.7,
-        max_tokens: 2048
+        max_tokens: 2048,
       },
       {
         type: 'llm',
@@ -160,7 +153,7 @@ class LLMsService {
         model: 'claude-3-opus-20240229',
         description: 'Anthropic Claude 3 Opus model for complex tasks',
         temperature: 0.7,
-        max_tokens: 4096
+        max_tokens: 4096,
       },
       {
         type: 'llm',
@@ -168,7 +161,7 @@ class LLMsService {
         model: 'claude-3-sonnet-20240229',
         description: 'Anthropic Claude 3 Sonnet model for balanced performance',
         temperature: 0.7,
-        max_tokens: 4096
+        max_tokens: 4096,
       },
       {
         type: 'llm',
@@ -176,8 +169,8 @@ class LLMsService {
         model: 'gemini-pro',
         description: 'Google Gemini Pro model for multimodal tasks',
         temperature: 0.7,
-        max_tokens: 2048
-      }
+        max_tokens: 2048,
+      },
     ];
   }
 

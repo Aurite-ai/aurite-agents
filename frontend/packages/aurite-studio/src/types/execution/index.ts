@@ -34,7 +34,14 @@ export interface ExecutionRequest {
 
 // Execution State
 export interface ExecutionState {
-  status: 'idle' | 'starting' | 'executing' | 'completed' | 'failed' | 'cancelled' | 'max_iterations_reached';
+  status:
+    | 'idle'
+    | 'starting'
+    | 'executing'
+    | 'completed'
+    | 'failed'
+    | 'cancelled'
+    | 'max_iterations_reached';
   progress: number;
   currentStep?: string;
   startTime?: Date;
@@ -101,8 +108,14 @@ export interface ToolCall {
 
 // Stream Event
 export interface StreamEvent {
-  type: 'llm_response_start' | 'llm_response' | 'llm_response_stop' |
-        'tool_call' | 'tool_output' | 'error' | 'complete';
+  type:
+    | 'llm_response_start'
+    | 'llm_response'
+    | 'llm_response_stop'
+    | 'tool_call'
+    | 'tool_output'
+    | 'error'
+    | 'complete';
   data: any;
   timestamp: Date;
   execution_id: string;

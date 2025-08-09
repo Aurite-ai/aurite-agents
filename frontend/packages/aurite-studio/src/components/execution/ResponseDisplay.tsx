@@ -7,7 +7,7 @@ export const ResponseDisplay: React.FC<ResponseDisplayProps> = ({
   content,
   isStreaming = false,
   onCopy,
-  onExport
+  onExport,
 }) => {
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -19,7 +19,7 @@ export const ResponseDisplay: React.FC<ResponseDisplayProps> = ({
   const renderContent = (text: string) => {
     // Split by lines and process basic markdown
     const lines = text.split('\n');
-    
+
     return lines.map((line, index) => {
       // Headers
       if (line.startsWith('# ')) {
@@ -59,7 +59,7 @@ export const ResponseDisplay: React.FC<ResponseDisplayProps> = ({
         const parts = line.split(codeRegex);
         return (
           <p key={index} className="mb-2">
-            {parts.map((part, partIndex) => 
+            {parts.map((part, partIndex) =>
               partIndex % 2 === 1 ? (
                 <code key={partIndex} className="bg-muted px-1 py-0.5 rounded text-sm font-mono">
                   {part}
@@ -78,12 +78,8 @@ export const ResponseDisplay: React.FC<ResponseDisplayProps> = ({
         const parts = line.split(boldRegex);
         return (
           <p key={index} className="mb-2">
-            {parts.map((part, partIndex) => 
-              partIndex % 2 === 1 ? (
-                <strong key={partIndex}>{part}</strong>
-              ) : (
-                part
-              )
+            {parts.map((part, partIndex) =>
+              partIndex % 2 === 1 ? <strong key={partIndex}>{part}</strong> : part
             )}
           </p>
         );
@@ -118,25 +114,18 @@ export const ResponseDisplay: React.FC<ResponseDisplayProps> = ({
       <div className="prose prose-sm max-w-none dark:prose-invert">
         <div className="text-sm leading-relaxed break-words overflow-wrap-anywhere">
           {renderContent(content)}
-          {isStreaming && (
-            <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />
-          )}
+          {isStreaming && <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1" />}
         </div>
       </div>
 
       {/* Actions */}
       {content && !isStreaming && (
         <div className="flex items-center gap-2 pt-2 border-t">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCopy}
-            className="h-7 px-2 text-xs"
-          >
+          <Button size="sm" variant="outline" onClick={handleCopy} className="h-7 px-2 text-xs">
             <Copy className="h-3 w-3 mr-1" />
             Copy
           </Button>
-          
+
           {onExport && (
             <Button
               size="sm"

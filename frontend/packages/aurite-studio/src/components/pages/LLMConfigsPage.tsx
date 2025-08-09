@@ -7,7 +7,7 @@ import { useLLMsWithConfigs } from '@/hooks/useLLMs';
 
 export default function LLMConfigsPage() {
   const navigate = useNavigate();
-  
+
   // API Hooks
   const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
 
@@ -18,7 +18,7 @@ export default function LLMConfigsPage() {
 
   const handleEditLLMConfig = (llm: any) => {
     const llmId = typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'unknown_llm';
-    
+
     // Navigate to edit form
     navigate(`/llm-configs/${encodeURIComponent(llmId)}/edit`);
   };
@@ -34,7 +34,9 @@ export default function LLMConfigsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">LLM Configs</h1>
-          <p className="text-muted-foreground mt-1">Manage and configure your language model settings</p>
+          <p className="text-muted-foreground mt-1">
+            Manage and configure your language model settings
+          </p>
         </div>
         <Button className="gap-2" onClick={handleNewLLMConfig}>
           <Plus className="h-4 w-4" />
@@ -77,7 +79,8 @@ export default function LLMConfigsPage() {
       {!llmsLoading && llms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {llms.map((llm, index) => {
-            const llmId = typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'unknown_llm';
+            const llmId =
+              typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'unknown_llm';
             return (
               <motion.div
                 key={llmId}
@@ -89,7 +92,9 @@ export default function LLMConfigsPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-foreground">{llmId}</h3>
-                    <div className={`w-2 h-2 rounded-full ${llm.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${llm.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}`}
+                    />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {llm.configFile ? 'Configured' : 'Configuration pending'}
@@ -98,12 +103,12 @@ export default function LLMConfigsPage() {
                     <span className="capitalize">Status: {llm.status}</span>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-1.5" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
                     onClick={() => handleEditLLMConfig(llm)}
                   >
                     <Edit className="h-3.5 w-3.5" />

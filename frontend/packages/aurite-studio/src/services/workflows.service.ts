@@ -7,14 +7,9 @@ import {
   ExecuteCustomWorkflowRequest,
   ExecuteWorkflowResponse,
   ExecuteCustomWorkflowResponse,
-  SuccessResponse
+  SuccessResponse,
 } from '../types';
-import {
-  ApiError,
-  TimeoutError,
-  CancellationError,
-  WorkflowRunRequest,
-} from '@aurite/api-client';
+import { ApiError, TimeoutError, CancellationError, WorkflowRunRequest } from '@aurite/api-client';
 
 class WorkflowsService {
   // List all registered linear workflows
@@ -137,7 +132,10 @@ class WorkflowsService {
   }
 
   // Update custom workflow configuration
-  async updateCustomWorkflowConfig(filename: string, config: CustomWorkflowConfig): Promise<CustomWorkflowConfig> {
+  async updateCustomWorkflowConfig(
+    filename: string,
+    config: CustomWorkflowConfig
+  ): Promise<CustomWorkflowConfig> {
     try {
       const apiConfig = this.mapToApiCustomWorkflowConfig(config);
       const result = await apiClient.config.updateConfig('custom_workflow', filename, apiConfig);
@@ -174,7 +172,7 @@ class WorkflowsService {
       await apiClient.config.reloadConfigs();
       return {
         status: 'success',
-        message: `Workflow ${config.name} registered successfully`
+        message: `Workflow ${config.name} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register workflow ${config.name}`);
@@ -188,7 +186,7 @@ class WorkflowsService {
       await apiClient.config.reloadConfigs();
       return {
         status: 'success',
-        message: `Custom workflow ${config.name} registered successfully`
+        message: `Custom workflow ${config.name} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register custom workflow ${config.name}`);
@@ -257,7 +255,7 @@ class WorkflowsService {
 
       return {
         configFile: filename,
-        registration
+        registration,
       };
     } catch (error) {
       this.handleError(error, `Failed to create and register workflow ${config.name}`);
@@ -282,7 +280,7 @@ class WorkflowsService {
   private mapToLocalWorkflowConfig(apiConfig: any): WorkflowConfig {
     return {
       name: apiConfig.name,
-      type: "linear_workflow",
+      type: 'linear_workflow',
       steps: apiConfig.steps || [],
       description: apiConfig.description,
     };
@@ -292,7 +290,7 @@ class WorkflowsService {
   private mapToApiWorkflowConfig(localConfig: WorkflowConfig): any {
     return {
       name: localConfig.name,
-      type: "linear_workflow",
+      type: 'linear_workflow',
       steps: localConfig.steps || [],
       description: localConfig.description,
     };
@@ -301,9 +299,10 @@ class WorkflowsService {
   // Helper to create WorkflowDisplayModel from WorkflowConfig
   private createDisplayModel(config: WorkflowConfig, configFile?: string): WorkflowDisplayModel {
     const stepCount = config.steps?.length || 0;
-    const stepPreview = stepCount > 0
-      ? config.steps.slice(0, 3).join(' → ') + (stepCount > 3 ? ' ...' : '')
-      : 'No steps configured';
+    const stepPreview =
+      stepCount > 0
+        ? config.steps.slice(0, 3).join(' → ') + (stepCount > 3 ? ' ...' : '')
+        : 'No steps configured';
 
     return {
       name: config.name,
@@ -330,7 +329,7 @@ class WorkflowsService {
   private mapToApiCustomWorkflowConfig(localConfig: CustomWorkflowConfig): any {
     return {
       name: localConfig.name,
-      type: "custom_workflow",
+      type: 'custom_workflow',
       class_name: localConfig.class_name,
       module_path: localConfig.module_path,
       description: localConfig.description,
@@ -338,7 +337,10 @@ class WorkflowsService {
   }
 
   // Map API client WorkflowExecutionResult to local ExecuteWorkflowResponse
-  private mapToLocalWorkflowResponse(workflowName: string, apiResult: any): ExecuteWorkflowResponse {
+  private mapToLocalWorkflowResponse(
+    workflowName: string,
+    apiResult: any
+  ): ExecuteWorkflowResponse {
     return {
       workflow_name: workflowName,
       status: apiResult.status === 'completed' ? 'completed' : 'failed',
@@ -348,7 +350,10 @@ class WorkflowsService {
   }
 
   // Map API client WorkflowExecutionResult to local ExecuteCustomWorkflowResponse
-  private mapToLocalCustomWorkflowResponse(workflowName: string, apiResult: any): ExecuteCustomWorkflowResponse {
+  private mapToLocalCustomWorkflowResponse(
+    workflowName: string,
+    apiResult: any
+  ): ExecuteCustomWorkflowResponse {
     // Handle the actual API response format from custom workflow execution
     // Backend returns: { status: "ok", response: "..." } for success
     // Backend returns: { status: "error", error: "..." } for failure

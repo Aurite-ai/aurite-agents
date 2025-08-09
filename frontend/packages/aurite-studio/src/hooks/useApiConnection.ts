@@ -18,7 +18,7 @@ export function useApiConnection(pollInterval: number = 30000) {
 
   const checkConnection = useCallback(async () => {
     setState(prev => ({ ...prev, status: 'checking', error: null }));
-    
+
     try {
       await apiClient.system.getStatus();
       setState({

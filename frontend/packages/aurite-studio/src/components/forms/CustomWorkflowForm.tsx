@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow } from '@/hooks/useWorkflows';
+import {
+  useCustomWorkflowConfigByName,
+  useUpdateCustomWorkflow,
+  useDeleteCustomWorkflow,
+} from '@/hooks/useWorkflows';
 
 interface CustomWorkflowFormProps {
   editMode?: boolean;
@@ -15,23 +19,21 @@ interface CustomWorkflowFormProps {
 export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowFormProps) {
   const navigate = useNavigate();
   const { name: workflowNameParam } = useParams<{ name: string }>();
-  
+
   // Custom workflow form state
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [customWorkflowModulePath, setCustomWorkflowModulePath] = useState('');
   const [customWorkflowClassName, setCustomWorkflowClassName] = useState('');
-  
+
   // Form control state
   const [customWorkflowFormPopulated, setCustomWorkflowFormPopulated] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // API Hooks
-  const { data: customWorkflowConfig, isLoading: customWorkflowConfigLoading } = useCustomWorkflowConfigByName(
-    workflowNameParam || '',
-    !!workflowNameParam && editMode
-  );
-  
+  const { data: customWorkflowConfig, isLoading: customWorkflowConfigLoading } =
+    useCustomWorkflowConfigByName(workflowNameParam || '', !!workflowNameParam && editMode);
+
   const updateCustomWorkflow = useUpdateCustomWorkflow();
   const deleteCustomWorkflow = useDeleteCustomWorkflow();
 
@@ -39,20 +41,31 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
   useEffect(() => {
     if (editMode && customWorkflowConfig && workflowNameParam && !customWorkflowFormPopulated) {
       console.log('🔄 Populating custom workflow form with config:', customWorkflowConfig);
-      
+
       // Populate custom workflow form fields
       setWorkflowName(customWorkflowConfig.name || '');
       setWorkflowDescription(customWorkflowConfig.description || '');
       setCustomWorkflowModulePath(customWorkflowConfig.module_path || '');
       setCustomWorkflowClassName(customWorkflowConfig.class_name || '');
-      
+
       // Mark form as populated to prevent re-population
       setCustomWorkflowFormPopulated(true);
       console.log('✅ Custom workflow form populated successfully');
-    } else if (editMode && workflowNameParam && !customWorkflowConfig && !customWorkflowConfigLoading) {
+    } else if (
+      editMode &&
+      workflowNameParam &&
+      !customWorkflowConfig &&
+      !customWorkflowConfigLoading
+    ) {
       console.log('❌ Failed to load custom workflow config for:', workflowNameParam);
     }
-  }, [customWorkflowConfig, workflowNameParam, editMode, customWorkflowConfigLoading, customWorkflowFormPopulated]);
+  }, [
+    customWorkflowConfig,
+    workflowNameParam,
+    editMode,
+    customWorkflowConfigLoading,
+    customWorkflowFormPopulated,
+  ]);
 
   // Initialize form for create mode
   useEffect(() => {
@@ -62,7 +75,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
       setWorkflowDescription('');
       setCustomWorkflowModulePath('');
       setCustomWorkflowClassName('');
-      
+
       // Mark form as populated to prevent re-initialization
       setCustomWorkflowFormPopulated(true);
     }
@@ -72,28 +85,31 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
     // Build the custom workflow config object from form state
     const customWorkflowConfig = {
       name: workflowName,
-      type: "custom_workflow" as const,
+      type: 'custom_workflow' as const,
       module_path: customWorkflowModulePath,
       class_name: customWorkflowClassName,
-      description: workflowDescription || undefined
+      description: workflowDescription || undefined,
     };
 
     console.log('💾 Saving custom workflow config:', customWorkflowConfig);
 
     if (editMode && workflowNameParam) {
       // Edit mode - update existing custom workflow using PUT method
-      updateCustomWorkflow.mutate({
-        filename: workflowNameParam,
-        config: customWorkflowConfig
-      }, {
-        onSuccess: () => {
-          console.log('✅ Custom workflow updated successfully');
-          navigate('/workflows');
+      updateCustomWorkflow.mutate(
+        {
+          filename: workflowNameParam,
+          config: customWorkflowConfig,
         },
-        onError: (error) => {
-          console.error('❌ Failed to update custom workflow:', error);
+        {
+          onSuccess: () => {
+            console.log('✅ Custom workflow updated successfully');
+            navigate('/workflows');
+          },
+          onError: error => {
+            console.error('❌ Failed to update custom workflow:', error);
+          },
         }
-      });
+      );
     } else {
       // Create mode - would need a create hook, but for now just navigate back
       // Note: The original code didn't have a create path for custom workflows
@@ -112,7 +128,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
         onSuccess: () => {
           setShowDeleteConfirmation(false);
           navigate('/workflows');
-        }
+        },
       });
     }
   };
@@ -139,9 +155,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-3xl font-bold text-primary">
-                Edit Custom Workflow
-              </h1>
+              <h1 className="text-3xl font-bold text-primary">Edit Custom Workflow</h1>
             </div>
 
             {/* Loading State for Custom Workflow Config */}
@@ -160,27 +174,37 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <h2 className="text-lg font-semibold text-primary">Basic Details</h2>
-              
+
               {/* Workflow Name */}
               <div className="space-y-2">
-                <Label htmlFor="custom-workflow-name" className="text-sm font-medium text-foreground">Workflow Name</Label>
+                <Label
+                  htmlFor="custom-workflow-name"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Workflow Name
+                </Label>
                 <Input
                   id="custom-workflow-name"
                   placeholder="e.g., Data Processing Workflow"
                   value={workflowName}
-                  onChange={(e) => setWorkflowName(e.target.value)}
+                  onChange={e => setWorkflowName(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="custom-workflow-description" className="text-sm font-medium text-foreground">Description (Optional)</Label>
+                <Label
+                  htmlFor="custom-workflow-description"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Description (Optional)
+                </Label>
                 <Textarea
                   id="custom-workflow-description"
                   placeholder="Brief description of what this workflow does"
                   value={workflowDescription}
-                  onChange={(e) => setWorkflowDescription(e.target.value)}
+                  onChange={e => setWorkflowDescription(e.target.value)}
                   className="min-h-[80px] resize-none"
                 />
               </div>
@@ -194,16 +218,18 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <h2 className="text-lg font-semibold text-primary">Python Implementation</h2>
-              
+
               <div className="space-y-4">
                 {/* Module Path */}
                 <div className="space-y-2">
-                  <Label htmlFor="module-path" className="text-sm font-medium text-foreground">Module Path *</Label>
+                  <Label htmlFor="module-path" className="text-sm font-medium text-foreground">
+                    Module Path *
+                  </Label>
                   <Input
                     id="module-path"
                     placeholder="e.g., custom_workflows.data_processing"
                     value={customWorkflowModulePath}
-                    onChange={(e) => setCustomWorkflowModulePath(e.target.value)}
+                    onChange={e => setCustomWorkflowModulePath(e.target.value)}
                     className="text-base"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -213,12 +239,14 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
 
                 {/* Class Name */}
                 <div className="space-y-2">
-                  <Label htmlFor="class-name" className="text-sm font-medium text-foreground">Class Name *</Label>
+                  <Label htmlFor="class-name" className="text-sm font-medium text-foreground">
+                    Class Name *
+                  </Label>
                   <Input
                     id="class-name"
                     placeholder="e.g., DataProcessingWorkflow"
                     value={customWorkflowClassName}
-                    onChange={(e) => setCustomWorkflowClassName(e.target.value)}
+                    onChange={e => setCustomWorkflowClassName(e.target.value)}
                     className="text-base"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -247,7 +275,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
             >
               {/* Delete Button - Only show in edit mode */}
               {editMode && (
-                <Button 
+                <Button
                   variant="destructive"
                   className="px-6"
                   onClick={handleDelete}
@@ -263,14 +291,19 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
                   )}
                 </Button>
               )}
-              
+
               {/* Spacer for alignment when no delete button */}
               {!editMode && <div />}
-              
-              <Button 
+
+              <Button
                 className="px-8"
                 onClick={handleSubmit}
-                disabled={updateCustomWorkflow.isPending || !workflowName.trim() || !customWorkflowModulePath.trim() || !customWorkflowClassName.trim()}
+                disabled={
+                  updateCustomWorkflow.isPending ||
+                  !workflowName.trim() ||
+                  !customWorkflowModulePath.trim() ||
+                  !customWorkflowClassName.trim()
+                }
               >
                 {updateCustomWorkflow.isPending ? (
                   <>
@@ -301,13 +334,12 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-foreground">
-                Delete Custom Workflow
-              </h3>
+              <h3 className="text-lg font-semibold text-foreground">Delete Custom Workflow</h3>
               <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete the custom workflow "{workflowName}"? This action cannot be undone.
+                Are you sure you want to delete the custom workflow "{workflowName}"? This action
+                cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <Button

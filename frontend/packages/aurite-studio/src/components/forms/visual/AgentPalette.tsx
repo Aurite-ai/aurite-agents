@@ -24,17 +24,16 @@ const extractAgentName = (agent: any): string => {
     return String((agent.name as any).name);
   } else if (agent.name) {
     return String(agent.name);
-  } else {
-    return 'Unknown Agent';
   }
+  return 'Unknown Agent';
 };
 
-const AgentCard: React.FC<{ agent: Agent; onDragStart: (agentName: string) => void }> = ({ 
-  agent, 
-  onDragStart 
+const AgentCard: React.FC<{ agent: Agent; onDragStart: (agentName: string) => void }> = ({
+  agent,
+  onDragStart,
 }) => {
   const agentName = extractAgentName(agent);
-  
+
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/json', JSON.stringify({ agentName }));
     e.dataTransfer.effectAllowed = 'copy';
@@ -55,20 +54,20 @@ const AgentCard: React.FC<{ agent: Agent; onDragStart: (agentName: string) => vo
         <Bot className="h-4 w-4 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">
-          {agentName}
-        </div>
+        <div className="text-sm font-medium text-foreground truncate">{agentName}</div>
         {agent.description && (
-          <div className="text-xs text-muted-foreground truncate">
-            {agent.description}
-          </div>
+          <div className="text-xs text-muted-foreground truncate">{agent.description}</div>
         )}
       </div>
     </div>
   );
 };
 
-export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPaletteProps): React.ReactElement {
+export default function AgentPalette({
+  agents,
+  isLoading,
+  onAgentDrop,
+}: AgentPaletteProps): React.ReactElement {
   const [searchTerm, setSearchTerm] = useState('');
   const [, setDraggedAgent] = useState<string | null>(null);
 
@@ -85,10 +84,6 @@ export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPa
   const handleDragStart = (agentName: string) => {
     setDraggedAgent(agentName);
   };
-
-
-
-
 
   return (
     <div className="w-80 bg-card border-r border-border flex flex-col">
@@ -114,7 +109,7 @@ export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPa
               id="agent-search"
               placeholder="Search for agents..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -150,10 +145,7 @@ export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPa
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <AgentCard
-                    agent={agent}
-                    onDragStart={handleDragStart}
-                  />
+                  <AgentCard agent={agent} onDragStart={handleDragStart} />
                 </motion.div>
               );
             })}
@@ -165,10 +157,12 @@ export default function AgentPalette({ agents, isLoading, onAgentDrop }: AgentPa
       <div className="p-6 border-t border-border">
         <div className="bg-muted/20 rounded-md p-3">
           <p className="text-xs text-muted-foreground">
-            💡 <strong>Tips:</strong><br/>
-            • Drag agents onto the canvas to add them<br/>
-            • Connect: drag from bottom to top blue dots<br/>
-            • Delete: hover over agent/connection and click ❌
+            💡 <strong>Tips:</strong>
+            <br />
+            • Drag agents onto the canvas to add them
+            <br />
+            • Connect: drag from bottom to top blue dots
+            <br />• Delete: hover over agent/connection and click ❌
           </p>
         </div>
       </div>

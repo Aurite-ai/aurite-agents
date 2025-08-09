@@ -6,19 +6,20 @@ export const ExecutionProgress: React.FC<ExecutionProgressProps> = ({
   progress,
   currentStep,
   startTime,
-  estimatedDuration
+  estimatedDuration,
 }) => {
   const formatElapsedTime = (startTime?: Date): string => {
-    if (!startTime) return '0s';
-    
+    if (!startTime) {
+      return '0s';
+    }
+
     const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
     if (elapsed < 60) {
       return `${elapsed}s`;
-    } else {
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      return `${minutes}m ${seconds}s`;
     }
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    return `${minutes}m ${seconds}s`;
   };
 
   return (
@@ -30,7 +31,7 @@ export const ExecutionProgress: React.FC<ExecutionProgressProps> = ({
           <span className="font-medium">{Math.round(progress)}%</span>
         </div>
         <div className="w-full bg-muted rounded-full h-2">
-          <div 
+          <div
             className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
             style={{ width: `${Math.min(progress, 100)}%` }}
           />
@@ -43,9 +44,7 @@ export const ExecutionProgress: React.FC<ExecutionProgressProps> = ({
           <Clock className="h-3 w-3" />
           <span>{formatElapsedTime(startTime)} elapsed</span>
         </div>
-        {currentStep && (
-          <span className="text-right">{currentStep}</span>
-        )}
+        {currentStep && <span className="text-right">{currentStep}</span>}
       </div>
     </div>
   );

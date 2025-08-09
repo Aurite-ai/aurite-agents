@@ -13,7 +13,7 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
   selectedSessionId,
   onSessionSelect,
   onSessionCreate,
-  disabled = false
+  disabled = false,
 }) => {
   // Mock sessions for now - this will be replaced with actual session data
   const mockSessions: AgentSessionInfo[] = [
@@ -24,23 +24,22 @@ export const SessionSelector: React.FC<SessionSelectorProps> = ({
       message_count: 5,
       last_activity: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      status: 'active'
+      status: 'active',
     },
     {
-      id: 'session-2', 
+      id: 'session-2',
       name: 'Weather discussion',
       agent_name: agentName,
       message_count: 12,
       last_activity: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
-      status: 'active'
-    }
+      status: 'active',
+    },
   ];
 
   // Format metadata for agent sessions
-  const formatAgentSessionMetadata = (session: AgentSessionInfo): string => {
-    return `${session.message_count} messages`;
-  };
+  const formatAgentSessionMetadata = (session: AgentSessionInfo): string =>
+    `${session.message_count} messages`;
 
   return (
     <GenericSessionSelector

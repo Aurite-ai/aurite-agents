@@ -23,7 +23,7 @@ const quickActions = [
   'Build a data analysis agent',
   'Create a customer service bot',
   'Make a content generation assistant',
-  'Build a code review agent'
+  'Build a code review agent',
 ];
 
 export default function HomePage() {
@@ -55,7 +55,7 @@ export default function HomePage() {
       llm_config_id: selectedModel || undefined,
       mcp_servers: selectedLandingMCPServers,
       max_iterations: 10,
-      type: 'agent' as const
+      type: 'agent' as const,
     };
 
     console.log('🚀 Creating agent from landing page:', agentConfig);
@@ -63,20 +63,20 @@ export default function HomePage() {
     createAgent.mutate(agentConfig, {
       onSuccess: (data: { configFile: string; registration: SuccessResponse }) => {
         console.log('✅ Agent created successfully:', data);
-        
+
         // Reset form fields
         setDescription('');
         setAgentName('');
         setSelectedModel('');
         setSelectedLandingMCPServers([]);
         setShowAdvancedOptions(false);
-        
+
         // Navigate to agents page using React Router
         navigate('/agents');
       },
-      onError: (error) => {
+      onError: error => {
         console.error('❌ Failed to create agent:', error);
-      }
+      },
     });
   };
 
@@ -103,12 +103,12 @@ export default function HomePage() {
             >
               {/* Sparkle Animation Background */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-              
+
               {/* Content */}
               <div className="relative flex items-center justify-center gap-2 text-sm font-medium">
                 <motion.span
                   animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                   className="text-base"
                 >
                   🎉
@@ -118,13 +118,13 @@ export default function HomePage() {
                 </span>
                 <motion.span
                   animate={{ x: [0, 2, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="text-purple-400 text-sm"
                 >
                   {/* → */}
                 </motion.span>
               </div>
-              
+
               {/* Glow Effect */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </motion.div>
@@ -132,7 +132,7 @@ export default function HomePage() {
 
           {/* Main Heading */}
           <div className="space-y-3">
-            <motion.h1 
+            <motion.h1
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -140,7 +140,7 @@ export default function HomePage() {
             >
               What's Your Dream AI Agent?
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
@@ -160,7 +160,7 @@ export default function HomePage() {
             <Textarea
               placeholder="Describe your AI agent... (e.g., 'I need an agent that can analyze customer feedback and generate insights')"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               className="min-h-[100px] md:min-h-[136px] text-base p-4 border border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:border-primary transition-all duration-200 rounded-lg resize-none gradient-card gradient-glow"
             />
             <div className="absolute bottom-3 left-3 flex items-center gap-2 text-muted-foreground">
@@ -213,12 +213,17 @@ export default function HomePage() {
                     transition={{ delay: 0.2 }}
                     className="space-y-1.5"
                   >
-                    <Label htmlFor="agent-name" className="text-xs font-medium text-muted-foreground">Agent Name</Label>
+                    <Label
+                      htmlFor="agent-name"
+                      className="text-xs font-medium text-muted-foreground"
+                    >
+                      Agent Name
+                    </Label>
                     <Input
                       id="agent-name"
                       placeholder="My AI Agent"
                       value={agentName}
-                      onChange={(e) => setAgentName(e.target.value)}
+                      onChange={e => setAgentName(e.target.value)}
                       className="h-9 text-sm transition-all duration-200"
                     />
                   </motion.div>
@@ -248,14 +253,15 @@ export default function HomePage() {
                             No LLM configurations available
                           </SelectItem>
                         ) : (
-                          llms.map((config) => {
+                          llms.map(config => {
                             // Safely extract LLM config ID
-                            const configId = typeof config.id === 'string' 
-                              ? config.id 
-                              : (config.id && typeof config.id === 'object' && 'name' in config.id)
-                                ? String((config.id as any).name)
-                                : String(config.id || 'unknown_config');
-                            
+                            const configId =
+                              typeof config.id === 'string'
+                                ? config.id
+                                : config.id && typeof config.id === 'object' && 'name' in config.id
+                                  ? String((config.id as any).name)
+                                  : String(config.id || 'unknown_config');
+
                             return (
                               <SelectItem key={configId} value={configId}>
                                 {configId}
@@ -277,11 +283,13 @@ export default function HomePage() {
                     <Label className="text-xs font-medium text-muted-foreground">MCP Clients</Label>
                     <Select>
                       <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder={
-                          selectedLandingMCPServers.length > 0 
-                            ? `${selectedLandingMCPServers.length} servers selected`
-                            : "Select servers..."
-                        } />
+                        <SelectValue
+                          placeholder={
+                            selectedLandingMCPServers.length > 0
+                              ? `${selectedLandingMCPServers.length} servers selected`
+                              : 'Select servers...'
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {clientsLoading ? (
@@ -295,25 +303,32 @@ export default function HomePage() {
                           </div>
                         ) : (
                           <div className="p-2 space-y-2">
-                            {clients.map((client) => (
+                            {clients.map(client => (
                               <div key={client.name} className="flex items-center gap-2">
-                                <Checkbox 
+                                <Checkbox
                                   checked={selectedLandingMCPServers.includes(client.name)}
                                   disabled={client.status !== 'connected'}
                                   onCheckedChange={(checked: boolean) => {
                                     if (checked) {
-                                      setSelectedLandingMCPServers([...selectedLandingMCPServers, client.name]);
+                                      setSelectedLandingMCPServers([
+                                        ...selectedLandingMCPServers,
+                                        client.name,
+                                      ]);
                                     } else {
-                                      setSelectedLandingMCPServers(selectedLandingMCPServers.filter(s => s !== client.name));
+                                      setSelectedLandingMCPServers(
+                                        selectedLandingMCPServers.filter(s => s !== client.name)
+                                      );
                                     }
                                   }}
                                 />
                                 <span className="text-sm">{client.name}</span>
-                                <span className={`text-xs px-1 py-0.5 rounded ${
-                                  client.status === 'connected' 
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                }`}>
+                                <span
+                                  className={`text-xs px-1 py-0.5 rounded ${
+                                    client.status === 'connected'
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  }`}
+                                >
                                   {client.status}
                                 </span>
                               </div>
@@ -332,7 +347,7 @@ export default function HomePage() {
                   transition={{ delay: 0.5 }}
                   className="pt-2"
                 >
-                  <Button 
+                  <Button
                     className="px-6 py-2 text-sm font-medium transition-all duration-200 hover:scale-105"
                     disabled={!description.trim() || createAgent.isPending}
                     onClick={handleCreateAgent}

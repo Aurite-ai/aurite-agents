@@ -15,7 +15,7 @@ interface LLMConfigFormProps {
 export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) {
   const navigate = useNavigate();
   const { name: llmNameParam } = useParams<{ name: string }>();
-  
+
   // Form state
   const [llmId, setLlmId] = useState('');
   const [llmProvider, setLlmProvider] = useState('');
@@ -32,7 +32,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
     llmNameParam || '',
     !!llmNameParam && editMode
   );
-  
+
   const updateLLM = useUpdateLLM();
   const createLLM = useCreateLLM();
   const deleteLLM = useDeleteLLM();
@@ -41,7 +41,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
   useEffect(() => {
     if (editMode && llmConfig && llmNameParam && !formPopulated) {
       console.log('🔄 Populating LLM form with config:', llmConfig);
-      
+
       setLlmId(llmConfig.name || '');
       setLlmProvider(llmConfig.provider || '');
       setLlmModelName(llmConfig.model || '');
@@ -49,7 +49,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
       setLlmMaxTokens(llmConfig.max_tokens?.toString() || '');
       setLlmSystemPrompt(llmConfig.default_system_prompt || '');
       setLlmApiKeyEnvVar(llmConfig.api_key_env_var || '');
-      
+
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
       console.log('✅ LLM form populated successfully');
@@ -69,7 +69,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
       setLlmMaxTokens('');
       setLlmSystemPrompt('');
       setLlmApiKeyEnvVar('');
-      
+
       // Mark form as populated to prevent re-initialization
       setFormPopulated(true);
     }
@@ -83,29 +83,44 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
     };
 
     // Only include fields that have values
-    if (llmProvider) llmConfig.provider = llmProvider;
-    if (llmModelName) llmConfig.model = llmModelName;
-    if (llmTemperature) llmConfig.temperature = parseFloat(llmTemperature);
-    if (llmMaxTokens) llmConfig.max_tokens = parseInt(llmMaxTokens);
-    if (llmSystemPrompt) llmConfig.default_system_prompt = llmSystemPrompt;
-    if (llmApiKeyEnvVar) llmConfig.api_key_env_var = llmApiKeyEnvVar;
+    if (llmProvider) {
+      llmConfig.provider = llmProvider;
+    }
+    if (llmModelName) {
+      llmConfig.model = llmModelName;
+    }
+    if (llmTemperature) {
+      llmConfig.temperature = parseFloat(llmTemperature);
+    }
+    if (llmMaxTokens) {
+      llmConfig.max_tokens = parseInt(llmMaxTokens, 10);
+    }
+    if (llmSystemPrompt) {
+      llmConfig.default_system_prompt = llmSystemPrompt;
+    }
+    if (llmApiKeyEnvVar) {
+      llmConfig.api_key_env_var = llmApiKeyEnvVar;
+    }
 
     console.log('💾 Saving LLM config:', llmConfig);
 
     if (editMode && llmNameParam) {
       // Edit mode - update existing LLM configuration
-      updateLLM.mutate({
-        filename: llmNameParam,
-        config: llmConfig
-      }, {
-        onSuccess: () => {
-          console.log('✅ LLM config updated successfully');
-          navigate('/llm-configs');
+      updateLLM.mutate(
+        {
+          filename: llmNameParam,
+          config: llmConfig,
         },
-        onError: (error) => {
-          console.error('❌ Failed to update LLM config:', error);
+        {
+          onSuccess: () => {
+            console.log('✅ LLM config updated successfully');
+            navigate('/llm-configs');
+          },
+          onError: error => {
+            console.error('❌ Failed to update LLM config:', error);
+          },
         }
-      });
+      );
     } else {
       // Create mode - create new LLM configuration
       createLLM.mutate(llmConfig, {
@@ -113,9 +128,9 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
           console.log('✅ New LLM config created successfully');
           navigate('/llm-configs');
         },
-        onError: (error) => {
+        onError: error => {
           console.error('❌ Failed to create LLM config:', error);
-        }
+        },
       });
     }
   };
@@ -130,7 +145,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
         onSuccess: () => {
           setShowDeleteConfirmation(false);
           navigate('/llm-configs');
-        }
+        },
       });
     }
   };
@@ -179,36 +194,42 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
 
               {/* LLM Name */}
               <div className="space-y-2">
-                <Label htmlFor="llm-name" className="text-sm font-medium text-foreground">LLM Name *</Label>
+                <Label htmlFor="llm-name" className="text-sm font-medium text-foreground">
+                  LLM Name *
+                </Label>
                 <Input
                   id="llm-name"
                   placeholder="e.g., my_claude_opus_config"
                   value={llmId}
-                  onChange={(e) => setLlmId(e.target.value)}
+                  onChange={e => setLlmId(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* Provider */}
               <div className="space-y-2">
-                <Label htmlFor="provider" className="text-sm font-medium text-foreground">Provider (Optional)</Label>
+                <Label htmlFor="provider" className="text-sm font-medium text-foreground">
+                  Provider (Optional)
+                </Label>
                 <Input
                   id="provider"
                   placeholder="e.g., anthropic, openai, google"
                   value={llmProvider}
-                  onChange={(e) => setLlmProvider(e.target.value)}
+                  onChange={e => setLlmProvider(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* Model Name */}
               <div className="space-y-2">
-                <Label htmlFor="model-name" className="text-sm font-medium text-foreground">Model Name (Optional)</Label>
+                <Label htmlFor="model-name" className="text-sm font-medium text-foreground">
+                  Model Name (Optional)
+                </Label>
                 <Input
                   id="model-name"
                   placeholder="e.g., claude-3-opus-20240229, gpt-4-turbo"
                   value={llmModelName}
-                  onChange={(e) => setLlmModelName(e.target.value)}
+                  onChange={e => setLlmModelName(e.target.value)}
                   className="text-base"
                 />
               </div>
@@ -217,12 +238,14 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Temperature */}
                 <div className="space-y-2">
-                  <Label htmlFor="temperature" className="text-sm font-medium text-foreground">Temperature (Optional)</Label>
+                  <Label htmlFor="temperature" className="text-sm font-medium text-foreground">
+                    Temperature (Optional)
+                  </Label>
                   <Input
                     id="temperature"
                     placeholder="e.g., 0.7 (0.0 to 2.0)"
                     value={llmTemperature}
-                    onChange={(e) => setLlmTemperature(e.target.value)}
+                    onChange={e => setLlmTemperature(e.target.value)}
                     className="text-base"
                     type="number"
                     step="0.1"
@@ -233,12 +256,14 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
 
                 {/* Max Tokens */}
                 <div className="space-y-2">
-                  <Label htmlFor="max-tokens" className="text-sm font-medium text-foreground">Max Tokens (Optional)</Label>
+                  <Label htmlFor="max-tokens" className="text-sm font-medium text-foreground">
+                    Max Tokens (Optional)
+                  </Label>
                   <Input
                     id="max-tokens"
                     placeholder="e.g., 2048"
                     value={llmMaxTokens}
-                    onChange={(e) => setLlmMaxTokens(e.target.value)}
+                    onChange={e => setLlmMaxTokens(e.target.value)}
                     className="text-base"
                     type="number"
                   />
@@ -247,24 +272,28 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
 
               {/* API Key Environment Variable */}
               <div className="space-y-2">
-                <Label htmlFor="api-key-env-var" className="text-sm font-medium text-foreground">API Key Environment Variable (Optional)</Label>
+                <Label htmlFor="api-key-env-var" className="text-sm font-medium text-foreground">
+                  API Key Environment Variable (Optional)
+                </Label>
                 <Input
                   id="api-key-env-var"
                   placeholder="e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY"
                   value={llmApiKeyEnvVar}
-                  onChange={(e) => setLlmApiKeyEnvVar(e.target.value)}
+                  onChange={e => setLlmApiKeyEnvVar(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* Default System Prompt */}
               <div className="space-y-2">
-                <Label htmlFor="system-prompt" className="text-sm font-medium text-foreground">Default System Prompt (Optional)</Label>
+                <Label htmlFor="system-prompt" className="text-sm font-medium text-foreground">
+                  Default System Prompt (Optional)
+                </Label>
                 <Textarea
                   id="system-prompt"
                   placeholder="Enter a default system prompt for this LLM configuration."
                   value={llmSystemPrompt}
-                  onChange={(e) => setLlmSystemPrompt(e.target.value)}
+                  onChange={e => setLlmSystemPrompt(e.target.value)}
                   className="min-h-[100px] resize-none"
                 />
               </div>
@@ -279,7 +308,7 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
             >
               {/* Delete Button - Only show in edit mode */}
               {editMode && (
-                <Button 
+                <Button
                   variant="destructive"
                   className="px-6"
                   onClick={handleDelete}
@@ -295,22 +324,24 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
                   )}
                 </Button>
               )}
-              
+
               {/* Spacer for alignment when no delete button */}
               {!editMode && <div />}
-              
-              <Button 
+
+              <Button
                 className="px-8"
                 onClick={handleSubmit}
-                disabled={(updateLLM.isPending || createLLM.isPending) || !llmId.trim()}
+                disabled={updateLLM.isPending || createLLM.isPending || !llmId.trim()}
               >
-                {(updateLLM.isPending || createLLM.isPending) ? (
+                {updateLLM.isPending || createLLM.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     {editMode ? 'Updating...' : 'Creating...'}
                   </>
+                ) : editMode ? (
+                  'Update LLM Config'
                 ) : (
-                  editMode ? 'Update LLM Config' : 'Create LLM Config'
+                  'Create LLM Config'
                 )}
               </Button>
             </motion.div>
@@ -333,13 +364,12 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
             >
-              <h3 className="text-lg font-semibold text-foreground">
-                Delete LLM Configuration
-              </h3>
+              <h3 className="text-lg font-semibold text-foreground">Delete LLM Configuration</h3>
               <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete the LLM configuration "{llmId}"? This action cannot be undone.
+                Are you sure you want to delete the LLM configuration "{llmId}"? This action cannot
+                be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <Button

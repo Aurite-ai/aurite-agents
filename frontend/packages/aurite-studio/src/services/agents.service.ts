@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { 
+import {
   AgentConfig as LocalAgentConfig,
   AgentExecutionResult as LocalAgentExecutionResult,
   ExecuteAgentRequest,
@@ -98,7 +98,7 @@ class AgentsService {
       await apiClient.config.reloadConfigs();
       return {
         status: 'success',
-        message: `Agent ${config.name} registered successfully`
+        message: `Agent ${config.name} registered successfully`,
       };
     } catch (error) {
       this.handleError(error, `Failed to register agent ${config.name}`);
@@ -108,7 +108,7 @@ class AgentsService {
 
   // Execute an agent (non-streaming)
   async executeAgent(
-    agentName: string, 
+    agentName: string,
     request: ExecuteAgentRequest
   ): Promise<LocalAgentExecutionResult> {
     try {
@@ -116,9 +116,9 @@ class AgentsService {
         user_message: request.user_message,
         system_prompt: request.system_prompt,
       };
-      
+
       const result: AgentRunResult = await apiClient.execution.runAgent(agentName, apiRequest);
-      
+
       return this.mapToLocalExecutionResult(result);
     } catch (error) {
       this.handleError(error, `Failed to execute agent ${agentName}`);
@@ -143,10 +143,10 @@ class AgentsService {
       // Get configuration from environment
       const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
       const apiKey = process.env.REACT_APP_API_KEY || '';
-      
+
       // Create the streaming URL with query parameters for the request
       const url = new URL(`${baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`);
-      
+
       // Since EventSource doesn't support custom headers or POST body,
       // we need to use fetch with streaming response
       const response = await fetch(url.toString(), {
@@ -154,7 +154,7 @@ class AgentsService {
         headers: {
           'X-API-Key': apiKey,
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
+          Accept: 'text/event-stream',
         },
         body: JSON.stringify(apiRequest),
       });
@@ -172,43 +172,48 @@ class AgentsService {
       let buffer = '';
 
       try {
-        while (true) {
+        let reading = true;
+        while (reading) {
           const { done, value } = await reader.read();
-          
+
           if (done) {
+            reading = false;
             break;
           }
 
           // Decode the chunk and add to buffer
           buffer += decoder.decode(value, { stream: true });
-          
+
           // Process complete SSE messages
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
-          
+
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
-                
+
                 // Check if this is a max iterations reached event
-                if (data.type === 'llm_response_stop' && 
-                    data.data && 
-                    data.data.status === 'error' && 
-                    data.data.reason === 'turn_limit_reached') {
-                  onError('Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.');
+                if (
+                  data.type === 'llm_response_stop' &&
+                  data.data &&
+                  data.data.status === 'error' &&
+                  data.data.reason === 'turn_limit_reached'
+                ) {
+                  onError(
+                    'Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.'
+                  );
                   return;
                 }
-                
+
                 // Check if this is a completion event
                 if (data.type === 'complete' || data.event === 'complete') {
                   const result = this.mapToLocalExecutionResult(data.data || data);
                   onComplete(result);
                   return;
-                } else {
-                  // Regular stream event
-                  onStreamEvent(data);
                 }
+                // Regular stream event
+                onStreamEvent(data);
               } catch (error) {
                 console.error('Failed to parse stream event:', error);
               }
@@ -218,7 +223,6 @@ class AgentsService {
       } finally {
         reader.releaseLock();
       }
-
     } catch (error) {
       this.handleError(error, `Failed to stream agent ${agentName}`);
       onError(error instanceof Error ? error.message : 'Unknown streaming error');
@@ -237,17 +241,17 @@ class AgentsService {
     registration: SuccessResponse;
   }> {
     const filename = this.generateConfigFilename(config.name);
-    
+
     try {
       // First create the config file
       await this.createAgentConfig(filename, config);
-      
+
       // Then register the agent
       const registration = await this.registerAgent(config);
-      
+
       return {
         configFile: filename,
-        registration
+        registration,
       };
     } catch (error) {
       this.handleError(error, `Failed to create and register agent ${config.name}`);
@@ -280,25 +284,25 @@ class AgentsService {
       // Core Identity
       name: apiConfig.name,
       description: apiConfig.description,
-      
+
       // LLM Configuration - CRITICAL: Include llm_config_id
       llm_config_id: apiConfig.llm_config_id,
-      
+
       // LLM Override Parameters
       model: apiConfig.model,
       temperature: apiConfig.temperature,
       max_tokens: apiConfig.max_tokens,
-      
+
       // Behavior Control
       system_prompt: apiConfig.system_prompt,
       max_iterations: apiConfig.max_iterations,
       include_history: apiConfig.include_history,
       auto: apiConfig.auto,
-      
+
       // Capability Management
       mcp_servers: apiConfig.mcp_servers,
       exclude_components: apiConfig.exclude_components,
-      
+
       // Framework Metadata (preserve if present)
       _source_file: apiConfig._source_file,
       _context_path: apiConfig._context_path,
@@ -315,21 +319,21 @@ class AgentsService {
       type: 'agent',
       name: localConfig.name,
       description: localConfig.description,
-      
+
       // LLM Configuration - CRITICAL: Include llm_config_id
       llm_config_id: localConfig.llm_config_id,
-      
+
       // LLM Override Parameters
       model: localConfig.model,
       temperature: localConfig.temperature,
       max_tokens: localConfig.max_tokens,
-      
+
       // Behavior Control
       system_prompt: localConfig.system_prompt,
       max_iterations: localConfig.max_iterations,
       include_history: localConfig.include_history,
       auto: localConfig.auto,
-      
+
       // Capability Management
       mcp_servers: localConfig.mcp_servers,
       exclude_components: localConfig.exclude_components,
@@ -339,10 +343,12 @@ class AgentsService {
   // Map API client AgentRunResult to local AgentExecutionResult
   private mapToLocalExecutionResult(apiResult: AgentRunResult): LocalAgentExecutionResult {
     return {
-      final_response: apiResult.final_response ? {
-        role: apiResult.final_response.role,
-        content: [{ type: 'text', text: apiResult.final_response.content }],
-      } : undefined,
+      final_response: apiResult.final_response
+        ? {
+            role: apiResult.final_response.role,
+            content: [{ type: 'text', text: apiResult.final_response.content }],
+          }
+        : undefined,
       error: apiResult.error_message || null,
       history: apiResult.conversation_history || [],
       session_id: apiResult.session_id,

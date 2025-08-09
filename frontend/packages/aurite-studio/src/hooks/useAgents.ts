@@ -13,48 +13,43 @@ const QUERY_KEYS = {
 };
 
 // Hook to list all registered agents
-export const useAgents = () => {
-  return useQuery({
+export const useAgents = () =>
+  useQuery({
     queryKey: QUERY_KEYS.agents,
     queryFn: () => agentsService.listAgents(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-};
 
 // Hook to list agent configuration files
-export const useAgentConfigs = () => {
-  return useQuery({
+export const useAgentConfigs = () =>
+  useQuery({
     queryKey: QUERY_KEYS.agentConfigs,
     queryFn: () => agentsService.listAgentConfigs(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to get agent by ID
-export const useAgent = (id: string, enabled = true) => {
-  return useQuery({
+export const useAgent = (id: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.agentById(id),
     queryFn: () => agentsService.getAgentById(id),
     enabled: enabled && !!id,
   });
-};
 
 // Hook to get agent config by filename
-export const useAgentConfig = (filename: string, enabled = true) => {
-  return useQuery({
+export const useAgentConfig = (filename: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.agentConfig(filename),
     queryFn: () => agentsService.getAgentConfig(filename),
     enabled: enabled && !!filename,
   });
-};
 
 // Hook to create and register agent
 export const useCreateAgent = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (config: AgentConfig) => 
-      agentsService.createAndRegisterAgent(config),
+    mutationFn: (config: AgentConfig) => agentsService.createAndRegisterAgent(config),
     onSuccess: (data, variables) => {
       toast.success(`Agent "${variables.name}" created successfully`);
       // Invalidate relevant queries
@@ -161,30 +156,30 @@ export const useExecuteAgentStream = () => {
         agentName,
         request,
         onStreamEvent,
-        (result) => {
+        result => {
           // Mark agent as no longer executing
           setExecutingAgents(prev => {
             const newSet = new Set(prev);
             newSet.delete(agentName);
             return newSet;
           });
-          
+
           if (result.error) {
             toast.error(`Execution failed: ${result.error}`);
           } else {
             toast.success('Agent executed successfully');
           }
-          
+
           onComplete(result);
         },
-        (error) => {
+        error => {
           // Mark agent as no longer executing
           setExecutingAgents(prev => {
             const newSet = new Set(prev);
             newSet.delete(agentName);
             return newSet;
           });
-          
+
           toast.error(`Execution failed: ${error}`);
           onError(error);
         }
@@ -196,7 +191,7 @@ export const useExecuteAgentStream = () => {
         newSet.delete(agentName);
         return newSet;
       });
-      
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       toast.error(`Failed to start streaming: ${errorMessage}`);
       onError(errorMessage);
@@ -218,11 +213,12 @@ export const useAgentsWithConfigs = () => {
   const { data: configs = [], isLoading: configsLoading } = useAgentConfigs();
 
   const agentsWithConfigs = agents.map(agentName => {
-    const configFile = configs.find(file => 
-      typeof file === 'string' && 
-      file.toLowerCase().includes(agentName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
+    const configFile = configs.find(
+      file =>
+        typeof file === 'string' &&
+        file.toLowerCase().includes(agentName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
-    
+
     return {
       name: agentName,
       configFile,

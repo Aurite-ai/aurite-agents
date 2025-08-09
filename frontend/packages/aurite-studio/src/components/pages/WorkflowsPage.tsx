@@ -4,7 +4,12 @@ import { motion } from 'framer-motion';
 import { Workflow, Plus, Play, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import HoverExpandEditButton from '@/components/ui/HoverExpandEditButton';
-import { useWorkflowsWithConfigs, useCustomWorkflowsWithConfigs, useExecuteWorkflow, useExecuteCustomWorkflow } from '@/hooks/useWorkflows';
+import {
+  useWorkflowsWithConfigs,
+  useCustomWorkflowsWithConfigs,
+  useExecuteWorkflow,
+  useExecuteCustomWorkflow,
+} from '@/hooks/useWorkflows';
 import { UnifiedWorkflowExecutionInterface } from '@/components/execution/UnifiedWorkflowExecutionInterface';
 import { WorkflowConfig } from '@/types/execution';
 import workflowsService from '@/services/workflows.service';
@@ -15,7 +20,8 @@ export default function WorkflowsPage() {
 
   // API Hooks
   const { data: workflows = [], isLoading: workflowsLoading } = useWorkflowsWithConfigs();
-  const { data: customWorkflows = [], isLoading: customWorkflowsLoading } = useCustomWorkflowsWithConfigs();
+  const { data: customWorkflows = [], isLoading: customWorkflowsLoading } =
+    useCustomWorkflowsWithConfigs();
   const executeWorkflow = useExecuteWorkflow();
   const executeCustomWorkflow = useExecuteCustomWorkflow();
 
@@ -34,14 +40,20 @@ export default function WorkflowsPage() {
   };
 
   const handleEditWorkflow = (workflow: any, mode: 'text' | 'visual') => {
-    const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
-    
+    const workflowName =
+      typeof workflow.name === 'string'
+        ? workflow.name
+        : (workflow.name as any)?.name || 'Unknown Workflow';
+
     // Navigate to appropriate edit form based on mode
     navigate(`/workflows/${encodeURIComponent(workflowName)}/edit/${mode}`);
   };
 
   const handleRunWorkflow = async (workflow: any) => {
-    const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
+    const workflowName =
+      typeof workflow.name === 'string'
+        ? workflow.name
+        : (workflow.name as any)?.name || 'Unknown Workflow';
 
     try {
       // Fetch the actual workflow configuration to get the steps
@@ -70,7 +82,7 @@ export default function WorkflowsPage() {
 
       setWorkflowExecutionInterface({
         isOpen: true,
-        workflow: workflowConfig
+        workflow: workflowConfig,
       });
     } catch (error) {
       console.error('Failed to load workflow configuration:', error);
@@ -133,9 +145,15 @@ export default function WorkflowsPage() {
         {!isLoading && allWorkflows.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {allWorkflows.map((workflow, index) => {
-              const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
+              const workflowName =
+                typeof workflow.name === 'string'
+                  ? workflow.name
+                  : (workflow.name as any)?.name || 'Unknown Workflow';
               const badgeText = workflow.type === 'linear_workflow' ? 'Linear' : 'Custom';
-              const badgeColor = workflow.type === 'linear_workflow' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+              const badgeColor =
+                workflow.type === 'linear_workflow'
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                  : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
 
               return (
                 <motion.div
@@ -154,18 +172,20 @@ export default function WorkflowsPage() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-muted-foreground">
-                        {'description' in workflow ? workflow.description || (workflow.configFile ? 'Configured and ready' : 'Configuration pending') : (workflow.configFile ? 'Configured and ready' : 'Configuration pending')}
+                        {'description' in workflow
+                          ? workflow.description ||
+                            (workflow.configFile ? 'Configured and ready' : 'Configuration pending')
+                          : workflow.configFile
+                            ? 'Configured and ready'
+                            : 'Configuration pending'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex gap-2">
-                    <HoverExpandEditButton 
-                      workflow={workflow}
-                      onEdit={handleEditWorkflow}
-                    />
-                    <Button 
-                      size="sm" 
+                    <HoverExpandEditButton workflow={workflow} onEdit={handleEditWorkflow} />
+                    <Button
+                      size="sm"
                       className="gap-1.5"
                       onClick={() => handleRunWorkflow(workflow)}
                       disabled={
@@ -174,9 +194,10 @@ export default function WorkflowsPage() {
                           : executeWorkflow.isWorkflowExecuting(workflowName)
                       }
                     >
-                      {(workflow.type === 'custom_workflow'
-                        ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
-                        : executeWorkflow.isWorkflowExecuting(workflowName)
+                      {(
+                        workflow.type === 'custom_workflow'
+                          ? executeCustomWorkflow.isWorkflowExecuting(workflowName)
+                          : executeWorkflow.isWorkflowExecuting(workflowName)
                       ) ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (

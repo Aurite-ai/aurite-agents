@@ -220,7 +220,9 @@ describe('BaseClient', () => {
             options.signal.addEventListener('abort', () => {
               const error = new Error('The operation was aborted');
               error.name = 'AbortError';
-              if (rejectFn) rejectFn(error);
+              if (rejectFn) {
+                rejectFn(error);
+              }
             });
           }
           return fetchPromise;
@@ -261,7 +263,9 @@ describe('BaseClient', () => {
             options.signal.addEventListener('abort', () => {
               const error = new Error('The operation was aborted');
               error.name = 'AbortError';
-              if (rejectFn) rejectFn(error);
+              if (rejectFn) {
+                rejectFn(error);
+              }
             });
           }
           return fetchPromise;

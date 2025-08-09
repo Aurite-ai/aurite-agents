@@ -4,12 +4,7 @@ import { ApiError } from '../../../src/types/api';
 
 // Create a test class that extends BaseClient to access protected methods
 class TestClient extends BaseClient {
-  public async testRequest<T>(
-    method: string,
-    path: string,
-    body?: any,
-    options?: any
-  ): Promise<T> {
+  public async testRequest<T>(method: string, path: string, body?: any, options?: any): Promise<T> {
     return this.request<T>(method, path, body, options);
   }
 }
@@ -40,9 +35,9 @@ describe('MaxIterationsReachedError handling', () => {
           error_type: 'MaxIterationsReachedError',
           details: {
             agent_name: 'test-agent',
-            max_iterations: 15
-          }
-        }
+            max_iterations: 15,
+          },
+        },
       }),
     };
 
@@ -50,7 +45,7 @@ describe('MaxIterationsReachedError handling', () => {
     mockFetch.mockResolvedValue(errorResponse);
 
     const requestPromise = client.testRequest('POST', '/agents/test-agent/run', {
-      user_message: 'test'
+      user_message: 'test',
     });
 
     await expect(requestPromise).rejects.toThrow(ApiError);
@@ -64,7 +59,9 @@ describe('MaxIterationsReachedError handling', () => {
       expect(error).toBeInstanceOf(ApiError);
       const apiError = error as ApiError;
       expect(apiError.shouldRetry()).toBe(false);
-      expect(apiError.userMessage).toBe('Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.');
+      expect(apiError.userMessage).toBe(
+        'Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.'
+      );
     }
   });
 
@@ -81,16 +78,16 @@ describe('MaxIterationsReachedError handling', () => {
           error_type: 'ConfigurationError',
           details: {
             field: 'llm_config_id',
-            issue: 'not found'
-          }
-        }
+            issue: 'not found',
+          },
+        },
       }),
     };
 
     mockFetch.mockResolvedValue(errorResponse);
 
     const requestPromise = client.testRequest('POST', '/agents/test-agent/run', {
-      user_message: 'test'
+      user_message: 'test',
     });
 
     await expect(requestPromise).rejects.toThrow(ApiError);

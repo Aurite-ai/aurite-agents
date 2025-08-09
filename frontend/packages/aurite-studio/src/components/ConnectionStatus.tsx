@@ -40,13 +40,19 @@ export function ConnectionStatus({ isExpanded }: ConnectionStatusProps) {
   const StatusIcon = config.icon;
 
   const formatLastChecked = (date: Date | null) => {
-    if (!date) return '';
+    if (!date) {
+      return '';
+    }
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes === 1) return '1 minute ago';
+
+    if (minutes < 1) {
+      return 'Just now';
+    }
+    if (minutes === 1) {
+      return '1 minute ago';
+    }
     return `${minutes} minutes ago`;
   };
 
@@ -63,8 +69,8 @@ export function ConnectionStatus({ isExpanded }: ConnectionStatusProps) {
         {/* Status dot and icon */}
         <div className="relative flex items-center justify-center">
           <div className={`w-2 h-2 rounded-full ${config.bgColor} absolute -top-1 -right-1 z-10`} />
-          <StatusIcon 
-            className={`h-5 w-5 ${config.color} ${status === 'checking' ? 'animate-spin' : ''}`} 
+          <StatusIcon
+            className={`h-5 w-5 ${config.color} ${status === 'checking' ? 'animate-spin' : ''}`}
           />
         </div>
 
@@ -76,9 +82,7 @@ export function ConnectionStatus({ isExpanded }: ConnectionStatusProps) {
             transition={{ delay: 0.1 }}
             className="flex flex-col items-start"
           >
-            <span className={`text-sm font-medium ${config.color}`}>
-              {config.text}
-            </span>
+            <span className={`text-sm font-medium ${config.color}`}>{config.text}</span>
             {lastChecked && status !== 'checking' && (
               <span className="text-xs text-muted-foreground">
                 {formatLastChecked(lastChecked)}
@@ -92,17 +96,13 @@ export function ConnectionStatus({ isExpanded }: ConnectionStatusProps) {
       {!isExpanded && (
         <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-popover text-popover-foreground px-3 py-2 rounded-md text-sm opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-border shadow-md">
           <div className="flex flex-col gap-1">
-            <span className={`font-medium ${config.color}`}>
-              {config.text}
-            </span>
+            <span className={`font-medium ${config.color}`}>{config.text}</span>
             {lastChecked && status !== 'checking' && (
               <span className="text-xs text-muted-foreground">
                 Last checked: {formatLastChecked(lastChecked)}
               </span>
             )}
-            <span className="text-xs text-muted-foreground">
-              Click to refresh
-            </span>
+            <span className="text-xs text-muted-foreground">Click to refresh</span>
           </div>
         </div>
       )}

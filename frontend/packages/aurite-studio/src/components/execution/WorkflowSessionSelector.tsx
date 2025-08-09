@@ -14,7 +14,7 @@ export const WorkflowSessionSelector: React.FC<WorkflowSessionSelectorProps> = (
   selectedSessionId,
   onSessionSelect,
   onSessionCreate,
-  disabled = false
+  disabled = false,
 }) => {
   // Mock sessions for now - this will be replaced with actual session data
   const mockSessions: WorkflowSessionInfo[] = [
@@ -26,18 +26,18 @@ export const WorkflowSessionSelector: React.FC<WorkflowSessionSelectorProps> = (
       current_step: 2,
       last_activity: new Date(Date.now() - 1000 * 60 * 45), // 45 minutes ago
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      status: 'active'
+      status: 'active',
     },
     {
-      id: 'workflow-session-2', 
+      id: 'workflow-session-2',
       name: 'Customer Analysis Flow',
       workflow_name: workflowName,
       step_count: 5,
       current_step: 5,
       last_activity: new Date(Date.now() - 1000 * 60 * 60 * 3), // 3 hours ago
       created_at: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-      status: 'active'
-    }
+      status: 'active',
+    },
   ];
 
   // Format metadata for workflow sessions

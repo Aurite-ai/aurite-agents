@@ -6,7 +6,6 @@ import {
   ReactFlow,
   Node,
   Edge,
-
   useNodesState,
   useEdgesState,
   Connection,
@@ -33,7 +32,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAgentsWithConfigs } from '@/hooks/useAgents';
-import { useCreateWorkflow, useUpdateWorkflow, useWorkflowConfigByName } from '@/hooks/useWorkflows';
+import {
+  useCreateWorkflow,
+  useUpdateWorkflow,
+  useWorkflowConfigByName,
+} from '@/hooks/useWorkflows';
 import { useLLMs } from '@/hooks/useLLMs';
 import mcpServersService from '@/services/mcpServers.service';
 import agentsService from '@/services/agents.service';
@@ -121,24 +124,23 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
     }
   };
 
-  const isConfigured = data?.agentConfig && (
+  const isConfigured =
+    data?.agentConfig &&
     // Check for meaningful configuration beyond just type and name
-    data.agentConfig.system_prompt || 
-    data.agentConfig.description || 
-    data.agentConfig.llm_config_id || 
-    data.agentConfig.model ||
-    (data.agentConfig.mcp_servers && data.agentConfig.mcp_servers.length > 0) ||
-    (data.agentConfig.exclude_components && data.agentConfig.exclude_components.length > 0) ||
-    data.agentConfig.include_history !== undefined ||
-    data.agentConfig.auto !== undefined ||
-    data.agentConfig.max_iterations !== undefined ||
-    data.agentConfig.temperature !== undefined ||
-    data.agentConfig.max_tokens !== undefined
-  );
-
+    (data.agentConfig.system_prompt ||
+      data.agentConfig.description ||
+      data.agentConfig.llm_config_id ||
+      data.agentConfig.model ||
+      (data.agentConfig.mcp_servers && data.agentConfig.mcp_servers.length > 0) ||
+      (data.agentConfig.exclude_components && data.agentConfig.exclude_components.length > 0) ||
+      data.agentConfig.include_history !== undefined ||
+      data.agentConfig.auto !== undefined ||
+      data.agentConfig.max_iterations !== undefined ||
+      data.agentConfig.temperature !== undefined ||
+      data.agentConfig.max_tokens !== undefined);
 
   return (
-    <motion.div 
+    <motion.div
       className="relative group min-w-[150px] max-w-[280px] p-3"
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
@@ -146,14 +148,18 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
     >
       {/* Main Node Card */}
       <div className="bg-card border border-border rounded-xl p-3 shadow-lg hover:shadow-xl transition-shadow duration-300 backdrop-blur-sm bg-opacity-95 relative overflow-visible">
-        
         {/* Gradient Accent Bar */}
-        <div className={`absolute top-0 left-0 right-0 h-1 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/20'}`} />
-        
+        <div
+          className={`absolute top-0 left-0 right-0 h-1 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/20'}`}
+        />
+
         {/* Status Indicator */}
         <div className="absolute top-3 right-3 flex items-center gap-2">
           {isConfigured && (
-            <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-lg" title="Agent is configured" />
+            <div
+              className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-lg"
+              title="Agent is configured"
+            />
           )}
         </div>
 
@@ -162,11 +168,11 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
           <button
             onClick={handleConfig}
             className={`w-6 h-6 ${
-              isConfigured 
-                ? 'bg-primary hover:bg-primary/80 text-primary-foreground' 
+              isConfigured
+                ? 'bg-primary hover:bg-primary/80 text-primary-foreground'
                 : 'bg-muted hover:bg-muted/80 text-muted-foreground'
             } rounded-full flex items-center justify-center transition-all duration-200 shadow-md border border-white/20 hover:scale-110`}
-            title={isConfigured ? "Agent is configured - click to edit" : "Configure agent"}
+            title={isConfigured ? 'Agent is configured - click to edit' : 'Configure agent'}
           >
             <Settings className="h-3 w-3" />
           </button>
@@ -184,28 +190,28 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
           type="target"
           position={Position.Top}
           className="w-5 h-5 bg-primary border-2 border-background hover:bg-primary/90 transition-colors duration-150 cursor-crosshair"
-          style={{ 
+          style={{
             top: -10,
             borderRadius: '50%',
             boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-            zIndex: 10
+            zIndex: 10,
           }}
           id="input"
         />
-        
+
         {/* Node Icon and Header */}
         <div className="flex items-start gap-2 mb-2">
-          <div className={`w-8 h-8 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/30'} rounded-lg flex items-center justify-center text-white shadow-md`}>
+          <div
+            className={`w-8 h-8 ${isConfigured ? 'bg-gradient-to-r from-primary to-blue-500' : 'bg-gradient-to-r from-muted to-muted-foreground/30'} rounded-lg flex items-center justify-center text-white shadow-md`}
+          >
             <div className="w-4 h-4 bg-white/90 rounded-sm flex items-center justify-center">
               <div className="w-1.5 h-1.5 bg-current rounded-full" />
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-foreground truncate">
-              {data.label}
-            </h3>
+            <h3 className="text-sm font-semibold text-foreground truncate">{data.label}</h3>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {data?.loading ? 'Loading...' : (isConfigured ? 'Configured' : 'Not configured')}
+              {data?.loading ? 'Loading...' : isConfigured ? 'Configured' : 'Not configured'}
             </div>
           </div>
         </div>
@@ -229,7 +235,10 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
             {data.agentConfig.mcp_servers && data.agentConfig.mcp_servers.length > 0 && (
               <div className="flex items-center gap-2 text-xs">
                 <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-muted-foreground">{data.agentConfig.mcp_servers.length} MCP Server{data.agentConfig.mcp_servers.length !== 1 ? 's' : ''}</span>
+                <span className="text-muted-foreground">
+                  {data.agentConfig.mcp_servers.length} MCP Server
+                  {data.agentConfig.mcp_servers.length !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
           </div>
@@ -240,11 +249,11 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
           type="source"
           position={Position.Bottom}
           className="w-5 h-5 bg-primary border-2 border-background hover:bg-primary/90 transition-colors duration-150 cursor-crosshair"
-          style={{ 
+          style={{
             bottom: -10,
             borderRadius: '50%',
             boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-            zIndex: 10
+            zIndex: 10,
           }}
           id="output"
         />
@@ -254,17 +263,17 @@ const AgentNode = ({ data, id }: { data: any; id: string }) => {
 };
 
 // Custom edge with delete button
-const CustomEdge = ({ 
-  id, 
-  sourceX, 
-  sourceY, 
-  targetX, 
-  targetY, 
-  sourcePosition, 
+const CustomEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
   targetPosition,
   style = {},
   markerEnd,
-  data 
+  data,
 }: EdgeProps) => {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -301,10 +310,10 @@ const CustomEdge = ({
             style={{
               opacity: 0.7,
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={e => {
               e.currentTarget.style.opacity = '1';
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={e => {
               e.currentTarget.style.opacity = '0.7';
             }}
           >
@@ -329,16 +338,19 @@ const edgeTypes: EdgeTypes = {
 // Custom Zoom Controls Component
 const CustomZoomControls = () => {
   const { zoomIn, zoomOut, setViewport, getViewport } = useReactFlow();
-  
+
   const handleZoomToLevel = (zoomLevel: number) => {
     const currentViewport = getViewport();
-    setViewport({ 
-      x: currentViewport.x, 
-      y: currentViewport.y, 
-      zoom: zoomLevel 
-    }, { duration: 300 });
+    setViewport(
+      {
+        x: currentViewport.x,
+        y: currentViewport.y,
+        zoom: zoomLevel,
+      },
+      { duration: 300 }
+    );
   };
-  
+
   return (
     <div className="absolute bottom-6 right-6 z-10 bg-card border border-border rounded-lg shadow-lg p-2 flex flex-col gap-1">
       <Button
@@ -381,34 +393,36 @@ const CustomZoomControls = () => {
   );
 };
 
-export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkflowBuilderProps): React.ReactElement {
+export default function VisualWorkflowBuilder({
+  editMode = false,
+}: VisualWorkflowBuilderProps): React.ReactElement {
   const navigate = useNavigate();
   const { name: workflowNameParam } = useParams<{ name: string }>();
-  
+
   // Form state
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowFormPopulated, setWorkflowFormPopulated] = useState(false);
-  
+
   // Agent configuration modal state
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [configModalNodeId, setConfigModalNodeId] = useState<string | null>(null);
-  
+
   // Available configurations for dropdowns
   const [, setAvailableMCPServers] = useState<string[]>([]);
-  
+
   // React Flow state
   const initialNodes: Node[] = [];
   const initialEdges: Edge[] = [];
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  
+
   // API Hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgentsWithConfigs();
   const { data: llmConfigs = [] } = useLLMs();
   const createWorkflow = useCreateWorkflow();
   const updateWorkflow = useUpdateWorkflow();
-  
+
   // Workflow-specific hooks for edit mode
   const { data: workflowConfig, isLoading: workflowConfigLoading } = useWorkflowConfigByName(
     workflowNameParam || '',
@@ -416,48 +430,54 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   );
 
   // Handle edge deletion by ID
-  const handleEdgeDelete = useCallback((edgeId: string) => {
-    setEdges((eds) => eds.filter(edge => edge.id !== edgeId));
-  }, [setEdges]);
+  const handleEdgeDelete = useCallback(
+    (edgeId: string) => {
+      setEdges(eds => eds.filter(edge => edge.id !== edgeId));
+    },
+    [setEdges]
+  );
 
   // Helper function to find a position that doesn't overlap with existing nodes
-  const findAvailablePosition = useCallback((targetPosition: { x: number; y: number }) => {
-    const nodeWidth = 280; // Approximate node width
-    const nodeHeight = 120; // Approximate node height
-    const minDistance = 50; // Minimum distance between nodes
-    
-    let bestPosition = { ...targetPosition };
-    let attempts = 0;
-    const maxAttempts = 20;
-    
-    while (attempts < maxAttempts) {
-      let hasOverlap = false;
-      
-      // Check if current position overlaps with any existing node
-      for (const node of nodes) {
-        const dx = Math.abs(bestPosition.x - node.position.x);
-        const dy = Math.abs(bestPosition.y - node.position.y);
-        
-        if (dx < nodeWidth + minDistance && dy < nodeHeight + minDistance) {
-          hasOverlap = true;
+  const findAvailablePosition = useCallback(
+    (targetPosition: { x: number; y: number }) => {
+      const nodeWidth = 280; // Approximate node width
+      const nodeHeight = 120; // Approximate node height
+      const minDistance = 50; // Minimum distance between nodes
+
+      let bestPosition = { ...targetPosition };
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      while (attempts < maxAttempts) {
+        let hasOverlap = false;
+
+        // Check if current position overlaps with any existing node
+        for (const node of nodes) {
+          const dx = Math.abs(bestPosition.x - node.position.x);
+          const dy = Math.abs(bestPosition.y - node.position.y);
+
+          if (dx < nodeWidth + minDistance && dy < nodeHeight + minDistance) {
+            hasOverlap = true;
+            break;
+          }
+        }
+
+        if (!hasOverlap) {
           break;
         }
+
+        // Try a new position slightly offset
+        bestPosition = {
+          x: targetPosition.x + attempts * 30,
+          y: targetPosition.y + attempts * 30,
+        };
+        attempts++;
       }
-      
-      if (!hasOverlap) {
-        break;
-      }
-      
-      // Try a new position slightly offset
-      bestPosition = {
-        x: targetPosition.x + (attempts * 30),
-        y: targetPosition.y + (attempts * 30),
-      };
-      attempts++;
-    }
-    
-    return bestPosition;
-  }, [nodes]);
+
+      return bestPosition;
+    },
+    [nodes]
+  );
 
   // Handle edge connections
   const onConnect = useCallback(
@@ -480,22 +500,23 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             onDelete: handleEdgeDelete,
           },
         };
-        
-        setEdges((eds) => [...eds, newEdge]);
+
+        setEdges(eds => [...eds, newEdge]);
       }
     },
     [setEdges, handleEdgeDelete]
   );
 
   // Handle node deletion by ID
-  const handleNodeDelete = useCallback((nodeId: string) => {
-    // Remove the node
-    setNodes((nds) => nds.filter(node => node.id !== nodeId));
-    // Remove any edges connected to this node
-    setEdges((eds) => eds.filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    ));
-  }, [setNodes, setEdges]);
+  const handleNodeDelete = useCallback(
+    (nodeId: string) => {
+      // Remove the node
+      setNodes(nds => nds.filter(node => node.id !== nodeId));
+      // Remove any edges connected to this node
+      setEdges(eds => eds.filter(edge => edge.source !== nodeId && edge.target !== nodeId));
+    },
+    [setNodes, setEdges]
+  );
 
   // Handle opening agent configuration
   const handleNodeConfig = useCallback((nodeId: string) => {
@@ -504,94 +525,100 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   }, []);
 
   // Handle saving agent configuration
-  const handleConfigSave = useCallback((config: AgentConfig) => {
-    if (configModalNodeId) {
-      setNodes((nds) => 
-        nds.map(node => 
-          node.id === configModalNodeId 
-            ? { 
-                ...node, 
-                data: { 
-                  ...node.data, 
-                  agentConfig: config,
-                  // Update the label if the name changed
-                  label: config.name || node.data.label,
-                  agentName: config.name || node.data.agentName,
+  const handleConfigSave = useCallback(
+    (config: AgentConfig) => {
+      if (configModalNodeId) {
+        setNodes(nds =>
+          nds.map(node =>
+            node.id === configModalNodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    agentConfig: config,
+                    // Update the label if the name changed
+                    label: config.name || node.data.label,
+                    agentName: config.name || node.data.agentName,
+                  },
                 }
-              }
-            : node
-        )
-      );
-    }
-    setConfigModalOpen(false);
-    setConfigModalNodeId(null);
-  }, [configModalNodeId, setNodes]);
+              : node
+          )
+        );
+      }
+      setConfigModalOpen(false);
+      setConfigModalNodeId(null);
+    },
+    [configModalNodeId, setNodes]
+  );
 
   // Convert workflow steps to visual nodes and edges
-  const convertStepsToVisual = useCallback(async (steps: string[], agentConfigurations?: Record<string, AgentConfig>) => {
-    const newNodes: Node[] = [];
-    const newEdges: Edge[] = [];
-    
-    // Create nodes and try to fetch configurations
-    for (let index = 0; index < steps.length; index++) {
-      const step = steps[index];
-      let agentConfig = agentConfigurations?.[step];
-      
-      // If no embedded config, try to fetch from API
-      if (!agentConfig) {
-        try {
-          agentConfig = await agentsService.getAgentConfig(step);
-        } catch (error) {
-          console.warn('⚠️ Failed to fetch agent config for edit mode:', step, error);
-        }
-      }
-      
-      // Create node for each step
-      const node: Node = {
-        id: `agent-${index}`,
-        type: 'agentNode',
-        position: { x: 300, y: 150 + (index * 200) }, // Vertical layout with better spacing
-        data: {
-          label: agentConfig?.name || step,
-          agentName: step,
-          onDelete: handleNodeDelete,
-          onConfig: handleNodeConfig,
-          // Include agent configuration if it exists
-          ...(agentConfig && { agentConfig }),
-          // Add debug info
-          debugInfo: {
-            stepName: step,
-            hasEmbeddedConfig: !!agentConfigurations?.[step],
-            hasFetchedConfig: !!agentConfig,
-            configKeys: agentConfig ? Object.keys(agentConfig) : []
+  const convertStepsToVisual = useCallback(
+    async (steps: string[], agentConfigurations?: Record<string, AgentConfig>) => {
+      const newNodes: Node[] = [];
+      const newEdges: Edge[] = [];
+
+      // Create nodes and try to fetch configurations
+      for (let index = 0; index < steps.length; index++) {
+        const step = steps[index];
+        let agentConfig = agentConfigurations?.[step];
+
+        // If no embedded config, try to fetch from API
+        if (!agentConfig) {
+          try {
+            agentConfig = await agentsService.getAgentConfig(step);
+          } catch (error) {
+            console.warn('⚠️ Failed to fetch agent config for edit mode:', step, error);
           }
-        },
-      };
-      newNodes.push(node);
-      
-      // Create edge to connect to next step
-      if (index < steps.length - 1) {
-        const edge: Edge = {
-          id: `edge-${index}`,
-          source: `agent-${index}`,
-          target: `agent-${index + 1}`,
-          type: 'custom',
-          animated: true,
-          style: { stroke: '#6366f1', strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#6366f1',
-          },
+        }
+
+        // Create node for each step
+        const node: Node = {
+          id: `agent-${index}`,
+          type: 'agentNode',
+          position: { x: 300, y: 150 + index * 200 }, // Vertical layout with better spacing
           data: {
-            onDelete: handleEdgeDelete,
+            label: agentConfig?.name || step,
+            agentName: step,
+            onDelete: handleNodeDelete,
+            onConfig: handleNodeConfig,
+            // Include agent configuration if it exists
+            ...(agentConfig && { agentConfig }),
+            // Add debug info
+            debugInfo: {
+              stepName: step,
+              hasEmbeddedConfig: !!agentConfigurations?.[step],
+              hasFetchedConfig: !!agentConfig,
+              configKeys: agentConfig ? Object.keys(agentConfig) : [],
+            },
           },
         };
-        newEdges.push(edge);
+        newNodes.push(node);
+
+        // Create edge to connect to next step
+        if (index < steps.length - 1) {
+          const edge: Edge = {
+            id: `edge-${index}`,
+            source: `agent-${index}`,
+            target: `agent-${index + 1}`,
+            type: 'custom',
+            animated: true,
+            style: { stroke: '#6366f1', strokeWidth: 2 },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#6366f1',
+            },
+            data: {
+              onDelete: handleEdgeDelete,
+            },
+          };
+          newEdges.push(edge);
+        }
       }
-    }
-    
-    return { nodes: newNodes, edges: newEdges };
-  }, [handleNodeDelete, handleNodeConfig, handleEdgeDelete]);
+
+      return { nodes: newNodes, edges: newEdges };
+    },
+    [handleNodeDelete, handleNodeConfig, handleEdgeDelete]
+  );
 
   // Effect to populate workflow form when workflow config is loaded
   useEffect(() => {
@@ -600,12 +627,12 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         // Populate form fields
         setWorkflowName(workflowConfig.name || '');
         setWorkflowDescription(workflowConfig.description || '');
-        
+
         // Convert steps to visual representation
         if (workflowConfig.steps && Array.isArray(workflowConfig.steps)) {
           try {
             const { nodes: newNodes, edges: newEdges } = await convertStepsToVisual(
-              workflowConfig.steps, 
+              workflowConfig.steps,
               (workflowConfig as any).agent_configurations
             );
             setNodes(newNodes);
@@ -614,7 +641,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             console.error('❌ Error converting steps to visual:', error);
           }
         }
-        
+
         // Mark form as populated
         setWorkflowFormPopulated(true);
       } else if (!editMode && !workflowFormPopulated) {
@@ -628,7 +655,15 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     };
 
     populateWorkflowForm();
-  }, [workflowConfig, workflowNameParam, editMode, workflowFormPopulated, convertStepsToVisual, setNodes, setEdges]);
+  }, [
+    workflowConfig,
+    workflowNameParam,
+    editMode,
+    workflowFormPopulated,
+    convertStepsToVisual,
+    setNodes,
+    setEdges,
+  ]);
 
   // Fetch MCP servers on component mount
   useEffect(() => {
@@ -646,116 +681,120 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
   }, []);
 
   // Handle agent drop from palette
-  const onAgentDrop = useCallback(async (agentName: string, position: { x: number; y: number }) => {
-    // Find an available position that doesn't overlap
-    const availablePosition = findAvailablePosition(position);
-    
-    // Create initial node without configuration
-    const nodeId = `agent-${Date.now()}`;
-    const initialNode: Node = {
-      id: nodeId,
-      type: 'agentNode',
-      position: availablePosition,
-      data: {
-        label: agentName,
-        agentName: agentName,
-        onDelete: handleNodeDelete,
-        onConfig: handleNodeConfig,
-        loading: true, // Add loading state
-      },
-    };
-    
-    // Add the node immediately
-    setNodes((nds) => [...nds, initialNode]);
-    
-    // Try to fetch the agent configuration
-    try {
-      const agentConfig = await agentsService.getAgentConfig(agentName);
-      
-      // Update the node with the configuration
-      setNodes((nds) => 
-        nds.map(node => 
-          node.id === nodeId 
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  agentConfig,
-                  loading: false,
+  const onAgentDrop = useCallback(
+    async (agentName: string, position: { x: number; y: number }) => {
+      // Find an available position that doesn't overlap
+      const availablePosition = findAvailablePosition(position);
+
+      // Create initial node without configuration
+      const nodeId = `agent-${Date.now()}`;
+      const initialNode: Node = {
+        id: nodeId,
+        type: 'agentNode',
+        position: availablePosition,
+        data: {
+          label: agentName,
+          agentName,
+          onDelete: handleNodeDelete,
+          onConfig: handleNodeConfig,
+          loading: true, // Add loading state
+        },
+      };
+
+      // Add the node immediately
+      setNodes(nds => [...nds, initialNode]);
+
+      // Try to fetch the agent configuration
+      try {
+        const agentConfig = await agentsService.getAgentConfig(agentName);
+
+        // Update the node with the configuration
+        setNodes(nds =>
+          nds.map(node =>
+            node.id === nodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    agentConfig,
+                    loading: false,
+                  },
                 }
-              }
-            : node
-        )
-      );
-    } catch (error) {
-      console.warn('Failed to fetch agent config for', agentName, ':', error);
-      
-      // Update node to remove loading state even if config fetch failed
-      setNodes((nds) => 
-        nds.map(node => 
-          node.id === nodeId 
-            ? {
-                ...node,
-                data: {
-                  ...node.data,
-                  loading: false,
+              : node
+          )
+        );
+      } catch (error) {
+        console.warn('Failed to fetch agent config for', agentName, ':', error);
+
+        // Update node to remove loading state even if config fetch failed
+        setNodes(nds =>
+          nds.map(node =>
+            node.id === nodeId
+              ? {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    loading: false,
+                  },
                 }
-              }
-            : node
-        )
-      );
-    }
-  }, [setNodes, handleNodeDelete, handleNodeConfig, findAvailablePosition]);
+              : node
+          )
+        );
+      }
+    },
+    [setNodes, handleNodeDelete, handleNodeConfig, findAvailablePosition]
+  );
 
   // Handle node deletion
   const onNodesDelete = useCallback(
     (deletedNodes: Node[]) => {
       const deletedNodeIds = deletedNodes.map(node => node.id);
       // Also remove any edges connected to deleted nodes
-      setEdges((eds) => eds.filter(edge => 
-        !deletedNodeIds.includes(edge.source) && !deletedNodeIds.includes(edge.target)
-      ));
+      setEdges(eds =>
+        eds.filter(
+          edge => !deletedNodeIds.includes(edge.source) && !deletedNodeIds.includes(edge.target)
+        )
+      );
     },
     [setEdges]
   );
 
   // Handle edge deletion
-  const onEdgesDelete = useCallback(
-    (deletedEdges: Edge[]) => {
-      // Edges are automatically removed by React Flow
-    },
-    []
-  );
+  const onEdgesDelete = useCallback((deletedEdges: Edge[]) => {
+    // Edges are automatically removed by React Flow
+  }, []);
 
   // Convert visual workflow to text workflow format
   const convertToWorkflowConfig = () => {
     // For now, create a simple sequential workflow from nodes
     // This is a basic implementation - can be enhanced for complex flows
     const steps = nodes.map(node => node.data?.agentName).filter(Boolean) as string[];
-    
+
     // Extract agent configurations for agents that have been configured
     const agentConfigurations: Record<string, AgentConfig> = {};
     nodes.forEach(node => {
       const agentConfig = node.data?.agentConfig as AgentConfig;
-      if (agentConfig && 
-          node.data?.agentName && 
-          typeof node.data.agentName === 'string' &&
-          agentConfig.name) {
+      if (
+        agentConfig &&
+        node.data?.agentName &&
+        typeof node.data.agentName === 'string' &&
+        agentConfig.name
+      ) {
         agentConfigurations[node.data.agentName] = agentConfig;
       }
     });
-    
+
     return {
       name: workflowName,
-      type: "linear_workflow" as const,
-      steps: steps,
+      type: 'linear_workflow' as const,
+      steps,
       description: workflowDescription || undefined,
       // Include agent configurations if any exist
-      ...(Object.keys(agentConfigurations).length > 0 && { agent_configurations: agentConfigurations })
+      ...(Object.keys(agentConfigurations).length > 0 && {
+        agent_configurations: agentConfigurations,
+      }),
     };
   };
-
-
 
   // Handle save workflow
   const handleSubmit = () => {
@@ -767,26 +806,29 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
 
     if (editMode && workflowNameParam) {
       // Edit mode - update existing workflow
-      updateWorkflow.mutate({
-        filename: workflowNameParam,
-        config: workflowConfig
-      }, {
-        onSuccess: () => {
-          navigate('/workflows');
+      updateWorkflow.mutate(
+        {
+          filename: workflowNameParam,
+          config: workflowConfig,
         },
-        onError: (error) => {
-          console.error('❌ Failed to update visual workflow:', error);
+        {
+          onSuccess: () => {
+            navigate('/workflows');
+          },
+          onError: error => {
+            console.error('❌ Failed to update visual workflow:', error);
+          },
         }
-      });
+      );
     } else {
       // Create mode - create new workflow
       createWorkflow.mutate(workflowConfig, {
         onSuccess: () => {
           navigate('/workflows');
         },
-        onError: (error) => {
+        onError: error => {
           console.error('❌ Failed to create visual workflow:', error);
-        }
+        },
       });
     }
   };
@@ -795,13 +837,9 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
     <div className="flex h-screen bg-background text-foreground">
       {/* Inject custom styles for controls */}
       <style dangerouslySetInnerHTML={{ __html: controlsStyle }} />
-      
+
       {/* Left Sidebar - Agent Palette */}
-      <AgentPalette 
-        agents={agents}
-        isLoading={agentsLoading}
-        onAgentDrop={onAgentDrop}
-      />
+      <AgentPalette agents={agents} isLoading={agentsLoading} onAgentDrop={onAgentDrop} />
 
       {/* Main Canvas Area */}
       <div className="flex-1 flex flex-col">
@@ -820,26 +858,30 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
               {editMode ? 'Edit Visual Workflow' : 'Build New Visual Workflow'}
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline"
-              onClick={() => navigate('/workflows')}
-            >
+            <Button variant="outline" onClick={() => navigate('/workflows')}>
               Cancel
             </Button>
-            <Button 
+            <Button
               className="px-6"
               onClick={handleSubmit}
-              disabled={(createWorkflow.isPending || updateWorkflow.isPending) || !workflowName.trim() || nodes.length === 0}
+              disabled={
+                createWorkflow.isPending ||
+                updateWorkflow.isPending ||
+                !workflowName.trim() ||
+                nodes.length === 0
+              }
             >
-              {(createWorkflow.isPending || updateWorkflow.isPending) ? (
+              {createWorkflow.isPending || updateWorkflow.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   {editMode ? 'Updating...' : 'Creating...'}
                 </>
+              ) : editMode ? (
+                'Update Visual Workflow'
               ) : (
-                editMode ? 'Update Visual Workflow' : 'Save Visual Workflow'
+                'Save Visual Workflow'
               )}
             </Button>
           </div>
@@ -854,7 +896,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
               Loading workflow configuration...
             </div>
           )}
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="visual-workflow-name" className="text-sm font-medium text-foreground">
@@ -864,19 +906,22 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
                 id="visual-workflow-name"
                 placeholder="e.g., Visual Data Processing Workflow"
                 value={workflowName}
-                onChange={(e) => setWorkflowName(e.target.value)}
+                onChange={e => setWorkflowName(e.target.value)}
                 className="text-base"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="visual-workflow-description" className="text-sm font-medium text-foreground">
+              <Label
+                htmlFor="visual-workflow-description"
+                className="text-sm font-medium text-foreground"
+              >
                 Description (Optional)
               </Label>
               <Input
                 id="visual-workflow-description"
                 placeholder="Brief description of the workflow"
                 value={workflowDescription}
-                onChange={(e) => setWorkflowDescription(e.target.value)}
+                onChange={e => setWorkflowDescription(e.target.value)}
                 className="text-base"
               />
             </div>
@@ -884,17 +929,19 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         </div>
 
         {/* Canvas */}
-        <div 
+        <div
           className="flex-1"
-          onDrop={(e) => {
+          onDrop={e => {
             e.preventDefault();
             const data = e.dataTransfer.getData('application/json');
-            
+
             if (data) {
               try {
                 const { agentName } = JSON.parse(data);
-                const reactFlowBounds = document.querySelector('.react-flow')?.getBoundingClientRect();
-                
+                const reactFlowBounds = document
+                  .querySelector('.react-flow')
+                  ?.getBoundingClientRect();
+
                 if (reactFlowBounds) {
                   const position = {
                     x: e.clientX - reactFlowBounds.left - 75, // Center the node
@@ -907,7 +954,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
               }
             }
           }}
-          onDragOver={(e) => {
+          onDragOver={e => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
           }}
@@ -934,11 +981,11 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
                 color: '#6366f1',
               },
             }}
-            connectionLineStyle={{ 
-              stroke: '#6366f1', 
+            connectionLineStyle={{
+              stroke: '#6366f1',
               strokeWidth: 3,
               strokeDasharray: '5,5',
-              strokeLinecap: 'round'
+              strokeLinecap: 'round',
             }}
             connectionMode={ConnectionMode.Strict}
             snapToGrid={true}
@@ -950,9 +997,7 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             connectionLineType={ConnectionLineType.SmoothStep}
           >
             <Controls />
-            <MiniMap 
-              nodeColor={(node) => '#6366f1'}
-            />
+            <MiniMap nodeColor={node => '#6366f1'} />
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
           </ReactFlow>
         </div>
@@ -961,13 +1006,13 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
         <div className="px-6 py-2 border-t border-border bg-card">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              {nodes.length} agent{nodes.length !== 1 ? 's' : ''} • {edges.length} connection{edges.length !== 1 ? 's' : ''}
+              {nodes.length} agent{nodes.length !== 1 ? 's' : ''} • {edges.length} connection
+              {edges.length !== 1 ? 's' : ''}
             </span>
             <span>
-              {nodes.length === 0 
-                ? "Drag agents from the left panel to create your workflow"
-                : "Connect: drag from bottom blue circle to top blue circle of another agent • Delete: hover and click X"
-              }
+              {nodes.length === 0
+                ? 'Drag agents from the left panel to create your workflow'
+                : 'Connect: drag from bottom blue circle to top blue circle of another agent • Delete: hover and click X'}
             </span>
           </div>
         </div>
@@ -982,7 +1027,9 @@ export default function VisualWorkflowBuilder({ editMode = false }: VisualWorkfl
             setConfigModalNodeId(null);
           }}
           onSave={handleConfigSave}
-          agentName={String(nodes.find(node => node.id === configModalNodeId)?.data?.agentName || 'Agent')}
+          agentName={String(
+            nodes.find(node => node.id === configModalNodeId)?.data?.agentName || 'Agent'
+          )}
           initialConfig={nodes.find(node => node.id === configModalNodeId)?.data?.agentConfig || {}}
           availableLLMConfigs={llmConfigs}
         />

@@ -14,66 +14,59 @@ const QUERY_KEYS = {
 };
 
 // Hook to list all registered workflows
-export const useWorkflows = () => {
-  return useQuery({
+export const useWorkflows = () =>
+  useQuery({
     queryKey: QUERY_KEYS.workflows,
     queryFn: () => workflowsService.listWorkflows(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to list all custom workflows
-export const useCustomWorkflows = () => {
-  return useQuery({
+export const useCustomWorkflows = () =>
+  useQuery({
     queryKey: QUERY_KEYS.customWorkflows,
     queryFn: () => workflowsService.listCustomWorkflows(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to list workflow configuration files
-export const useWorkflowConfigs = () => {
-  return useQuery({
+export const useWorkflowConfigs = () =>
+  useQuery({
     queryKey: QUERY_KEYS.workflowConfigs,
     queryFn: () => workflowsService.listWorkflowConfigs(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to get workflow by ID
-export const useWorkflow = (id: string, enabled = true) => {
-  return useQuery({
+export const useWorkflow = (id: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.workflowById(id),
     queryFn: () => workflowsService.getWorkflowById(id),
     enabled: enabled && !!id,
   });
-};
 
 // Hook to get workflow config by filename
-export const useWorkflowConfig = (filename: string, enabled = true) => {
-  return useQuery({
+export const useWorkflowConfig = (filename: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.workflowConfig(filename),
     queryFn: () => workflowsService.getWorkflowConfig(filename),
     enabled: enabled && !!filename,
   });
-};
 
 // Hook to get workflow config by name (for editing) - similar to useLLMConfig
-export const useWorkflowConfigByName = (workflowName: string, enabled = true) => {
-  return useQuery({
+export const useWorkflowConfigByName = (workflowName: string, enabled = true) =>
+  useQuery({
     queryKey: ['workflow-config-by-name', workflowName],
     queryFn: () => workflowsService.getWorkflowConfigByName(workflowName),
     enabled: enabled && !!workflowName,
   });
-};
 
 // Hook to create and register workflow
 export const useCreateWorkflow = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (config: WorkflowConfig) =>
-      workflowsService.createAndRegisterWorkflow(config),
+    mutationFn: (config: WorkflowConfig) => workflowsService.createAndRegisterWorkflow(config),
     onSuccess: (data, variables) => {
       toast.success(`Workflow "${variables.name}" created successfully`);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.workflows });
@@ -126,8 +119,13 @@ export const useExecuteWorkflow = () => {
   const [executingWorkflows, setExecutingWorkflows] = useState<Set<string>>(new Set());
 
   const executeMutation = useMutation({
-    mutationFn: ({ workflowName, request }: { workflowName: string; request: ExecuteWorkflowRequest }) =>
-      workflowsService.executeWorkflow(workflowName, request),
+    mutationFn: ({
+      workflowName,
+      request,
+    }: {
+      workflowName: string;
+      request: ExecuteWorkflowRequest;
+    }) => workflowsService.executeWorkflow(workflowName, request),
     onMutate: ({ workflowName }) => {
       setExecutingWorkflows(prev => new Set(prev).add(workflowName));
     },
@@ -165,8 +163,13 @@ export const useExecuteCustomWorkflow = () => {
   const [executingWorkflows, setExecutingWorkflows] = useState<Set<string>>(new Set());
 
   const executeMutation = useMutation({
-    mutationFn: ({ workflowName, request }: { workflowName: string; request: ExecuteCustomWorkflowRequest }) =>
-      workflowsService.executeCustomWorkflow(workflowName, request),
+    mutationFn: ({
+      workflowName,
+      request,
+    }: {
+      workflowName: string;
+      request: ExecuteCustomWorkflowRequest;
+    }) => workflowsService.executeCustomWorkflow(workflowName, request),
     onMutate: ({ workflowName }) => {
       setExecutingWorkflows(prev => new Set(prev).add(workflowName));
     },
@@ -203,9 +206,10 @@ export const useWorkflowsWithConfigs = () => {
   const { data: configs = [], isLoading: configsLoading } = useWorkflowConfigs();
 
   const workflowsWithConfigs = workflows.map(workflowName => {
-    const configFile = configs.find(file =>
-      typeof file === 'string' &&
-      file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
+    const configFile = configs.find(
+      file =>
+        typeof file === 'string' &&
+        file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
 
     return {
@@ -238,9 +242,10 @@ export const useCustomWorkflowsWithConfigs = () => {
   });
 
   const customWorkflowsWithConfigs = customWorkflows.map(workflowName => {
-    const configFile = configs.find(file =>
-      typeof file === 'string' &&
-      file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
+    const configFile = configs.find(
+      file =>
+        typeof file === 'string' &&
+        file.toLowerCase().includes(workflowName.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
 
     return {
@@ -258,13 +263,12 @@ export const useCustomWorkflowsWithConfigs = () => {
 };
 
 // Hook to get custom workflow config by name (for editing)
-export const useCustomWorkflowConfigByName = (workflowName: string, enabled = true) => {
-  return useQuery({
+export const useCustomWorkflowConfigByName = (workflowName: string, enabled = true) =>
+  useQuery({
     queryKey: ['custom-workflow-config-by-name', workflowName],
     queryFn: () => workflowsService.getCustomWorkflowConfigByName(workflowName),
     enabled: enabled && !!workflowName,
   });
-};
 
 // Hook to update custom workflow configuration
 export const useUpdateCustomWorkflow = () => {
@@ -275,7 +279,9 @@ export const useUpdateCustomWorkflow = () => {
       workflowsService.updateCustomWorkflowConfig(filename, config),
     onSuccess: (data, variables) => {
       toast.success(`Custom workflow "${variables.config.name}" updated successfully`);
-      queryClient.invalidateQueries({ queryKey: ['custom-workflow-config-by-name', variables.config.name] });
+      queryClient.invalidateQueries({
+        queryKey: ['custom-workflow-config-by-name', variables.config.name],
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customWorkflows });
     },
     onError: (error: any) => {

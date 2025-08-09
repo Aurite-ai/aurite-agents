@@ -201,3 +201,4 @@ demo-config/*
 docs/aurite-studio/*
 .langfuse_logs/
 !src/aurite/lib
+8-8_eslint_errors_fix_implementation_plan.md

@@ -73,7 +73,7 @@ export interface AgentExecutionResult {
 // Workflow types
 export interface WorkflowConfig {
   name: string;
-  type: "linear_workflow";
+  type: 'linear_workflow';
   steps: string[];
   description?: string;
 }
@@ -137,12 +137,12 @@ export interface ClientConfig {
 export interface MCPServerConfig {
   // Required fields
   name: string;
-  type: "mcp_server";
+  type: 'mcp_server';
   capabilities: string[];
 
   // Optional common fields
   description?: string;
-  transport_type?: "stdio" | "http_stream" | "local";
+  transport_type?: 'stdio' | 'http_stream' | 'local';
   timeout?: number;
   registration_timeout?: number;
   routing_weight?: number;
@@ -163,7 +163,7 @@ export interface MCPServerConfig {
 
 // Transport-specific interfaces for type safety
 export interface MCPServerStdioConfig extends Omit<MCPServerConfig, 'transport_type'> {
-  transport_type: "stdio";
+  transport_type: 'stdio';
   server_path: string;
   // Explicitly exclude other transport fields
   http_endpoint?: never;
@@ -173,7 +173,7 @@ export interface MCPServerStdioConfig extends Omit<MCPServerConfig, 'transport_t
 }
 
 export interface MCPServerHttpConfig extends Omit<MCPServerConfig, 'transport_type'> {
-  transport_type: "http_stream";
+  transport_type: 'http_stream';
   http_endpoint: string;
   headers?: Record<string, string>;
   // Explicitly exclude other transport fields
@@ -183,7 +183,7 @@ export interface MCPServerHttpConfig extends Omit<MCPServerConfig, 'transport_ty
 }
 
 export interface MCPServerLocalConfig extends Omit<MCPServerConfig, 'transport_type'> {
-  transport_type: "local";
+  transport_type: 'local';
   command: string;
   args?: string[];
   // Explicitly exclude other transport fields
@@ -206,14 +206,14 @@ export interface MCPServerFormFields {
   capabilities: string[];
 
   // Transport selection
-  transport_type: "stdio" | "http_stream" | "local";
+  transport_type: 'stdio' | 'http_stream' | 'local';
 
   // Stdio fields
   server_path: string;
 
   // HTTP fields
   http_endpoint: string;
-  headers: Array<{key: string; value: string}>;
+  headers: Array<{ key: string; value: string }>;
 
   // Local fields
   command: string;
@@ -300,4 +300,9 @@ export interface DeleteResponse {
 
 // Component types
 export type ComponentType = 'agents' | 'clients' | 'llms' | 'linear-workflows' | 'custom-workflows';
-export type ProjectComponentType = 'agents' | 'linear_workflows' | 'custom_workflows' | 'clients' | 'llms';
+export type ProjectComponentType =
+  | 'agents'
+  | 'linear_workflows'
+  | 'custom_workflows'
+  | 'clients'
+  | 'llms';

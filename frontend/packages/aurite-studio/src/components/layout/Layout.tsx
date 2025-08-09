@@ -9,7 +9,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
-  
+
   // Determine if we're on the home page for layout adjustments
   const isHomePage = location.pathname === '/';
 
@@ -24,7 +24,9 @@ export default function Layout({ children }: LayoutProps) {
         <Header />
 
         {/* Main Content Area */}
-        <main className={`flex-1 overflow-auto ${isHomePage ? 'flex items-center justify-center' : 'flex flex-col'} px-6 ${isHomePage ? 'pb-8' : 'pt-12 pb-8'}`}>
+        <main
+          className={`flex-1 overflow-auto ${isHomePage ? 'flex items-center justify-center' : 'flex flex-col'} px-6 ${isHomePage ? 'pb-8' : 'pt-12 pb-8'}`}
+        >
           {children}
         </main>
       </div>

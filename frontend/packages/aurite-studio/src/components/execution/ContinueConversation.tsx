@@ -9,13 +9,15 @@ export const ContinueConversation: React.FC<ContinueConversationProps> = ({
   agentName,
   onSendMessage,
   onRegenerateResponse,
-  isLoading = false
+  isLoading = false,
 }) => {
   const [message, setMessage] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isLoading) return;
+    if (!message.trim() || isLoading) {
+      return;
+    }
 
     onSendMessage(message.trim());
     setMessage('');
@@ -31,13 +33,13 @@ export const ContinueConversation: React.FC<ContinueConversationProps> = ({
   return (
     <div className="space-y-3">
       <h4 className="text-sm font-medium text-foreground">Continue Conversation</h4>
-      
+
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="relative">
           <Textarea
             placeholder="Ask a follow-up question or continue the conversation..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             className="min-h-[80px] resize-none pr-12"
             disabled={isLoading}

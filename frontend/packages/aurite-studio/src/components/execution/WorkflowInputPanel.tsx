@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { WorkflowInputPanelProps, WorkflowExecutionRequest, WorkflowConfig } from '@/types/execution';
+import {
+  WorkflowInputPanelProps,
+  WorkflowExecutionRequest,
+  WorkflowConfig,
+} from '@/types/execution';
 import { WorkflowSessionSelector } from './WorkflowSessionSelector';
 
 export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
   workflow,
   onExecute,
-  disabled = false
+  disabled = false,
 }) => {
   const [message, setMessage] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -28,12 +32,14 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || disabled) return;
+    if (!message.trim() || disabled) {
+      return;
+    }
 
     const request: WorkflowExecutionRequest = {
       initial_input: message.trim(),
       session_id: sessionId || undefined,
-      debug_mode: debugMode
+      debug_mode: debugMode,
     };
 
     onExecute(request);
@@ -44,13 +50,13 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
     const examples = [
       `Execute the ${workflow.name} workflow`,
       'Start the workflow process',
-      'Run this workflow for me'
+      'Run this workflow for me',
     ];
 
     // Add workflow-specific examples based on name patterns
     const workflowName = workflow.name.toLowerCase();
     if (workflowName.includes('briefing') || workflowName.includes('summary')) {
-      examples.push('Generate today\'s briefing', 'Create a summary report');
+      examples.push("Generate today's briefing", 'Create a summary report');
     } else if (workflowName.includes('analysis') || workflowName.includes('research')) {
       examples.push('Analyze the current situation', 'Research the latest trends');
     } else if (workflowName.includes('data') || workflowName.includes('processing')) {
@@ -108,7 +114,7 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
             id="initial-input"
             placeholder="Enter the initial input for this workflow..."
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e => setMessage(e.target.value)}
             className="min-h-[120px] resize-none"
             disabled={disabled}
           />
@@ -137,9 +143,11 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
             disabled={disabled}
           >
             Advanced Options
-            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            />
           </Button>
-          
+
           <AnimatePresence>
             {showAdvanced && (
               <motion.div
@@ -155,7 +163,9 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
                     onCheckedChange={setDebugMode}
                     disabled={disabled}
                   />
-                  <Label htmlFor="debug" className="text-sm">Debug mode (show step details)</Label>
+                  <Label htmlFor="debug" className="text-sm">
+                    Debug mode (show step details)
+                  </Label>
                 </div>
               </motion.div>
             )}
@@ -163,11 +173,7 @@ export const WorkflowInputPanel: React.FC<WorkflowInputPanelProps> = ({
         </div>
 
         {/* Execute Button */}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={!message.trim() || disabled}
-        >
+        <Button type="submit" className="w-full" disabled={!message.trim() || disabled}>
           {disabled ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

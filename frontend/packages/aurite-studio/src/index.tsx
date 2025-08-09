@@ -26,15 +26,13 @@ console.log(`
 🔗 API URL: ${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}
 `);
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <App />
-        <Toaster 
+        <Toaster
           position="bottom-right"
           toastOptions={{
             duration: 4000,

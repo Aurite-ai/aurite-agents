@@ -7,7 +7,7 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
   toolCall,
   onRetry,
   onViewDetails,
-  showDetails = true
+  showDetails = true,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -42,8 +42,12 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
   };
 
   const formatDuration = (duration?: number): string => {
-    if (!duration) return '';
-    if (duration < 1000) return `${duration}ms`;
+    if (!duration) {
+      return '';
+    }
+    if (duration < 1000) {
+      return `${duration}ms`;
+    }
     return `${(duration / 1000).toFixed(1)}s`;
   };
 
@@ -60,7 +64,7 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
             </span>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {toolCall.status === 'failed' && onRetry && (
             <Button
@@ -72,7 +76,7 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
               Retry
             </Button>
           )}
-          
+
           {showDetails && (
             <Button
               size="sm"
@@ -94,9 +98,7 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
       <div className="mt-2 text-xs text-muted-foreground">
         Status: <span className="capitalize">{toolCall.status}</span>
         {toolCall.start_time && (
-          <span className="ml-2">
-            Started: {toolCall.start_time.toLocaleTimeString()}
-          </span>
+          <span className="ml-2">Started: {toolCall.start_time.toLocaleTimeString()}</span>
         )}
       </div>
 
@@ -125,10 +127,9 @@ export const ToolCallIndicator: React.FC<ToolCallIndicatorProps> = ({
             <div>
               <h4 className="text-xs font-medium text-muted-foreground mb-1">Result:</h4>
               <pre className="text-xs bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap break-words">
-                {typeof toolCall.result === 'string' 
-                  ? toolCall.result 
-                  : JSON.stringify(toolCall.result, null, 2)
-                }
+                {typeof toolCall.result === 'string'
+                  ? toolCall.result
+                  : JSON.stringify(toolCall.result, null, 2)}
               </pre>
             </div>
           )}

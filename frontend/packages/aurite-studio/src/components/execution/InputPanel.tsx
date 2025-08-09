@@ -8,11 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { InputPanelProps, ExecutionRequest } from '@/types/execution';
 import { SessionSelector } from './SessionSelector';
 
-export const InputPanel: React.FC<InputPanelProps> = ({
-  agent,
-  onExecute,
-  disabled = false
-}) => {
+export const InputPanel: React.FC<InputPanelProps> = ({ agent, onExecute, disabled = false }) => {
   const [message, setMessage] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -22,14 +18,16 @@ export const InputPanel: React.FC<InputPanelProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || disabled) return;
+    if (!message.trim() || disabled) {
+      return;
+    }
 
     const request: ExecutionRequest = {
       user_message: message.trim(),
       session_id: sessionId || undefined,
       system_prompt: systemPrompt || undefined,
       stream,
-      debug_mode: debugMode
+      debug_mode: debugMode,
     };
 
     onExecute(request);
@@ -40,7 +38,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
     const examples = [
       `Help me understand ${agent.name}`,
       'What can you do for me?',
-      'Show me an example of your capabilities'
+      'Show me an example of your capabilities',
     ];
 
     // Add tool-specific examples if MCP servers are configured
@@ -71,7 +69,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
             id="message"
             placeholder="What would you like the agent to do?"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e => setMessage(e.target.value)}
             className="min-h-[120px] resize-none"
             disabled={disabled}
           />
@@ -103,9 +101,11 @@ export const InputPanel: React.FC<InputPanelProps> = ({
             disabled={disabled}
           >
             Advanced Options
-            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            />
           </Button>
-          
+
           <AnimatePresence>
             {showAdvanced && (
               <motion.div
@@ -121,9 +121,11 @@ export const InputPanel: React.FC<InputPanelProps> = ({
                     onCheckedChange={setStream}
                     disabled={disabled}
                   />
-                  <Label htmlFor="stream" className="text-sm">Stream response in real-time</Label>
+                  <Label htmlFor="stream" className="text-sm">
+                    Stream response in real-time
+                  </Label>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="debug"
@@ -131,16 +133,20 @@ export const InputPanel: React.FC<InputPanelProps> = ({
                     onCheckedChange={setDebugMode}
                     disabled={disabled}
                   />
-                  <Label htmlFor="debug" className="text-sm">Debug mode (show tool calls)</Label>
+                  <Label htmlFor="debug" className="text-sm">
+                    Debug mode (show tool calls)
+                  </Label>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="system-prompt" className="text-sm">System Prompt Override</Label>
+                  <Label htmlFor="system-prompt" className="text-sm">
+                    System Prompt Override
+                  </Label>
                   <Textarea
                     id="system-prompt"
                     placeholder="Optional: Override the agent's system prompt"
                     value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    onChange={e => setSystemPrompt(e.target.value)}
                     className="min-h-[80px] resize-none"
                     disabled={disabled}
                   />
@@ -151,11 +157,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({
         </div>
 
         {/* Execute Button */}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={!message.trim() || disabled}
-        >
+        <Button type="submit" className="w-full" disabled={!message.trim() || disabled}>
           {disabled ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

@@ -25,7 +25,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   const navigate = useNavigate();
   const { name: agentNameParam } = useParams<{ name: string }>();
   const [searchParams] = useSearchParams();
-  
+
   // Form state
   const [agentFormName, setAgentFormName] = useState('');
   const [agentSystemPrompt, setAgentSystemPrompt] = useState('');
@@ -46,13 +46,13 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   // API Hooks
   const { data: clients = [] } = useClientsWithStatus();
   const { data: llms = [] } = useLLMsWithConfigs();
-  
+
   // Agent-specific hooks
   const { data: agentConfig, isLoading: configLoading } = useAgentConfig(
     agentNameParam || '',
     !!agentNameParam && editMode
   );
-  
+
   const updateAgent = useUpdateAgent();
   const createAgent = useCreateAgent();
   const deleteAgent = useDeleteAgent();
@@ -61,35 +61,40 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
   useEffect(() => {
     if (editMode && agentConfig && agentNameParam && !formPopulated) {
       // Safely extract agent name according to canonical AgentConfig model
-      const safeName = typeof agentConfig.name === 'string' 
-        ? agentConfig.name 
-        : (agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name)
-          ? String((agentConfig.name as any).name)
-          : String(agentConfig.name || 'Unknown Agent');
-      
+      const safeName =
+        typeof agentConfig.name === 'string'
+          ? agentConfig.name
+          : agentConfig.name && typeof agentConfig.name === 'object' && 'name' in agentConfig.name
+            ? String((agentConfig.name as any).name)
+            : String(agentConfig.name || 'Unknown Agent');
+
       // Populate basic form fields
       setAgentFormName(safeName);
       setAgentSystemPrompt(agentConfig.system_prompt || '');
       setSelectedMCPServers(agentConfig.mcp_servers || []);
       setMaxIterations(agentConfig.max_iterations?.toString() || '10');
-      
+
       // Handle LLM configuration with improved logic
       if (agentConfig.llm_config_id) {
         // Agent uses existing LLM configuration
         setLlmConfigOption('existing');
         setSelectedLLMConfig(agentConfig.llm_config_id);
-        
+
         // Clear inline fields
         setInlineModel('');
         setInlineTemperature('');
         setInlineMaxTokens('');
-      } else if (agentConfig.model || agentConfig.temperature !== undefined || agentConfig.max_tokens !== undefined) {
+      } else if (
+        agentConfig.model ||
+        agentConfig.temperature !== undefined ||
+        agentConfig.max_tokens !== undefined
+      ) {
         // Agent uses inline LLM parameters
         setLlmConfigOption('inline');
         setInlineModel(agentConfig.model || '');
         setInlineTemperature(agentConfig.temperature?.toString() || '');
         setInlineMaxTokens(agentConfig.max_tokens?.toString() || '');
-        
+
         // Clear existing config selection
         setSelectedLLMConfig('');
       } else {
@@ -100,7 +105,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         setInlineTemperature('');
         setInlineMaxTokens('');
       }
-      
+
       // Mark form as populated to prevent re-population
       setFormPopulated(true);
     } else if (editMode && agentNameParam && !agentConfig && !configLoading) {
@@ -121,7 +126,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       setInlineTemperature('');
       setInlineMaxTokens('');
       setInlineModel('');
-      
+
       // Mark form as populated to prevent re-initialization
       setFormPopulated(true);
     }
@@ -136,9 +141,9 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
         maxIterationsRef.current?.focus();
         maxIterationsRef.current?.select();
         // Scroll to the field
-        maxIterationsRef.current?.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        maxIterationsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
         });
       }, 500);
     }
@@ -150,39 +155,46 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
       name: agentFormName,
       system_prompt: agentSystemPrompt,
       mcp_servers: selectedMCPServers,
-      max_iterations: parseInt(maxIterations) || 10,
-      ...(llmConfigOption === 'existing' && selectedLLMConfig ? {
-        llm_config_id: selectedLLMConfig,
-      } : {}),
-      ...(llmConfigOption === 'inline' ? {
-        model: inlineModel,
-        temperature: inlineTemperature ? parseFloat(inlineTemperature) : undefined,
-        max_tokens: inlineMaxTokens ? parseInt(inlineMaxTokens) : undefined,
-      } : {})
+      max_iterations: parseInt(maxIterations, 10) || 10,
+      ...(llmConfigOption === 'existing' && selectedLLMConfig
+        ? {
+            llm_config_id: selectedLLMConfig,
+          }
+        : {}),
+      ...(llmConfigOption === 'inline'
+        ? {
+            model: inlineModel,
+            temperature: inlineTemperature ? parseFloat(inlineTemperature) : undefined,
+            max_tokens: inlineMaxTokens ? parseInt(inlineMaxTokens, 10) : undefined,
+          }
+        : {}),
     };
 
     if (editMode && agentNameParam) {
       // Edit mode - update existing agent using PUT method
-      updateAgent.mutate({
-        filename: agentNameParam,
-        config: agentConfig
-      }, {
-        onSuccess: () => {
-          navigate('/agents');
+      updateAgent.mutate(
+        {
+          filename: agentNameParam,
+          config: agentConfig,
         },
-        onError: (error) => {
-          console.error('❌ Failed to update agent config:', error);
+        {
+          onSuccess: () => {
+            navigate('/agents');
+          },
+          onError: error => {
+            console.error('❌ Failed to update agent config:', error);
+          },
         }
-      });
+      );
     } else {
       // Create mode - create new agent using POST method
       createAgent.mutate(agentConfig, {
         onSuccess: () => {
           navigate('/agents');
         },
-        onError: (error) => {
+        onError: error => {
           console.error('❌ Failed to create agent config:', error);
-        }
+        },
       });
     }
   };
@@ -201,7 +213,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
           setShowAgentDeleteConfirmation(false);
           setDeletingAgent(null);
           navigate('/agents');
-        }
+        },
       });
     }
   };
@@ -250,24 +262,31 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
 
               {/* Agent Name */}
               <div className="space-y-2">
-                <Label htmlFor="agent-form-name" className="text-sm font-medium text-foreground">Agent Name</Label>
+                <Label htmlFor="agent-form-name" className="text-sm font-medium text-foreground">
+                  Agent Name
+                </Label>
                 <Input
                   id="agent-form-name"
                   placeholder="e.g., Customer Support Agent"
                   value={agentFormName}
-                  onChange={(e) => setAgentFormName(e.target.value)}
+                  onChange={e => setAgentFormName(e.target.value)}
                   className="text-base"
                 />
               </div>
 
               {/* System Prompt */}
               <div className="space-y-2">
-                <Label htmlFor="agent-system-prompt" className="text-sm font-medium text-foreground">System Prompt</Label>
+                <Label
+                  htmlFor="agent-system-prompt"
+                  className="text-sm font-medium text-foreground"
+                >
+                  System Prompt
+                </Label>
                 <Textarea
                   id="agent-system-prompt"
                   placeholder="e.g., You are a helpful assistant..."
                   value={agentSystemPrompt}
-                  onChange={(e) => setAgentSystemPrompt(e.target.value)}
+                  onChange={e => setAgentSystemPrompt(e.target.value)}
                   className="min-h-[100px] resize-none"
                 />
               </div>
@@ -281,7 +300,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <h2 className="text-lg font-semibold text-primary">MCP Servers</h2>
-              
+
               {configLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -296,7 +315,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                     </Label>
                     {selectedMCPServers.length > 0 ? (
                       <div className="flex flex-wrap gap-2 p-3 bg-muted/20 border border-border rounded-lg min-h-[44px]">
-                        {selectedMCPServers.map((server) => (
+                        {selectedMCPServers.map(server => (
                           <div
                             key={server}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium"
@@ -310,8 +329,18 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                               className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5 transition-colors"
                               aria-label={`Remove ${server}`}
                             >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </button>
                           </div>
@@ -326,12 +355,14 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
 
                   {/* Available Servers */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Available MCP Servers</Label>
+                    <Label className="text-sm font-medium text-foreground">
+                      Available MCP Servers
+                    </Label>
                     <div className="space-y-2">
-                      {clients.map((client) => {
+                      {clients.map(client => {
                         const isSelected = selectedMCPServers.includes(client.name);
                         const isConnected = client.status === 'connected';
-                        
+
                         return (
                           <button
                             key={client.name}
@@ -339,7 +370,9 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                             onClick={() => {
                               if (isConnected) {
                                 if (isSelected) {
-                                  setSelectedMCPServers(selectedMCPServers.filter(s => s !== client.name));
+                                  setSelectedMCPServers(
+                                    selectedMCPServers.filter(s => s !== client.name)
+                                  );
                                 } else {
                                   setSelectedMCPServers([...selectedMCPServers, client.name]);
                                 }
@@ -350,29 +383,41 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                               isSelected
                                 ? 'bg-primary/10 border-primary text-primary'
                                 : isConnected
-                                ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
-                                : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
+                                  ? 'bg-card border-border hover:bg-accent hover:border-accent-foreground/20'
+                                  : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                                isSelected
-                                  ? 'bg-primary border-primary'
-                                  : 'border-muted-foreground'
-                              }`}>
+                              <div
+                                className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                  isSelected
+                                    ? 'bg-primary border-primary'
+                                    : 'border-muted-foreground'
+                                }`}
+                              >
                                 {isSelected && (
-                                  <svg className="w-2.5 h-2.5 text-primary-foreground" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  <svg
+                                    className="w-2.5 h-2.5 text-primary-foreground"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
                                   </svg>
                                 )}
                               </div>
                               <span className="text-sm font-medium">{client.name}</span>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
-                              isConnected
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            }`}>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full ${
+                                isConnected
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              }`}
+                            >
                               {client.status}
                             </span>
                           </button>
@@ -392,7 +437,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <h2 className="text-lg font-semibold text-primary">LLM Configuration</h2>
-              
+
               <div className="space-y-4">
                 {/* Toggle Button Group */}
                 <div className="p-1 bg-muted/20 border border-border rounded-lg">
@@ -427,14 +472,15 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                       <SelectValue placeholder="-- Select LLM Config --" />
                     </SelectTrigger>
                     <SelectContent>
-                      {llms.map((config) => {
+                      {llms.map(config => {
                         // Safely extract LLM config ID
-                        const configId = typeof config.id === 'string' 
-                          ? config.id 
-                          : (config.id && typeof config.id === 'object' && 'name' in config.id)
-                            ? String((config.id as any).name)
-                            : String(config.id || 'unknown_config');
-                        
+                        const configId =
+                          typeof config.id === 'string'
+                            ? config.id
+                            : config.id && typeof config.id === 'object' && 'name' in config.id
+                              ? String((config.id as any).name)
+                              : String(config.id || 'unknown_config');
+
                         return (
                           <SelectItem key={configId} value={configId}>
                             {configId}
@@ -454,7 +500,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                       <Input
                         placeholder="e.g., gpt-4, claude-3-opus"
                         value={inlineModel}
-                        onChange={(e) => setInlineModel(e.target.value)}
+                        onChange={e => setInlineModel(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -465,20 +511,22 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                         max="32768"
                         placeholder="2048"
                         value={inlineMaxTokens}
-                        onChange={(e) => setInlineMaxTokens(e.target.value)}
+                        onChange={e => setInlineMaxTokens(e.target.value)}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Temperature: {inlineTemperature || '0.7'}</Label>
+                    <Label className="text-sm font-medium text-foreground">
+                      Temperature: {inlineTemperature || '0.7'}
+                    </Label>
                     <input
                       type="range"
                       min="0"
                       max="2"
                       step="0.1"
                       value={inlineTemperature || '0.7'}
-                      onChange={(e) => setInlineTemperature(e.target.value)}
+                      onChange={e => setInlineTemperature(e.target.value)}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -499,9 +547,11 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
               className="bg-card border border-border rounded-lg p-6 space-y-6"
             >
               <h2 className="text-lg font-semibold text-primary">Other Parameters</h2>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">Max Iterations: {maxIterations}</Label>
+                <Label htmlFor="max-iterations" className="text-sm font-medium text-foreground">
+                  Max Iterations: {maxIterations}
+                </Label>
                 <input
                   id="max-iterations"
                   ref={maxIterationsRef}
@@ -510,7 +560,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                   max="100"
                   step="1"
                   value={maxIterations}
-                  onChange={(e) => setMaxIterations(e.target.value)}
+                  onChange={e => setMaxIterations(e.target.value)}
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -530,7 +580,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
             >
               {/* Delete Button - Only show in edit mode */}
               {editMode && (
-                <Button 
+                <Button
                   variant="destructive"
                   className="px-6"
                   onClick={handleDelete}
@@ -546,22 +596,24 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                   )}
                 </Button>
               )}
-              
+
               {/* Spacer for alignment when no delete button */}
               {!editMode && <div />}
-              
-              <Button 
+
+              <Button
                 className="px-8"
                 onClick={handleSubmit}
-                disabled={(updateAgent.isPending || createAgent.isPending) || !agentFormName}
+                disabled={updateAgent.isPending || createAgent.isPending || !agentFormName}
               >
-                {(updateAgent.isPending || createAgent.isPending) ? (
+                {updateAgent.isPending || createAgent.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     {editMode ? 'Updating...' : 'Creating...'}
                   </>
+                ) : editMode ? (
+                  'Update Agent Config'
                 ) : (
-                  editMode ? 'Update Agent Config' : 'Create Agent Config'
+                  'Create Agent Config'
                 )}
               </Button>
             </motion.div>
@@ -583,13 +635,12 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             className="bg-card border border-border rounded-lg p-6 max-w-md mx-4 space-y-4"
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-foreground">
-              Delete Agent
-            </h3>
+            <h3 className="text-lg font-semibold text-foreground">Delete Agent</h3>
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete the agent "{deletingAgent?.name}"? This action cannot be undone.
+              Are you sure you want to delete the agent "{deletingAgent?.name}"? This action cannot
+              be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <Button

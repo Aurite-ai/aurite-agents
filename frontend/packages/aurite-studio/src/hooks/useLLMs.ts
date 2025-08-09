@@ -12,48 +12,43 @@ const QUERY_KEYS = {
 };
 
 // Hook to list all registered LLMs
-export const useLLMs = () => {
-  return useQuery({
+export const useLLMs = () =>
+  useQuery({
     queryKey: QUERY_KEYS.llms,
     queryFn: () => llmsService.listLLMs(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to list LLM configuration files
-export const useLLMConfigs = () => {
-  return useQuery({
+export const useLLMConfigs = () =>
+  useQuery({
     queryKey: QUERY_KEYS.llmConfigs,
     queryFn: () => llmsService.listLLMConfigs(),
     staleTime: 5 * 60 * 1000,
   });
-};
 
 // Hook to get LLM by ID
-export const useLLM = (id: string, enabled = true) => {
-  return useQuery({
+export const useLLM = (id: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.llmById(id),
     queryFn: () => llmsService.getLLMById(id),
     enabled: enabled && !!id,
   });
-};
 
 // Hook to get LLM config by filename
-export const useLLMConfig = (filename: string, enabled = true) => {
-  return useQuery({
+export const useLLMConfig = (filename: string, enabled = true) =>
+  useQuery({
     queryKey: QUERY_KEYS.llmConfig(filename),
     queryFn: () => llmsService.getLLMConfig(filename),
     enabled: enabled && !!filename,
   });
-};
 
 // Hook to create and register LLM
 export const useCreateLLM = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (config: LLMConfig) => 
-      llmsService.createAndRegisterLLM(config),
+    mutationFn: (config: LLMConfig) => llmsService.createAndRegisterLLM(config),
     onSuccess: (data, variables) => {
       toast.success(`LLM Config "${variables.name}" created successfully`);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llms });
@@ -107,11 +102,12 @@ export const useLLMsWithConfigs = () => {
   const { data: configs = [], isLoading: configsLoading } = useLLMConfigs();
 
   const llmsWithConfigs = llms.map(llmId => {
-    const configFile = configs.find(file => 
-      typeof file === 'string' && 
-      file.toLowerCase().includes(llmId.toLowerCase().replace(/[^a-z0-9]/g, '_'))
+    const configFile = configs.find(
+      file =>
+        typeof file === 'string' &&
+        file.toLowerCase().includes(llmId.toLowerCase().replace(/[^a-z0-9]/g, '_'))
     );
-    
+
     return {
       id: llmId,
       configFile,
@@ -126,13 +122,8 @@ export const useLLMsWithConfigs = () => {
 };
 
 // Hook to validate LLM configuration
-export const useValidateLLMConfig = () => {
-  return (config: Partial<LLMConfig>) => {
-    return llmsService.validateConfig(config);
-  };
-};
+export const useValidateLLMConfig = () => (config: Partial<LLMConfig>) =>
+  llmsService.validateConfig(config);
 
 // Hook to get LLM presets
-export const useLLMPresets = () => {
-  return llmsService.getCommonPresets();
-};
+export const useLLMPresets = () => llmsService.getCommonPresets();
