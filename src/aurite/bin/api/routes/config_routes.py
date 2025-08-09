@@ -33,6 +33,7 @@ PLURAL_TO_SINGULAR = {
     "mcp_servers": "mcp_server",
     "linear_workflows": "linear_workflow",
     "custom_workflows": "custom_workflow",
+    "graph_workflows": "graph_workflow",
 }
 
 
