@@ -7,15 +7,12 @@ import logging
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional
 
 from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
     ChatCompletionMessage,
-    ChatCompletionMessageToolCallParam,
     ChatCompletionToolMessageParam,
 )
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
 )
-from openai.types.chat.chat_completion_message_tool_call_param import Function
 
 from ....execution.mcp_host.mcp_host import MCPHost
 from ...models.api.responses import AgentRunResult
@@ -213,17 +210,16 @@ class Agent:
                             yield {"type": "tool_call", "data": {"name": current_tool_name, "input": tool_args}}
 
                             # Update history for the next turn
-                            message = ChatCompletionAssistantMessageParam(
-                                role="assistant",
-                                tool_calls=[
-                                    ChatCompletionMessageToolCallParam(
-                                        id=event["tool_id"],
-                                        function=Function(name=current_tool_name, arguments=tool_args_str),
-                                        type="function",
-                                    )
-                                ],
-                            )
-                            self.conversation_history.append(dict(message))
+                            tool_call_param = {
+                                "id": event["tool_id"],
+                                "function": {"name": current_tool_name, "arguments": tool_args_str},
+                                "type": "function",
+                            }
+                            message = {
+                                "role": "assistant",
+                                "tool_calls": [tool_call_param],
+                            }
+                            self.conversation_history.append(message)
 
                         elif event_type == "tool_result":
                             tool_results.append(event)  # Collect for history

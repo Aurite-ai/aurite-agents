@@ -5,6 +5,7 @@ Helper class for processing a single turn in an Agent's conversation loop.
 import json
 import logging
 import os
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from jsonschema import ValidationError as JsonSchemaValidationError
@@ -12,7 +13,6 @@ from jsonschema import validate
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
     ChatCompletionMessageToolCall,
-    Function,
 )
 
 if TYPE_CHECKING:
@@ -331,13 +331,9 @@ class AgentTurnProcessor:
                         }
 
                         if tool_name and tool_id:
-                            current_tool_calls = [
-                                ChatCompletionMessageToolCall(
-                                    id=tool_id,
-                                    function=Function(arguments=tool_input_str, name=tool_name),
-                                    type="function",
-                                )
-                            ]
+                            function_obj = SimpleNamespace(name=tool_name, arguments=tool_input_str)
+                            tool_call_obj = SimpleNamespace(id=tool_id, function=function_obj, type="function")
+                            current_tool_calls = [tool_call_obj]
 
                             tool_results_for_next_turn = await self._process_tool_calls(current_tool_calls)
 
@@ -487,6 +483,8 @@ class AgentTurnProcessor:
 
     def _serialize_tool_content(self, tool_result_content: Any) -> str:
         """Safely serializes tool output content to a string for the LLM."""
+        if tool_result_content is None:
+            return "Tool returned no output."
         if isinstance(tool_result_content, str):
             return tool_result_content
 
