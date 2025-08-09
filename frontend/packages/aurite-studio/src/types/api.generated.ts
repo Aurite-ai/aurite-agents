@@ -240,6 +240,7 @@ export interface LLMConfig {
   api_key?: string;
   api_version?: string;
   api_key_env_var?: string;
+  validated_at?: string | null;
 }
 
 // Request types

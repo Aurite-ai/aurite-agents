@@ -346,7 +346,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                               }
                             }}
                             disabled={!isConnected}
-                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 text-left ${
+                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all duration-200 text-left cursor-pointer ${
                               isSelected
                                 ? 'bg-primary/10 border-primary text-primary'
                                 : isConnected
@@ -354,7 +354,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                                 : 'bg-muted/50 border-border opacity-60 cursor-not-allowed'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 pointer-events-none">
                               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
                                 isSelected
                                   ? 'bg-primary border-primary'
@@ -368,7 +368,7 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                               </div>
                               <span className="text-sm font-medium">{client.name}</span>
                             </div>
-                            <span className={`text-xs px-2 py-1 rounded-full ${
+                            <span className={`text-xs px-2 py-1 rounded-full pointer-events-none ${
                               isConnected
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -424,20 +424,39 @@ export default function AgentForm({ editMode = false }: AgentFormProps) {
                   <Label className="text-sm font-medium text-foreground">Select LLM Config</Label>
                   <Select value={selectedLLMConfig} onValueChange={setSelectedLLMConfig}>
                     <SelectTrigger>
-                      <SelectValue placeholder="-- Select LLM Config --" />
+                      <SelectValue placeholder="-- Select LLM Config --">
+                        {selectedLLMConfig ? selectedLLMConfig : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {llms.map((config) => {
+                        // Handle null config entries
+                        if (!config) {
+                          return null;
+                        }
+                        
                         // Safely extract LLM config ID
-                        const configId = typeof config.id === 'string' 
+                        const configId = config && typeof config.id === 'string' 
                           ? config.id 
-                          : (config.id && typeof config.id === 'object' && 'name' in config.id)
+                          : (config?.id && typeof config.id === 'object' && 'name' in config.id)
                             ? String((config.id as any).name)
                             : String(config.id || 'unknown_config');
                         
+                        // Check validation status
+                        const isValidated = config.validated_at != null;
+                        
                         return (
                           <SelectItem key={configId} value={configId}>
-                            {configId}
+                            <div className="flex items-center justify-between w-full">
+                              <span>{configId}</span>
+                              <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                                isValidated 
+                                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                  : 'bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-300'
+                              }`}>
+                                {isValidated ? 'Ready' : 'Not Ready'}
+                              </span>
+                            </div>
                           </SelectItem>
                         );
                       })}

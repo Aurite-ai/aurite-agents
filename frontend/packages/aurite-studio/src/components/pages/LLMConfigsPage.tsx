@@ -1,15 +1,37 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Cloud, Plus, Edit, Play, Loader2 } from 'lucide-react';
+import { Cloud, Plus, Edit, TestTube, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLLMsWithConfigs } from '@/hooks/useLLMs';
+import { useLLMsWithConfigs, useTestLLM } from '@/hooks/useLLMs';
+import { ProviderIcon } from '@/components/ui/ProviderIcon';
+import { formatModelName, formatRelativeTime } from '@/utils/formatters';
 
 export default function LLMConfigsPage() {
   const navigate = useNavigate();
-  
+
+  // State to track which LLM is currently being tested
+  const [currentlyTestingId, setCurrentlyTestingId] = React.useState<string | null>(null);
+
+  // State to track which LLMs have recently failed tests
+  const [failedTests, setFailedTests] = React.useState<Set<string>>(new Set());
+
+  // Callback functions for test results
+  const handleMarkAsFailed = React.useCallback((llmConfigId: string) => {
+    setFailedTests(prev => new Set(prev).add(llmConfigId));
+  }, []);
+
+  const handleMarkAsSuccess = React.useCallback((llmConfigId: string) => {
+    setFailedTests(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(llmConfigId);
+      return newSet;
+    });
+  }, []);
+
   // API Hooks
   const { data: llms = [], isLoading: llmsLoading } = useLLMsWithConfigs();
+  const testLLM = useTestLLM(handleMarkAsFailed, handleMarkAsSuccess);
 
   const handleNewLLMConfig = () => {
     // Navigate to new LLM config form
@@ -21,6 +43,51 @@ export default function LLMConfigsPage() {
     
     // Navigate to edit form
     navigate(`/llm-configs/${encodeURIComponent(llmId)}/edit`);
+  };
+
+  const handleTestLLM = (llmId: string) => {
+    setCurrentlyTestingId(llmId);
+    testLLM.mutate(llmId);
+  };
+
+  // Reset the currently testing ID when the test completes
+  React.useEffect(() => {
+    if (!testLLM.isPending) {
+      setCurrentlyTestingId(null);
+    }
+  }, [testLLM.isPending]);
+
+  const getEnhancedStatus = (llm: any, llmId: string) => {
+    // Check if this LLM recently failed a test
+    if (failedTests.has(llmId)) {
+      return {
+        icon: AlertTriangle,
+        text: 'Not tested yet',
+        className: 'text-red-600',
+        buttonText: 'Run Test',
+        circleColor: 'bg-red-500',
+      };
+    }
+
+    // Check if LLM has been successfully tested
+    if (llm.validated_at) {
+      return {
+        icon: CheckCircle,
+        text: `Tested ${formatRelativeTime(llm.validated_at)}`,
+        className: 'text-green-600',
+        buttonText: 'Re-Run Test',
+        circleColor: 'bg-green-500',
+      };
+    }
+
+    // Default: Not tested yet
+    return {
+      icon: AlertTriangle,
+      text: 'Not tested yet',
+      className: 'text-yellow-600',
+      buttonText: 'Run Test',
+      circleColor: 'bg-yellow-500',
+    };
   };
 
   return (
@@ -77,7 +144,17 @@ export default function LLMConfigsPage() {
       {!llmsLoading && llms.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {llms.map((llm, index) => {
-            const llmId = typeof llm.id === 'string' ? llm.id : (llm.id as any)?.name || 'unknown_llm';
+            if (!llm) {
+              return null;
+            } // Handle null entries
+            
+            // Safely extract LLM config ID
+            const llmId = llm && typeof llm.id === 'string' 
+              ? llm.id 
+              : (llm?.id && typeof llm.id === 'object' && 'name' in llm.id)
+                ? String((llm.id as any).name)
+                : 'unknown_llm';
+            const isThisButtonLoading = testLLM.isPending && currentlyTestingId === llmId;
             return (
               <motion.div
                 key={llmId}
@@ -87,15 +164,37 @@ export default function LLMConfigsPage() {
                 className="gradient-card rounded-lg p-4 space-y-3 hover:shadow-md transition-all duration-200 gradient-glow"
               >
                 <div className="space-y-2">
+                  {/* Header with Provider Icon and LLM Name */}
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground">{llmId}</h3>
-                    <div className={`w-2 h-2 rounded-full ${llm.status === 'active' ? 'bg-green-500' : 'bg-gray-500'}`} />
+                    <div className="flex items-center gap-2">
+                      <ProviderIcon
+                        provider={llm.fullConfig?.provider || 'unknown'}
+                        className="h-4 w-4"
+                      />
+                      <h3 className="font-semibold text-foreground">{llmId}</h3>
+                    </div>
+                    <div
+                      className={`w-2 h-2 rounded-full ${getEnhancedStatus(llm, llmId).circleColor}`}
+                    />
                   </div>
+
+                  {/* Model Name */}
                   <p className="text-sm text-muted-foreground">
-                    {llm.configFile ? 'Configured' : 'Configuration pending'}
+                    {formatModelName(llm.fullConfig?.model || '')}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="capitalize">Status: {llm.status}</span>
+
+                  {/* Status with Timestamp */}
+                  <div className="flex items-center gap-1.5 text-xs">
+                    {(() => {
+                      const status = getEnhancedStatus(llm, llmId);
+                      const StatusIcon = status.icon;
+                      return (
+                        <>
+                          <StatusIcon className={`h-3.5 w-3.5 ${status.className}`} />
+                          <span className={status.className}>{status.text}</span>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 
@@ -109,9 +208,18 @@ export default function LLMConfigsPage() {
                     <Edit className="h-3.5 w-3.5" />
                     Configure
                   </Button>
-                  <Button size="sm" className="gap-1.5">
-                    <Play className="h-3.5 w-3.5" />
-                    {llm.status === 'active' ? 'Deactivate' : 'Activate'}
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => handleTestLLM(llmId)}
+                    disabled={false}
+                  >
+                    {isThisButtonLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <TestTube className="h-3.5 w-3.5" />
+                    )}
+                    {isThisButtonLoading ? 'Testing...' : getEnhancedStatus(llm, llmId).buttonText}
                   </Button>
                 </div>
               </motion.div>
