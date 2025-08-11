@@ -48,6 +48,14 @@ class GraphWorkflowExecutor:
 
         self._build_and_verify_graph()
 
+        config_manager = self.engine._config_manager
+        for node in self.config.nodes:
+            config = config_manager.get_config(component_type=node.type, component_id=node.name)
+            if not config:
+                raise ValueError(
+                    f"Invalid Node: No config found for node_id {node.node_id} (type: {node.type}, name: {node.name})"
+                )
+
         logger.debug(f"GraphWorkflowExecutor initialized for workflow: {self.config.name}")
 
     def _build_and_verify_graph(self):
