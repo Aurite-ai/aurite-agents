@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow } from '@/hooks/useWorkflows';
+import { FilePicker } from '@/components/ui/FilePicker';
+import { useCustomWorkflowConfigByName, useUpdateCustomWorkflow, useDeleteCustomWorkflow, useCreateCustomWorkflow } from '@/hooks/useWorkflows';
 
 interface CustomWorkflowFormProps {
   editMode?: boolean;
@@ -34,6 +35,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
   
   const updateCustomWorkflow = useUpdateCustomWorkflow();
   const deleteCustomWorkflow = useDeleteCustomWorkflow();
+  const createCustomWorkflow = useCreateCustomWorkflow();
 
   // Effect to populate custom workflow form when custom workflow config is loaded
   useEffect(() => {
@@ -72,7 +74,6 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
     // Build the custom workflow config object from form state
     const customWorkflowConfig = {
       name: workflowName,
-      type: "custom_workflow" as const,
       module_path: customWorkflowModulePath,
       class_name: customWorkflowClassName,
       description: workflowDescription || undefined
@@ -95,10 +96,16 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
         }
       });
     } else {
-      // Create mode - would need a create hook, but for now just navigate back
-      // Note: The original code didn't have a create path for custom workflows
-      console.log('⚠️ Create mode for custom workflows not implemented in original code');
-      navigate('/workflows');
+      // Create mode - create new custom workflow using POST method
+      createCustomWorkflow.mutate(customWorkflowConfig, {
+        onSuccess: () => {
+          console.log('✅ Custom workflow created successfully');
+          navigate('/workflows');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to create custom workflow:', error);
+        }
+      });
     }
   };
 
@@ -140,7 +147,7 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <h1 className="text-3xl font-bold text-primary">
-                Edit Custom Workflow
+                {editMode ? 'Edit Custom Workflow' : 'Create Custom Workflow'}
               </h1>
             </div>
 
@@ -196,20 +203,14 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               <h2 className="text-lg font-semibold text-primary">Python Implementation</h2>
               
               <div className="space-y-4">
-                {/* Module Path */}
-                <div className="space-y-2">
-                  <Label htmlFor="module-path" className="text-sm font-medium text-foreground">Module Path *</Label>
-                  <Input
-                    id="module-path"
-                    placeholder="e.g., custom_workflows.data_processing"
-                    value={customWorkflowModulePath}
-                    onChange={(e) => setCustomWorkflowModulePath(e.target.value)}
-                    className="text-base"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Python module path containing your workflow class
-                  </p>
-                </div>
+                {/* Module Path with File Picker */}
+                <FilePicker
+                  value={customWorkflowModulePath}
+                  onChange={setCustomWorkflowModulePath}
+                  placeholder="Select Python workflow file..."
+                  defaultDirectory="custom_workflows"
+                  label="Module Path"
+                />
 
                 {/* Class Name */}
                 <div className="space-y-2">
@@ -270,15 +271,15 @@ export default function CustomWorkflowForm({ editMode = false }: CustomWorkflowF
               <Button 
                 className="px-8"
                 onClick={handleSubmit}
-                disabled={updateCustomWorkflow.isPending || !workflowName.trim() || !customWorkflowModulePath.trim() || !customWorkflowClassName.trim()}
+                disabled={(updateCustomWorkflow.isPending || createCustomWorkflow.isPending) || !workflowName.trim() || !customWorkflowModulePath.trim() || !customWorkflowClassName.trim()}
               >
-                {updateCustomWorkflow.isPending ? (
+                {(updateCustomWorkflow.isPending || createCustomWorkflow.isPending) ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Updating...
+                    {editMode ? 'Updating...' : 'Creating...'}
                   </>
                 ) : (
-                  'Update Custom Workflow'
+                  editMode ? 'Update Custom Workflow' : 'Save Custom Workflow'
                 )}
               </Button>
             </motion.div>

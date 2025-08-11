@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -180,18 +180,32 @@ export default function WorkflowForm({ editMode = false }: WorkflowFormProps) {
             className="w-full max-w-4xl mx-auto space-y-8"
           >
             {/* Header */}
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/workflows')}
-                className="w-9 h-9"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-3xl font-bold text-primary">
-                {editMode ? 'Edit Linear Workflow' : 'Build New Linear Workflow'}
-              </h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/workflows')}
+                  className="w-9 h-9"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-3xl font-bold text-primary">
+                  {editMode ? 'Edit Linear Workflow' : 'Build New Linear Workflow'}
+                </h1>
+              </div>
+              
+              {/* Create Custom Workflow Button - Only show in create mode */}
+              {!editMode && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/workflows/custom/new')}
+                  className="flex items-center gap-2"
+                >
+                  <FileCode className="h-4 w-4" />
+                  Create Custom Workflow
+                </Button>
+              )}
             </div>
 
             {/* Workflow Details Card */}

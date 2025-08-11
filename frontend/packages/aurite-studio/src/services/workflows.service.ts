@@ -241,6 +241,42 @@ class WorkflowsService {
     return `${sanitized}.json`;
   }
 
+  // Create new custom workflow configuration
+  async createCustomWorkflowConfig(config: CustomWorkflowConfig): Promise<CustomWorkflowConfig> {
+    try {
+      const apiConfig = this.mapToApiCustomWorkflowConfig(config);
+      const result = await apiClient.config.createConfig('custom_workflow', apiConfig);
+      return this.mapToLocalCustomWorkflowConfig(result);
+    } catch (error) {
+      this.handleError(error, `Failed to create custom workflow configuration`);
+      throw error;
+    }
+  }
+
+  // Create and register custom workflow in one operation
+  async createAndRegisterCustomWorkflow(config: CustomWorkflowConfig): Promise<{
+    configFile: string;
+    registration: SuccessResponse;
+  }> {
+    const filename = this.generateConfigFilename(config.name);
+
+    try {
+      // First create the config file
+      await this.createCustomWorkflowConfig(config);
+
+      // Then register the custom workflow
+      const registration = await this.registerCustomWorkflow(config);
+
+      return {
+        configFile: filename,
+        registration
+      };
+    } catch (error) {
+      this.handleError(error, `Failed to create and register custom workflow ${config.name}`);
+      throw error;
+    }
+  }
+
   // Create and register workflow in one operation
   async createAndRegisterWorkflow(config: WorkflowConfig): Promise<{
     configFile: string;

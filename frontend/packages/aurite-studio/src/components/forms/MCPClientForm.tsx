@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useClientConfig, useUpdateClient, useCreateMCPServer, useDeleteClient } from '@/hooks/useClients';
+import FilePicker from '@/components/ui/FilePicker';
 
 interface MCPClientFormProps {
   editMode?: boolean;
@@ -36,6 +37,27 @@ export default function MCPClientForm({ editMode = false, hideHeader = false, on
   
   // Stdio transport fields
   const [mcpServerPath, setMcpServerPath] = useState('');
+  
+  // Helper function to handle FilePicker value conversion for MCP servers
+  const handleServerPathChange = (modulePath: string) => {
+    // Convert module path back to file path for MCP server usage
+    if (modulePath) {
+      const filePath = modulePath.replace(/\./g, '/') + '.py';
+      setMcpServerPath(filePath);
+    } else {
+      setMcpServerPath('');
+    }
+  };
+  
+  // Convert file path to module path for FilePicker display
+  const getModulePathForDisplay = (filePath: string): string => {
+    if (!filePath) return '';
+    return filePath
+      .replace(/\.py$/, '')           // Remove .py extension
+      .replace(/^\/+/, '')           // Remove leading slashes
+      .replace(/\/+/g, '.')          // Convert slashes to dots
+      .replace(/^\.+/, '');          // Remove leading dots
+  };
   
   // HTTP stream transport fields
   const [mcpHttpEndpoint, setMcpHttpEndpoint] = useState('');
@@ -339,13 +361,12 @@ export default function MCPClientForm({ editMode = false, hideHeader = false, on
                 <div className="space-y-4 p-4 bg-muted/20 rounded-lg">
                   <h3 className="text-sm font-medium text-foreground">Stdio Configuration</h3>
                   <div className="space-y-2">
-                    <Label htmlFor="server-path" className="text-sm font-medium text-foreground">Server Path *</Label>
-                    <Input
-                      id="server-path"
-                      placeholder="e.g., src/packaged_servers/weather_server.py"
-                      value={mcpServerPath}
-                      onChange={(e) => setMcpServerPath(e.target.value)}
-                      className="text-base"
+                    <FilePicker
+                      value={getModulePathForDisplay(mcpServerPath)}
+                      onChange={handleServerPathChange}
+                      placeholder="Select Python MCP server file..."
+                      defaultDirectory="src"
+                      label="Server Path"
                     />
                   </div>
                 </div>

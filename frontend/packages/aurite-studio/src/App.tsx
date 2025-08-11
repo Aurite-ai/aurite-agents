@@ -39,6 +39,7 @@ function App() {
         <Route path="/workflows/:name/edit/text" element={<Layout><WorkflowForm editMode={true} /></Layout>} />
         <Route path="/workflows/:name/edit/visual" element={<Layout><VisualWorkflowBuilder editMode={true} /></Layout>} />
         
+        <Route path="/workflows/custom/new" element={<Layout><CustomWorkflowForm editMode={false} /></Layout>} />
         <Route path="/workflows/custom/:name/edit" element={<Layout><CustomWorkflowForm editMode={true} /></Layout>} />
         <Route path="/mcp-clients/new" element={<Layout><MCPClientForm editMode={false} /></Layout>} />
         <Route path="/mcp-clients/:name/edit" element={<Layout><MCPClientForm editMode={true} /></Layout>} />

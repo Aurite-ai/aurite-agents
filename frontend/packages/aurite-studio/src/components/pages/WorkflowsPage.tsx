@@ -36,8 +36,13 @@ export default function WorkflowsPage() {
   const handleEditWorkflow = (workflow: any, mode: 'text' | 'visual') => {
     const workflowName = typeof workflow.name === 'string' ? workflow.name : (workflow.name as any)?.name || 'Unknown Workflow';
     
-    // Navigate to appropriate edit form based on mode
-    navigate(`/workflows/${encodeURIComponent(workflowName)}/edit/${mode}`);
+    if (workflow.type === 'custom_workflow') {
+      // Route to Custom Workflow edit form
+      navigate(`/workflows/custom/${encodeURIComponent(workflowName)}/edit`);
+    } else {
+      // Route to Linear Workflow edit form (existing behavior)
+      navigate(`/workflows/${encodeURIComponent(workflowName)}/edit/${mode}`);
+    }
   };
 
   const handleRunWorkflow = async (workflow: any) => {

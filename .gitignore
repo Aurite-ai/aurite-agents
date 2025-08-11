@@ -201,3 +201,4 @@ demo-config/*
 docs/aurite-studio/*
 .langfuse_logs/
 !src/aurite/lib
+demo-config/.env.example

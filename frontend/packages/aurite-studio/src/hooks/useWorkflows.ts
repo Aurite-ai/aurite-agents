@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import workflowsService from '../services/workflows.service';
-import { WorkflowConfig, ExecuteWorkflowRequest, ExecuteCustomWorkflowRequest } from '../types';
+import { WorkflowConfig, CustomWorkflowConfig, ExecuteWorkflowRequest, ExecuteCustomWorkflowRequest } from '../types';
 
 // Query keys
 const QUERY_KEYS = {
@@ -280,6 +280,24 @@ export const useUpdateCustomWorkflow = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to update custom workflow');
+    },
+  });
+};
+
+// Hook to create custom workflow
+export const useCreateCustomWorkflow = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (config: CustomWorkflowConfig) =>
+      workflowsService.createAndRegisterCustomWorkflow(config),
+    onSuccess: (data, variables) => {
+      toast.success(`Custom workflow "${variables.name}" created successfully`);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.customWorkflows });
+      queryClient.invalidateQueries({ queryKey: ['custom-workflow-configs'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create custom workflow');
     },
   });
 };

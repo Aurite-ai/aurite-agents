@@ -13,6 +13,25 @@ export default function HoverExpandEditButton({
   onEdit, 
   className = '' 
 }: HoverExpandEditButtonProps) {
+  // For Custom Workflows, show a simple edit button (no dropdown)
+  if (workflow.type === 'custom_workflow') {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit(workflow, 'text'); // Mode doesn't matter for custom workflows
+        }}
+        className={className}
+      >
+        <Edit className="h-4 w-4 mr-2" />
+        Edit
+      </Button>
+    );
+  }
+
+  // For Linear Workflows, show the expandable dropdown with Text/Visual options
   return (
     <div className={`relative group ${className}`}>
       {/* Default State - Single Edit Button */}
