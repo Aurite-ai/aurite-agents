@@ -168,3 +168,25 @@ export interface ConfigSource {
   project_name?: string;
   workspace_name?: string;
 }
+
+/**
+ * Result from LLM configuration testing
+ */
+export interface LLMTestResult {
+  /** Test status */
+  status: 'success' | 'error';
+  /** ID of the tested LLM configuration */
+  llm_config_id: string;
+  /** LLM metadata (only present on success) */
+  metadata?: {
+    provider: string;
+    model: string;
+    temperature: number;
+    max_tokens: number;
+  };
+  /** Error details (only present on failure) */
+  error?: {
+    message: string;
+    error_type: string;
+  };
+}

@@ -16,6 +16,7 @@ import type {
   WorkflowRunRequest,
   WorkflowExecutionResult,
   StreamEvent,
+  LLMTestResult,
 } from '../types';
 
 export class ExecutionFacadeClient extends BaseClient {
@@ -101,7 +102,7 @@ export class ExecutionFacadeClient extends BaseClient {
   async streamAgent(
     agentName: string,
     request: AgentRunRequest,
-    // eslint-disable-next-line no-unused-vars
+
     onEvent: (event: StreamEvent) => void
   ): Promise<void> {
     const url = `${this.config.baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`;
@@ -126,10 +127,11 @@ export class ExecutionFacadeClient extends BaseClient {
     const decoder = new TextDecoder();
     let buffer = '';
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    let reading = true;
+    while (reading) {
       const { done, value } = await reader.read();
       if (done) {
+        reading = false;
         break;
       }
 
@@ -142,8 +144,8 @@ export class ExecutionFacadeClient extends BaseClient {
           try {
             const event = JSON.parse(line.slice(6));
             onEvent(event);
-          } catch (e) {
-            console.error('Failed to parse SSE event:', e);
+          } catch {
+            // Silently ignore malformed SSE events
           }
         }
       }
@@ -222,6 +224,37 @@ export class ExecutionFacadeClient extends BaseClient {
       `/execution/workflows/custom/${encodeURIComponent(workflowName)}/run`,
       request
     );
+  }
+
+  /**
+   * Test an LLM configuration by running a simple validation call
+   *
+   * This method validates that an LLM configuration is working correctly by:
+   * - Checking the configuration structure
+   * - Testing connectivity to the LLM provider
+   * - Validating API credentials
+   * - Performing a simple test call
+   *
+   * @param llmConfigId - ID of the LLM configuration to test
+   * @returns Test result with status and metadata or error details
+   * @throws Error if the request fails or the LLM configuration is not found
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   const result = await client.execution.testLLM('my_openai_gpt4');
+   *   if (result.status === 'success') {
+   *     console.log(`LLM test passed: ${result.metadata?.provider}/${result.metadata?.model}`);
+   *   } else {
+   *     console.error(`LLM test failed: ${result.error?.message}`);
+   *   }
+   * } catch (error) {
+   *   console.error('LLM test request failed:', error);
+   * }
+   * ```
+   */
+  async testLLM(llmConfigId: string): Promise<LLMTestResult> {
+    return this.request('POST', `/execution/llms/${encodeURIComponent(llmConfigId)}/test`);
   }
 
   async testAgent(agentName: string): Promise<{ status: string }> {

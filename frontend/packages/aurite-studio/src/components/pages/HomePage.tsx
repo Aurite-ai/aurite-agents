@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Link as LinkIcon, Wand2, Loader2 } from 'lucide-react';
+import { Sparkles, Link as LinkIcon, Wand2, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,8 @@ import { useCreateAgent } from '@/hooks/useAgents';
 import { useClientsWithStatus } from '@/hooks/useClients';
 import { useLLMsWithConfigs } from '@/hooks/useLLMs';
 import { SuccessResponse } from '@/types';
+import LLMConfigForm from '@/components/forms/LLMConfigForm';
+import MCPClientForm from '@/components/forms/MCPClientForm';
 
 const quickActions = [
   'Build a data analysis agent',
@@ -33,6 +35,8 @@ export default function HomePage() {
   const [selectedModel, setSelectedModel] = useState('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [selectedLandingMCPServers, setSelectedLandingMCPServers] = useState<string[]>([]);
+  const [showLLMModal, setShowLLMModal] = useState(false);
+  const [showMCPModal, setShowMCPModal] = useState(false);
 
   // API Hooks
   const createAgent = useCreateAgent();
@@ -231,9 +235,17 @@ export default function HomePage() {
                     className="space-y-1.5"
                   >
                     <Label className="text-xs font-medium text-muted-foreground">LLM Model</Label>
-                    <Select value={selectedModel} onValueChange={setSelectedModel}>
+                    <Select value={selectedModel} onValueChange={(value) => {
+                      if (value === '__create_new__') {
+                        setShowLLMModal(true);
+                      } else {
+                        setSelectedModel(value);
+                      }
+                    }}>
                       <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Select model..." />
+                        <SelectValue placeholder="Select model...">
+                          {selectedModel && selectedModel !== '__create_new__' ? selectedModel : undefined}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {llmsLoading ? (
@@ -248,20 +260,50 @@ export default function HomePage() {
                             No LLM configurations available
                           </SelectItem>
                         ) : (
-                          llms.map((config) => {
-                            // Safely extract LLM config ID
-                            const configId = typeof config.id === 'string' 
-                              ? config.id 
-                              : (config.id && typeof config.id === 'object' && 'name' in config.id)
-                                ? String((config.id as any).name)
-                                : String(config.id || 'unknown_config');
+                          <>
+                            {llms.map((config) => {
+                              // Handle null config entries
+                              if (!config) {
+                                return null;
+                              }
+                              
+                              // Safely extract LLM config ID
+                              const configId = config && typeof config.id === 'string' 
+                                ? config.id 
+                                : (config?.id && typeof config.id === 'object' && 'name' in config.id)
+                                  ? String((config.id as any).name)
+                                  : String(config.id || 'unknown_config');
+                              
+                              // Check validation status
+                              const isValidated = config.validated_at != null;
+                              
+                              return (
+                                <SelectItem key={configId} value={configId}>
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{configId}</span>
+                                    <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                                      isValidated 
+                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                        : 'bg-orange-50 text-orange-600 dark:bg-orange-950/50 dark:text-orange-300'
+                                    }`}>
+                                      {isValidated ? 'Ready' : 'Not Ready'}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
                             
-                            return (
-                              <SelectItem key={configId} value={configId}>
-                                {configId}
-                              </SelectItem>
-                            );
-                          })
+                            {/* Separator */}
+                            <div className="border-t border-border my-1" />
+                            
+                            {/* Create New LLM Option */}
+                            <SelectItem value="__create_new__">
+                              <div className="flex items-center gap-2 text-primary">
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>Create New LLM Config</span>
+                              </div>
+                            </SelectItem>
+                          </>
                         )}
                       </SelectContent>
                     </Select>
@@ -294,30 +336,60 @@ export default function HomePage() {
                             No MCP servers available
                           </div>
                         ) : (
-                          <div className="p-2 space-y-2">
-                            {clients.map((client) => (
-                              <div key={client.name} className="flex items-center gap-2">
-                                <Checkbox 
-                                  checked={selectedLandingMCPServers.includes(client.name)}
-                                  disabled={client.status !== 'connected'}
-                                  onCheckedChange={(checked: boolean) => {
-                                    if (checked) {
-                                      setSelectedLandingMCPServers([...selectedLandingMCPServers, client.name]);
-                                    } else {
-                                      setSelectedLandingMCPServers(selectedLandingMCPServers.filter(s => s !== client.name));
+                          <div className="p-2 space-y-1">
+                            {clients.map((client) => {
+                              const isSelected = selectedLandingMCPServers.includes(client.name);
+                              const isConnected = client.status === 'connected';
+                              
+                              return (
+                                <button
+                                  key={client.name}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isConnected) {
+                                      if (isSelected) {
+                                        setSelectedLandingMCPServers(selectedLandingMCPServers.filter(s => s !== client.name));
+                                      } else {
+                                        setSelectedLandingMCPServers([...selectedLandingMCPServers, client.name]);
+                                      }
                                     }
                                   }}
-                                />
-                                <span className="text-sm">{client.name}</span>
-                                <span className={`text-xs px-1 py-0.5 rounded ${
-                                  client.status === 'connected' 
-                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
-                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                }`}>
-                                  {client.status}
-                                </span>
-                              </div>
-                            ))}
+                                  disabled={!isConnected}
+                                  className={`w-full flex items-center gap-2 p-2 rounded-md transition-all duration-200 text-left ${
+                                    isConnected
+                                      ? 'hover:bg-accent cursor-pointer'
+                                      : 'opacity-60 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <Checkbox 
+                                    checked={isSelected}
+                                    disabled={!isConnected}
+                                    className="pointer-events-none"
+                                  />
+                                  <span className="text-sm pointer-events-none">{client.name}</span>
+                                  <span className={`text-xs px-1 py-0.5 rounded pointer-events-none ml-auto ${
+                                    client.status === 'connected' 
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  }`}>
+                                    {client.status}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                            
+                            {/* Separator */}
+                            <div className="border-t border-border my-1" />
+                            
+                            {/* Create New MCP Client Option */}
+                            <button
+                              type="button"
+                              onClick={() => setShowMCPModal(true)}
+                              className="w-full flex items-center gap-2 p-2 rounded-md transition-all duration-200 text-left hover:bg-accent cursor-pointer text-primary"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              <span className="text-sm">Create New MCP Client</span>
+                            </button>
                           </div>
                         )}
                       </SelectContent>
@@ -355,6 +427,98 @@ export default function HomePage() {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* LLM Creation Modal */}
+      <AnimatePresence>
+        {showLLMModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowLLMModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-primary">Create New LLM Configuration</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowLLMModal(false)}
+                    className="w-8 h-8"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
+                </div>
+                
+                {/* Embed LLMConfigForm without navigation */}
+                <div className="space-y-6">
+                  <LLMConfigForm 
+                    editMode={false} 
+                    hideHeader={true}
+                    onSuccess={() => setShowLLMModal(false)}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MCP Creation Modal */}
+      <AnimatePresence>
+        {showMCPModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowMCPModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-card border border-border rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-primary">Create New MCP Client</h2>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowMCPModal(false)}
+                    className="w-8 h-8"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
+                </div>
+                
+                {/* Embed MCPClientForm without navigation */}
+                <div className="space-y-6">
+                  <MCPClientForm 
+                    editMode={false}
+                    hideHeader={true}
+                    onSuccess={() => setShowMCPModal(false)}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

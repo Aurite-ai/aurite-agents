@@ -10,9 +10,11 @@ import { useLLMConfig, useUpdateLLM, useCreateLLM, useDeleteLLM } from '@/hooks/
 
 interface LLMConfigFormProps {
   editMode?: boolean;
+  hideHeader?: boolean;
+  onSuccess?: () => void;
 }
 
-export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) {
+export default function LLMConfigForm({ editMode = false, hideHeader = false, onSuccess }: LLMConfigFormProps) {
   const navigate = useNavigate();
   const { name: llmNameParam } = useParams<{ name: string }>();
   
@@ -111,7 +113,11 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
       createLLM.mutate(llmConfig, {
         onSuccess: () => {
           console.log('✅ New LLM config created successfully');
-          navigate('/llm-configs');
+          if (onSuccess) {
+            onSuccess();  // Call parent callback if provided
+          } else {
+            navigate('/llm-configs');  // Default behavior for standalone usage
+          }
         },
         onError: (error) => {
           console.error('❌ Failed to create LLM config:', error);
@@ -147,20 +153,22 @@ export default function LLMConfigForm({ editMode = false }: LLMConfigFormProps) 
             transition={{ duration: 0.5 }}
             className="w-full max-w-4xl mx-auto space-y-8"
           >
-            {/* Header */}
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/llm-configs')}
-                className="w-9 h-9"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-3xl font-bold text-primary">
-                {editMode ? 'Edit LLM Configuration' : 'Build New LLM Configuration'}
-              </h1>
-            </div>
+            {/* Header - Only show when not hidden */}
+            {!hideHeader && (
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/llm-configs')}
+                  className="w-9 h-9"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-3xl font-bold text-primary">
+                  {editMode ? 'Edit LLM Configuration' : 'Build New LLM Configuration'}
+                </h1>
+              </div>
+            )}
 
             {/* LLM Configuration Card */}
             <motion.div

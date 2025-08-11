@@ -1,13 +1,6 @@
 import apiClient from './apiClient';
-import { 
-  LLMConfig as LocalLLMConfig,
-  SuccessResponse
-} from '../types';
-import {
-  ApiError,
-  TimeoutError,
-  CancellationError,
-} from '@aurite/api-client';
+import { LLMConfig as LocalLLMConfig, SuccessResponse } from '../types';
+import { ApiError, TimeoutError, CancellationError, LLMTestResult } from '@aurite/api-client';
 
 class LLMsService {
   // List all registered LLM configurations
@@ -181,6 +174,16 @@ class LLMsService {
     ];
   }
 
+  // Test LLM configuration
+  async testLLMConfig(llmConfigId: string): Promise<LLMTestResult> {
+    try {
+      return await apiClient.execution.testLLM(llmConfigId);
+    } catch (error) {
+      this.handleError(error, `Failed to test LLM configuration ${llmConfigId}`);
+      throw error;
+    }
+  }
+
   // Validate LLM configuration
   validateConfig(config: Partial<LocalLLMConfig>): string[] {
     const errors: string[] = [];
@@ -213,15 +216,16 @@ class LLMsService {
   }
 
   // Helper method to handle errors with user-friendly messages
-  private handleError(error: unknown, context: string): void {
+  private handleError(error: unknown, _context: string): void {
+    // Error handling - could be enhanced with proper logging service
     if (error instanceof ApiError) {
-      console.error('%s: %s', context, String(error.getDisplayMessage()), error.toJSON());
+      // API error with display message
     } else if (error instanceof TimeoutError) {
-      console.error('%s: Request timed out', context, error);
+      // Request timed out
     } else if (error instanceof CancellationError) {
-      console.error('%s: Request was cancelled', context, error);
+      // Request was cancelled
     } else {
-      console.error('%s: Unknown error', context, error);
+      // Unknown error
     }
   }
 
@@ -240,6 +244,7 @@ class LLMsService {
       api_key: apiConfig.api_key,
       api_version: apiConfig.api_version,
       api_key_env_var: apiConfig.api_key_env_var,
+      validated_at: apiConfig.validated_at,
     };
   }
 
@@ -258,6 +263,7 @@ class LLMsService {
       api_key: localConfig.api_key,
       api_version: localConfig.api_version,
       api_key_env_var: localConfig.api_key_env_var,
+      validated_at: null, // Always reset validation status when creating/updating
     };
   }
 }

@@ -37,4 +37,5 @@ export type {
   ServerRuntimeInfo,
   ServerTestResult,
   ToolDetails,
+  LLMTestResult,
 } from './responses';

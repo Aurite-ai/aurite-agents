@@ -2,6 +2,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import llmsService from '../services/llms.service';
 import { LLMConfig } from '../types';
+import { formatLLMTestError } from '../utils/formatters';
+
+// Define the LLMTestResult type locally to avoid import issues
+interface LLMTestResult {
+  status: 'success' | 'error';
+  llm_config_id: string;
+  metadata?: {
+    provider: string;
+    model: string;
+    temperature?: number;
+    max_tokens?: number;
+  };
+  error?: {
+    message: string;
+    error_type?: string;
+  };
+}
+
+// LLM data type definition removed as it's not used
 
 // Query keys
 const QUERY_KEYS = {
@@ -56,8 +75,12 @@ export const useCreateLLM = () => {
       llmsService.createAndRegisterLLM(config),
     onSuccess: (data, variables) => {
       toast.success(`LLM Config "${variables.name}" created successfully`);
+
+      // Invalidate all LLM-related queries to ensure UI updates immediately
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llms });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfigs });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmById(variables.name) });
+      queryClient.invalidateQueries({ queryKey: ['llms-with-full-configs'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to create LLM configuration');
@@ -74,8 +97,13 @@ export const useUpdateLLM = () => {
       llmsService.updateLLMConfig(filename, config),
     onSuccess: (data, variables) => {
       toast.success(`LLM Config "${variables.config.name}" updated successfully`);
+
+      // Invalidate all LLM-related queries to ensure UI updates immediately
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llms });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfigs });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfig(variables.filename) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmById(variables.config.name) });
+      queryClient.invalidateQueries({ queryKey: ['llms-with-full-configs'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to update LLM configuration');
@@ -101,27 +129,106 @@ export const useDeleteLLM = () => {
   });
 };
 
+// Hook to test LLM configuration
+export const useTestLLM = (
+  onMarkAsFailed?: (_llmConfigId: string) => void,
+  onMarkAsSuccess?: (_llmConfigId: string) => void
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (llmConfigId: string) => {
+      try {
+        const result = await llmsService.testLLMConfig(llmConfigId);
+        return result;
+      } catch (error) {
+        // Error will be handled by onError callback
+        throw error;
+      }
+    },
+    onSuccess: (result: LLMTestResult, llmConfigId: string) => {
+      if (result.status === 'success') {
+        toast.success(`${llmConfigId} tested successfully!`);
+        // Mark as successful (clear from failed list)
+        onMarkAsSuccess?.(llmConfigId);
+      } else {
+        toast.error(`Test failed: ${result.error?.message || 'Unknown error'}`);
+        // Mark as failed
+        onMarkAsFailed?.(llmConfigId);
+      }
+
+      // Invalidate queries to refresh validation status
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llms });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmConfigs });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.llmById(llmConfigId) });
+      queryClient.invalidateQueries({ queryKey: ['llms-with-full-configs'] });
+    },
+    onError: (error: any, llmConfigId: string) => {
+      // Mark as failed
+      onMarkAsFailed?.(llmConfigId);
+
+      // Use the improved error formatter
+      const userFriendlyMessage = formatLLMTestError(llmConfigId, error);
+
+      toast.error(`${userFriendlyMessage}`);
+    },
+  });
+};
+
 // Hook to get LLMs with their configurations
 export const useLLMsWithConfigs = () => {
   const { data: llms = [], isLoading: llmsLoading } = useLLMs();
   const { data: configs = [], isLoading: configsLoading } = useLLMConfigs();
 
-  const llmsWithConfigs = llms.map(llmId => {
-    const configFile = configs.find(file => 
-      typeof file === 'string' && 
-      file.toLowerCase().includes(llmId.toLowerCase().replace(/[^a-z0-9]/g, '_'))
-    );
-    
-    return {
-      id: llmId,
-      configFile,
-      status: 'active' as const,
-    };
+  // Process the LLM data - the API returns full config objects, not just IDs
+  const configQueries = useQuery({
+    queryKey: ['llms-with-full-configs', llms],
+    queryFn: async () => {
+      const llmsWithConfigs = llms
+        .map((llmData: any) => {
+          // Handle both string and object formats
+          let llmId: string;
+          let fullConfig: any;
+
+          if (typeof llmData === 'string') {
+            llmId = llmData;
+            fullConfig = null;
+          } else if (llmData && typeof llmData === 'object' && llmData.name) {
+            llmId = llmData.name;
+            fullConfig = llmData; // The API already returns the full config
+          } else {
+            // Invalid LLM data format - skip this entry
+            return null;
+          }
+
+          // Find matching config file
+          const configFile = configs.find(
+            file =>
+              typeof file === 'string' &&
+              file.toLowerCase().includes(llmId.toLowerCase().replace(/[^a-z0-9]/g, '_'))
+          );
+
+          return {
+            id: llmId,
+            configFile,
+            status: 'active' as const,
+            validated_at: fullConfig?.validated_at || null,
+            provider: fullConfig?.provider,
+            model: fullConfig?.model,
+            fullConfig,
+          };
+        })
+        .filter(Boolean); // Remove any null entries
+
+      return llmsWithConfigs;
+    },
+    enabled: !llmsLoading && !configsLoading && llms.length > 0,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
   return {
-    data: llmsWithConfigs,
-    isLoading: llmsLoading || configsLoading,
+    data: configQueries.data || [],
+    isLoading: llmsLoading || configsLoading || configQueries.isLoading,
   };
 };
 

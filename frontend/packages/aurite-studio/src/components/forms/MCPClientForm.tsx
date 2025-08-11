@@ -17,9 +17,11 @@ import { useClientConfig, useUpdateClient, useCreateMCPServer, useDeleteClient }
 
 interface MCPClientFormProps {
   editMode?: boolean;
+  hideHeader?: boolean;
+  onSuccess?: () => void;
 }
 
-export default function MCPClientForm({ editMode = false }: MCPClientFormProps) {
+export default function MCPClientForm({ editMode = false, hideHeader = false, onSuccess }: MCPClientFormProps) {
   const navigate = useNavigate();
   const { name: mcpNameParam } = useParams<{ name: string }>();
   
@@ -178,7 +180,11 @@ export default function MCPClientForm({ editMode = false }: MCPClientFormProps) 
       }, {
         onSuccess: () => {
           console.log('✅ MCP server updated successfully');
-          navigate('/mcp-clients');
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            navigate('/mcp-clients');
+          }
         },
         onError: (error) => {
           console.error('❌ Failed to update MCP server:', error);
@@ -192,7 +198,11 @@ export default function MCPClientForm({ editMode = false }: MCPClientFormProps) 
       }, {
         onSuccess: () => {
           console.log('✅ New MCP server created successfully');
-          navigate('/mcp-clients');
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            navigate('/mcp-clients');
+          }
         },
         onError: (error) => {
           console.error('❌ Failed to create MCP server:', error);
@@ -217,31 +227,33 @@ export default function MCPClientForm({ editMode = false }: MCPClientFormProps) 
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className={hideHeader ? "bg-background text-foreground" : "flex h-screen bg-background text-foreground"}>
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative">
+      <div className={hideHeader ? "w-full" : "flex-1 flex flex-col relative"}>
         {/* Main Content Area */}
-        <main className="flex-1 flex flex-col px-6 pt-12 pb-8">
+        <main className={hideHeader ? "space-y-6" : "flex-1 flex flex-col px-6 pt-12 pb-8"}>
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.5 }}
             className="w-full max-w-4xl mx-auto space-y-8"
           >
-            {/* Header */}
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/mcp-clients')}
-                className="w-9 h-9"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-3xl font-bold text-primary">
-                {editMode ? 'Edit MCP Server' : 'Build New MCP Server'}
-              </h1>
-            </div>
+            {/* Header - Only show when not hiding header */}
+            {!hideHeader && (
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/mcp-clients')}
+                  className="w-9 h-9"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <h1 className="text-3xl font-bold text-primary">
+                  {editMode ? 'Edit MCP Server' : 'Build New MCP Server'}
+                </h1>
+              </div>
+            )}
 
             {/* Basic Configuration Card */}
             <motion.div
