@@ -1,4 +1,4 @@
-# Aurite Framework Frontend
+# ✨ Aurite Framework Frontend
 
 A comprehensive TypeScript/JavaScript frontend ecosystem for the Aurite Framework, providing both a production-ready API client and a modern web interface for building and managing AI agents, workflows, and configurations.
 

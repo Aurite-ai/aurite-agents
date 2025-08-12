@@ -1,4 +1,4 @@
-# Aurite Agents Framework
+# ✨ Aurite Agents Framework
 
 <p align="center">
   <img src="docs/images/aurite_logo.png" alt="Aurite Logo" width="200"/>
@@ -122,6 +122,58 @@ For a deep dive into the framework's design, see the [**Architecture Overview**]
     -   [Custom Workflow Config](docs/config/custom_workflow.md)
 -   **Architecture**
     -   [Architecture Overview](docs/architecture/overview.md)
+
+
+## ⭐ Star this Repository!
+
+**Found Aurite Agent Framework useful?** Give us a star! ⭐ 
+
+Your support helps us:
+- 🚀 **Prioritize new features** based on community interest
+- 📈 **Attract more contributors** to accelerate development  
+- 🎯 **Focus our roadmap** on what matters most to developers
+- 🌟 **Build a thriving ecosystem** around AI agent development
+
+**Join us** in building the future of AI agents & workflows with Aurite!
+
+### Join Our Community
+- 🐛 **Report Issues**: Found a bug? [Open an issue](https://github.com/Aurite-ai/aurite-agents/issues)
+- 💡 **Feature Requests**: Have an idea? [Start a discussion](https://github.com/Aurite-ai/aurite-agents/discussions)
+- 🤝 **Contribute**: Check our Contributing Guidelines below
+- 📧 **Contact**: Reach out at hello@aurite.ai
+
+## 📄 Citation
+
+If you use Aurite Agents in your research or projects, please cite:
+
+### BibTeX
+```bibtex
+@software{aurite_agents_2025,
+  title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
+  author={Ryan W and Blake R and Jiten O},
+  year={2025},
+  version={0.3.26},
+  url={https://github.com/Aurite-ai/aurite-agents},
+  note={Configuration-driven AI agent framework with MCP integration and multi-LLM support}
+}
+```
+
+## 🔗 Related Work & Ecosystem
+
+### Built With
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) - Tool integration standard
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework for APIs
+- [Textual](https://textual.textualize.io/) - Rich terminal user interfaces
+- [Pydantic](https://pydantic.dev/) - Data validation and settings management
+
+### Integrations
+- **LLM Providers**: OpenAI, Anthropic, Google, and more via LiteLLM
+- **Tools**: Any MCP-compatible server or custom Python tools
+- **Deployment**: Docker, cloud platforms, local development
+
+### Community Projects
+- [MCP Servers Registry](https://github.com/modelcontextprotocol/servers) - Official MCP tools
+- [Aurite Community Examples](https://github.com/Aurite-ai/aurite-agents/tree/main/demo-config) - Templates and examples
 
 ## Contributing
 

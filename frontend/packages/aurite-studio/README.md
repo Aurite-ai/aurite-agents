@@ -1,4 +1,8 @@
-# Aurite Studio
+# ✨ Aurite Studio
+
+<p align="center">
+  <img src="../../../docs/images/aurite_studio_screenshot.png" alt="Aurite Studio" width="180"/>
+</p>
 
 A modern, intuitive web interface for managing and executing AI agents, workflows, and configurations in the Aurite Framework. Aurite Studio provides a visual workspace for building, configuring, and running intelligent AI agents with real-time execution monitoring.
 
@@ -296,15 +300,6 @@ The project uses:
 - **TypeScript** for type safety
 - **Husky** for pre-commit hooks
 
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes with appropriate tests
-4. Commit your changes: `git commit -m 'Add amazing feature'`
-5. Push to the branch: `git push origin feature/amazing-feature`
-6. Open a Pull Request
-
 ## Configuration
 
 ### Environment Variables
@@ -408,6 +403,56 @@ For different environments, create environment-specific `.env` files:
 - `.env.development` - Development settings
 - `.env.staging` - Staging environment
 - `.env.production` - Production configuration
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes with appropriate tests
+4. Commit your changes: `git commit -m 'Add amazing feature'`
+5. Push to the branch: `git push origin feature/amazing-feature`
+6. Open a Pull Request
+
+## 📄 Citation
+
+If you use Aurite Studio in your research or projects, please cite:
+
+```bibtex
+@software{aurite_studio_2025,
+  title={Aurite Studio: Web Interface for AI Agent Management and Workflow Design},
+  author={Jiten O and Ryan W and Blake R},
+  year={2025},
+  url={https://github.com/Aurite-ai/aurite-agents/tree/main/frontend/packages/aurite-studio},
+  note={React-based web application for visual AI agent management and real-time execution monitoring}
+}
+```
+
+**Dependencies:** This application is built on the Aurite API Client and Core Framework. Please also cite:
+
+**API Client:**
+
+```bibtex
+@software{aurite_api_client_2025,
+  title={Aurite API Client: Production TypeScript Client for AI Agent Framework},
+  author={Jiten O and Ryan W and Blake R},
+  year={2025},
+  url={https://github.com/Aurite-ai/aurite-agents/tree/main/frontend/packages/api-client},
+  note={TypeScript client library with streaming support and comprehensive error handling}
+}
+```
+
+**Core Framework:**
+
+```bibtex
+@software{aurite_agents_2025,
+  title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
+  author={Ryan W and Blake R and Jiten O},
+  year={2025},
+  version={0.3.26},
+  url={https://github.com/Aurite-ai/aurite-agents},
+  note={Configuration-driven AI agent framework with MCP integration and multi-LLM support}
+}
+```
 
 ## License
 
