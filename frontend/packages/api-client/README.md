@@ -1,4 +1,4 @@
-# @aurite/api-client
+# ✨ @aurite/api-client
 
 A production-ready TypeScript client for the Aurite Framework API with comprehensive error handling, retry logic, and full type safety.
 
@@ -489,6 +489,33 @@ const client = createAuriteClient(baseUrl, apiKey, {
 - Follow the existing code style (ESLint + Prettier)
 - Update documentation for new features
 - Maintain backwards compatibility
+
+## 📄 Citation
+
+If you use the Aurite API Client in your projects or research, please cite:
+
+```bibtex
+@software{aurite_api_client_2025,
+  title={Aurite API Client: Production TypeScript Client for AI Agent Framework},
+  author={Jiten O and Ryan W and Blake R},
+  year={2025},
+  url={https://github.com/Aurite-ai/aurite-agents/tree/main/frontend/packages/api-client},
+  note={TypeScript client library with streaming support and comprehensive error handling}
+}
+```
+
+**Core Framework Dependency:** This client interfaces with the Aurite Framework. Please also cite:
+
+```bibtex
+@software{aurite_agents_2025,
+  title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
+  author={Ryan W and Blake R and Jiten O},
+  year={2025},
+  version={0.3.26},
+  url={https://github.com/Aurite-ai/aurite-agents},
+  note={Configuration-driven AI agent framework with MCP integration and multi-LLM support}
+}
+```
 
 ## License
 

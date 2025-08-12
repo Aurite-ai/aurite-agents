@@ -1,4 +1,4 @@
-# Aurite Agents Testing Guide
+# 🔧 Aurite Agents Testing Guide
 
 This document outlines the strategy, structure, and best practices for writing and running tests for the Aurite Agents framework. Adherence to these guidelines is crucial for maintaining a flexible, robust, and developer-friendly test suite.
 
