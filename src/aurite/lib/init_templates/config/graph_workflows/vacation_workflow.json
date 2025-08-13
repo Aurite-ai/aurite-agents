@@ -1,0 +1,105 @@
+[
+    {
+        "name": "Vacation Destination Agent",
+        "system_prompt": "Your task is to decide the perfect travel destination based on the user's preferences. Return with the country and city they should travel to.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "type": "agent",
+        "llm": {
+            "temperature": 0
+        }
+    },
+    {
+        "name": "Vacation Weather Agent",
+        "system_prompt": "Your task is to find the weather for a given location. Use the weather tool to find the weather and return with a one sentence description of the weather.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "type": "agent",
+        "mcp_servers": ["weather_server"],
+        "llm": {
+            "temperature": 0
+        }
+    },
+    {
+        "name": "Vacation Clothing Agent",
+        "system_prompt": "Your task is to recommend clothing based on a weather forecast. Give a one sentence description of what you would recommend to wear based on the given weather conditions.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "type": "agent",
+        "llm": {
+            "temperature": 0
+        }
+    },
+    {
+        "name": "Vacation Planning Agent",
+        "system_prompt": "Your task is to recommend popular attractions and restraunts to visit while on a vacation to a given city. Return a bullet point list with the top 5 attractions/restaurants to visit.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "type": "agent",
+        "llm": {
+            "temperature": 0
+        }
+    },
+    {
+        "name": "Vacation Summary Agent",
+        "system_prompt": "Your task is to summarize the vacation information given to you into a report to be presented to a customer. Make sure to include all of the information given to you.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "type": "agent",
+        "llm": {
+            "temperature": 0
+        }
+    },
+    {
+        "name": "Vacation Weather Workflow",
+        "type": "linear_workflow",
+        "steps": [
+            "Vacation Weather Agent",
+            "Vacation Clothing Agent"
+        ]
+    },
+    {
+        "name": "Vacation Workflow",
+        "description": "Example graph workflow using a linear workflow",
+        "type": "graph_workflow",
+        "nodes": [
+            {
+                "type": "agent",
+                "name": "Vacation Destination Agent",
+                "node_id": "destination_agent"
+            },
+            {
+                "type": "agent",
+                "name": "Vacation Summary Agent",
+                "node_id": "summary_agent"
+            },
+            {
+                "type": "agent",
+                "name": "Vacation Planning Agent",
+                "node_id": "planning_agent"
+            },
+            {
+                "type": "linear_workflow",
+                "name": "Vacation Weather Workflow",
+                "node_id": "weather_workflow"
+            }
+        ],
+        "edges": [
+            {
+                "from": "destination_agent",
+                "to": "summary_agent"
+            },
+            {
+                "from": "destination_agent",
+                "to": "planning_agent"
+            },
+            {
+                "from": "destination_agent",
+                "to": "weather_workflow"
+            },
+            {
+                "from": "planning_agent",
+                "to": "summary_agent"
+            },
+            {
+                "from": "weather_workflow",
+                "to": "summary_agent"
+            }
+        ]
+    }
+]
