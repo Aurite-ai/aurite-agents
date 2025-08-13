@@ -1,7 +1,7 @@
 # ✨ Aurite Studio
 
 <p align="center">
-  <img src="../../../docs/images/aurite_studio_screenshot.png" alt="Aurite Studio" width="180"/>
+  <img src="../../../docs/images/aurite_studio_screenshot.png" alt="Aurite Studio" width="900"/>
 </p>
 
 A modern, intuitive web interface for managing and executing AI agents, workflows, and configurations in the Aurite Framework. Aurite Studio provides a visual workspace for building, configuring, and running intelligent AI agents with real-time execution monitoring.
