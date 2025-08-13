@@ -3,6 +3,7 @@ Executor for Graph Workflows with parallel node execution.
 """
 
 import asyncio
+import json
 import logging
 import uuid
 from typing import TYPE_CHECKING, Optional
@@ -176,30 +177,21 @@ class GraphWorkflowExecutor:
                                 if all(pred in completed_nodes for pred in predecessors):
                                     # All predecessors completed, we can start this node
 
-                                    # Concatenate outputs from all predecessors as input
-                                    predecessor_outputs = []
-                                    for pred_id in predecessors:
-                                        if pred_id in node_results:
-                                            # Extract the text result from the node result
-                                            pred_result = node_results[pred_id].result
-                                            if isinstance(pred_result, str):
-                                                predecessor_outputs.append(pred_result)
-                                            else:
-                                                # If it's not a string, convert to string representation
-                                                predecessor_outputs.append(str(pred_result))
-
-                                    # Concatenate all predecessor outputs
-                                    combined_input = "\n\n".join(predecessor_outputs) if predecessor_outputs else ""
+                                    pred_dict = {node_id: node_results[node_id].result for node_id in predecessors}
 
                                     # Start the successor node
                                     successor_config = node_config_map[successor_node_id]
                                     task = asyncio.create_task(
                                         self._execute_node(
-                                            successor_config, combined_input, session_id, base_session_id, force_logging
+                                            successor_config,
+                                            json.dumps(pred_dict),
+                                            session_id,
+                                            base_session_id,
+                                            force_logging,
                                         )
                                     )
                                     running_tasks[successor_node_id] = task
-                                    logger.debug(
+                                    logger.info(
                                         f"Started node '{successor_node_id}' with input from predecessors: {predecessors}"
                                     )
 
