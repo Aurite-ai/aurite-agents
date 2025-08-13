@@ -81,7 +81,7 @@ class GraphWorkflowExecutor:
 
     async def execute(
         self,
-        initial_input: str,
+        initial_input: str | dict,
         session_id: Optional[str] = None,
         base_session_id: Optional[str] = None,
         force_logging: Optional[bool] = None,
@@ -184,7 +184,7 @@ class GraphWorkflowExecutor:
                                     task = asyncio.create_task(
                                         self._execute_node(
                                             successor_config,
-                                            json.dumps(pred_dict),
+                                            pred_dict,
                                             session_id,
                                             base_session_id,
                                             force_logging,
@@ -243,17 +243,17 @@ class GraphWorkflowExecutor:
     async def _execute_node(
         self,
         node_config,
-        input_text: str,
+        input: str | dict,
         session_id: Optional[str],
         base_session_id: Optional[str],
         force_logging: Optional[bool],
-    ) -> str:
+    ) -> str | dict:
         """
         Execute a single node in the graph workflow.
 
         Args:
             node_config: The GraphWorkflowNode configuration
-            input_text: The input text for this node
+            input: The input for this node
             session_id: Session ID for conversation history
             base_session_id: Base session ID for the workflow
             force_logging: Whether to force logging
@@ -261,34 +261,71 @@ class GraphWorkflowExecutor:
         Returns:
             The text output from the node execution
         """
-        logger.info(f"Executing node '{node_config.node_id}' ({node_config.name}) with input: {input_text[:200]}...")
+        logger.info(f"Executing node '{node_config.node_id}' ({node_config.name}) with input: {str(input)[:200]}...")
 
         try:
-            if node_config.type == "agent":
-                # Execute the agent using the engine
-                agent_result = await self.engine.run_agent(
-                    agent_name=node_config.name,
-                    user_message=input_text,
-                    session_id=f"{session_id}-{node_config.node_id}" if session_id else None,
-                    force_include_history=self.config.include_history,
-                    base_session_id=base_session_id,
-                    force_logging=force_logging,
-                )
+            match node_config.type:
+                case "agent":
+                    # Execute the agent using the engine
+                    agent_result = await self.engine.run_agent(
+                        agent_name=node_config.name,
+                        user_message=str(input),
+                        session_id=f"{session_id}-{node_config.node_id}" if session_id else None,
+                        force_include_history=self.config.include_history,
+                        base_session_id=base_session_id,
+                        force_logging=force_logging,
+                    )
 
-                # Check if the agent execution was successful
-                if agent_result.status != "success":
-                    error_detail = agent_result.error_message or f"Agent finished with status: {agent_result.status}"
-                    raise Exception(f"Agent '{node_config.name}' failed: {error_detail}")
+                    # Check if the agent execution was successful
+                    if agent_result.status != "success":
+                        error_detail = (
+                            agent_result.error_message or f"Agent finished with status: {agent_result.status}"
+                        )
+                        raise Exception(f"Agent '{node_config.name}' failed: {error_detail}")
 
-                if agent_result.final_response is None:
-                    raise Exception(f"Agent '{node_config.name}' succeeded but produced no response.")
+                    if agent_result.final_response is None:
+                        raise Exception(f"Agent '{node_config.name}' succeeded but produced no response.")
 
-                # Return the text content from the agent's response
-                return agent_result.final_response.content or ""
+                    # Return the text content from the agent's response
+                    return agent_result.final_response.content or ""
+                case "linear_workflow":
+                    workflow_result = await self.engine.run_linear_workflow(
+                        workflow_name=node_config.name,
+                        initial_input=input,
+                        session_id=session_id,
+                        force_logging=force_logging,
+                    )
+                    if workflow_result.error:
+                        raise Exception(f"Workflow '{node_config.name}' failed: {workflow_result.error}")
 
-            else:
-                # For future extension - other node types like workflows
-                raise ValueError(f"Unsupported node type: {node_config.type}")
+                    return workflow_result.final_output
+                case "graph_workflow":
+                    workflow_result = await self.engine.run_graph_workflow(
+                        workflow_name=node_config.name,
+                        initial_input=input,
+                        session_id=session_id,
+                        force_logging=force_logging,
+                    )
+                    if workflow_result.error:
+                        raise Exception(f"Workflow '{node_config.name}' failed: {workflow_result.error}")
+
+                    return workflow_result.final_output
+                case "custom_workflow":
+                    input_type = await self.engine.get_custom_workflow_input_type(workflow_name=node_config.name)
+                    if isinstance(input, str) and input_type is dict:
+                        input = json.loads(input)
+                    elif isinstance(input, dict) and input_type is str:
+                        input = json.dumps(input)
+
+                    custom_workflow_output = await self.engine.run_custom_workflow(
+                        workflow_name=node_config.name,
+                        initial_input=input,
+                        session_id=session_id,
+                    )
+
+                    return custom_workflow_output
+                case _:
+                    raise ValueError(f"Unsupported node type: {node_config.type}")
 
         except Exception as e:
             logger.error(f"Error executing node '{node_config.node_id}': {e}")

@@ -269,9 +269,9 @@ class WorkflowConfig(BaseComponentConfig):
 class GraphWorkflowNode(BaseModel):
     node_id: str = Field(description="The identifier for the node in the graph workflow.")
     name: str = Field(description="The name of the component to run in the workflow step.")
-    type: Literal["agent"] = Field(
+    type: Literal["agent", "linear_workflow", "graph_workflow", "custom_workflow"] = Field(
         description="The type of the component."
-    )  # Only allow agents for now. Todo: allow other types
+    )
 
 
 class GraphWorkflowEdge(BaseModel):
