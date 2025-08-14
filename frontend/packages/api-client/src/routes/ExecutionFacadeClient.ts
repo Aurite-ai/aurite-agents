@@ -282,7 +282,7 @@ export class ExecutionFacadeClient extends BaseClient {
   }
 
   async getAgentHistory(agentName: string): Promise<any> {
-    return this.request('GET', `/execution/agents/${encodeURIComponent(agentName)}/history`);
+    return this.request('GET', `/execution/history?agent_name=${encodeURIComponent(agentName)}`);
   }
 
   async getWorkflowHistory(workflowName: string): Promise<any> {

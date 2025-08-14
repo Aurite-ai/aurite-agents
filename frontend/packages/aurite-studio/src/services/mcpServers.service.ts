@@ -8,7 +8,7 @@ import {
   TimeoutError,
   CancellationError,
   ToolDetails,
-} from '@aurite/api-client';
+} from '@aurite-ai/api-client';
 import { 
   validateMCPServerConfig,
   formToMCPServerConfig,

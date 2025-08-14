@@ -1,9 +1,9 @@
 {
-  "name": "@aurite/aurite-studio",
+  "name": "@aurite-ai/aurite-studio",
   "version": "0.3.6",
   "private": true,
   "dependencies": {
-    "@aurite/api-client": "file:../api-client",
+    "@aurite-ai/api-client": "file:../api-client",
     "@babel/runtime": "^7.27.6",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.2.5",
@@ -15,7 +15,6 @@
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
     "@types/node": "^16.18.126",
-    "@types/react": "^19.1.7",
     "@types/react-dom": "^19.1.6",
     "@xyflow/react": "^12.8.2",
     "class-variance-authority": "^0.7.1",
@@ -32,7 +31,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^4.9.5",
+    "typescript": "^5.3.0",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -40,6 +39,7 @@
     "build": "craco build",
     "clean": "rimraf build",
     "test": "craco test",
+    "test:integration": "echo 'No integration tests for aurite-studio yet'",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -62,8 +62,11 @@
   },
   "devDependencies": {
     "@craco/craco": "^7.1.0",
+    "@types/react": "^19.1.10",
     "autoprefixer": "^10.4.21",
+    "glob": "^11.0.3",
     "postcss": "^8.5.4",
+    "rimraf": "^3.0.2",
     "tailwindcss": "^3.4.17"
   }
 }

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FolderOpen, File, FileCode } from 'lucide-react';
+import { FolderOpen, FileCode } from 'lucide-react';
 
 interface FilePickerProps {
   value: string;                    // Current module path
@@ -43,9 +43,6 @@ export const FilePicker: React.FC<FilePickerProps> = ({
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Get the file path (this will be the full path in most browsers)
-      const filePath = file.name; // In a real implementation, you'd get the full path
-      
       // For demo purposes, we'll simulate a path structure
       const simulatedPath = `${defaultDirectory}/${file.name}`;
       

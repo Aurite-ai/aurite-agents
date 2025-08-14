@@ -1,8 +1,8 @@
-# ✨ @aurite/api-client
+# ✨ @aurite-ai/api-client
 
 A production-ready TypeScript client for the Aurite Framework API with comprehensive error handling, retry logic, and full type safety.
 
-[![npm version](https://badge.fury.io/js/@aurite%2Fapi-client.svg)](https://badge.fury.io/js/@aurite%2Fapi-client)
+[![npm version](https://badge.fury.io/js/@aurite-ai%2Fapi-client.svg)](https://badge.fury.io/js/@aurite-ai%2Fapi-client)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -21,11 +21,11 @@ A production-ready TypeScript client for the Aurite Framework API with comprehen
 ### Option 1: Install as NPM Package
 
 ```bash
-npm install @aurite/api-client
+npm install @aurite-ai/api-client
 # or
-yarn add @aurite/api-client
+yarn add @aurite-ai/api-client
 # or
-pnpm add @aurite/api-client
+pnpm add @aurite-ai/api-client
 ```
 
 ### Option 2: Development within Workspace
@@ -47,7 +47,7 @@ npm run build
 ## Quick Start
 
 ```typescript
-import { createAuriteClient } from '@aurite/api-client';
+import { createAuriteClient } from '@aurite-ai/api-client';
 
 // Create client instance
 const client = createAuriteClient(
@@ -152,7 +152,7 @@ const health = await client.system.comprehensiveHealthCheck();
 The client provides comprehensive error handling with categorized error types:
 
 ```typescript
-import { ApiError, TimeoutError, CancellationError } from '@aurite/api-client';
+import { ApiError, TimeoutError, CancellationError } from '@aurite-ai/api-client';
 
 try {
   const result = await client.execution.runAgent('Weather Agent', {
@@ -203,7 +203,7 @@ await client.execution.streamAgent(
 Configure the client with custom options:
 
 ```typescript
-import { createAuriteClient } from '@aurite/api-client';
+import { createAuriteClient } from '@aurite-ai/api-client';
 
 const client = createAuriteClient('http://localhost:8000', 'your-api-key', {
   timeout: 30000, // 30 second timeout
@@ -525,7 +525,7 @@ MIT License - see [LICENSE](../../LICENSE) file for details.
 
 - **Repository**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
 - **Documentation**: [https://github.com/aurite-ai/aurite-agents](https://github.com/aurite-ai/aurite-agents)
-- **NPM Package**: [https://www.npmjs.com/package/@aurite/api-client](https://www.npmjs.com/package/@aurite/api-client)
+- **NPM Package**: [https://www.npmjs.com/package/@aurite-ai/api-client](https://www.npmjs.com/package/@aurite-ai/api-client)
 - **Issues**: [GitHub Issues](https://github.com/aurite-ai/aurite-agents/issues)
 - **API Reference**: [API Documentation](../../../docs/usage/api_reference.md)
 

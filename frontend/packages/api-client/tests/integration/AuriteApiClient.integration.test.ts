@@ -385,7 +385,9 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     });
   });
 
-  describe('System', () => {
+  describe.skip('System', () => {
+    // These tests are skipped because the /system/ endpoints are intentionally disabled
+    // in the current API server configuration
     it('should get system info', async () => {
       const info = await client.system.getSystemInfo();
       expect(info).toBeDefined();

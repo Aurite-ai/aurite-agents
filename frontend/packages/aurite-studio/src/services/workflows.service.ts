@@ -14,7 +14,7 @@ import {
   TimeoutError,
   CancellationError,
   WorkflowRunRequest,
-} from '@aurite/api-client';
+} from '@aurite-ai/api-client';
 
 class WorkflowsService {
   // List all registered linear workflows

@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 # Adjust imports for new location (src/bin -> src)
 from ...aurite import (  # Corrected relative import (up two levels from src/bin/api)
@@ -275,6 +276,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Static Files for Swagger UI ---
+# Mount static files to serve Swagger UI assets
+# This is required for the /api-docs endpoint to work properly
+try:
+    # Try to mount static files - FastAPI will handle Swagger UI assets automatically
+    # We just need to ensure StaticFiles is available for any custom static content
+    from pathlib import Path
+    static_dir = Path(__file__).parent.parent / "studio" / "static"
+    if static_dir.exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+        logger.debug(f"Mounted static files from {static_dir}")
+except Exception as e:
+    # If static files can't be mounted, log but don't fail startup
+    # Swagger UI should still work with FastAPI's built-in static file handling
+    logger.warning(f"Could not mount static files: {e}")
 
 
 # --- Health Check Endpoint (Moved earlier) ---

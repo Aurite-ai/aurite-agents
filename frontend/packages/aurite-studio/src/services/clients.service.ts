@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 import { ClientConfig as LocalClientConfig, MCPServerConfig, SuccessResponse } from '../types';
-import { ApiError, TimeoutError, CancellationError, ToolDetails } from '@aurite/api-client';
+import { ApiError, TimeoutError, CancellationError, ToolDetails } from '@aurite-ai/api-client';
 import { validateMCPServerConfig } from '../utils/mcpValidation';
 
 // Type definition for all possible service errors
