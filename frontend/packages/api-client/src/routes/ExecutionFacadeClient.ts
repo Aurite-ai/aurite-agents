@@ -102,8 +102,7 @@ export class ExecutionFacadeClient extends BaseClient {
   async streamAgent(
     agentName: string,
     request: AgentRunRequest,
-
-    onEvent: (event: StreamEvent) => void
+    onEvent: (_event: StreamEvent) => void
   ): Promise<void> {
     const url = `${this.config.baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`;
     const response = await fetch(url, {
@@ -142,10 +141,10 @@ export class ExecutionFacadeClient extends BaseClient {
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           try {
-            const event = JSON.parse(line.slice(6));
-            onEvent(event);
-          } catch {
+            onEvent(JSON.parse(line.slice(6)));
+          } catch (error) {
             // Silently ignore malformed SSE events
+            void error; // Explicitly mark as intentionally unused
           }
         }
       }

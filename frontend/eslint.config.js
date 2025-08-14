@@ -16,6 +16,7 @@ export default [
       ecmaVersion: 2022,
       sourceType: 'module',
       globals: {
+        // Node.js globals
         console: 'readonly',
         process: 'readonly',
         Buffer: 'readonly',
@@ -25,6 +26,35 @@ export default [
         module: 'readonly',
         require: 'readonly',
         exports: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        NodeJS: 'readonly',
+        
+        // Browser/Web APIs
+        fetch: 'readonly',
+        Response: 'readonly',
+        Request: 'readonly',
+        Headers: 'readonly',
+        HeadersInit: 'readonly',
+        RequestInit: 'readonly',
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        ReadableStream: 'readonly',
+        
+        // Test globals (Vitest)
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        vi: 'readonly',
       },
     },
     rules: {
@@ -59,6 +89,18 @@ export default [
 
       // Prettier integration
       'prettier/prettier': 'error',
+
+      // TypeScript-specific rules
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      // Disable the base rule as it can report incorrect errors
+      'no-unused-vars': 'off',
     },
   },
   {

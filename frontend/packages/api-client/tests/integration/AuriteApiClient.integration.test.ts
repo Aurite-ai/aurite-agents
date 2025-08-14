@@ -34,7 +34,7 @@ describe.skipIf(SKIP_INTEGRATION)('Aurite API Client Integration Tests', () => {
     if (testAgentName) {
       try {
         await client.config.deleteConfig('agent', testAgentName);
-      } catch (e) {
+      } catch (_e) {
         // Ignore errors during cleanup
       }
     }
