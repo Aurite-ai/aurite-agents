@@ -31,22 +31,31 @@ export interface RequestOptions {
  */
 export enum ErrorCategory {
   /** Network connectivity issues */
+
   NETWORK = 'network',
   /** Authentication/authorization failures */
+
   AUTH = 'auth',
   /** Client-side validation errors */
+
   VALIDATION = 'validation',
   /** Server-side errors */
+
   SERVER = 'server',
   /** Request timeout */
+
   TIMEOUT = 'timeout',
   /** Request was cancelled */
+
   CANCELLED = 'cancelled',
   /** Rate limiting */
+
   RATE_LIMIT = 'rate_limit',
   /** Resource not found */
+
   NOT_FOUND = 'not_found',
   /** Unknown error */
+
   UNKNOWN = 'unknown',
 }
 
@@ -55,12 +64,16 @@ export enum ErrorCategory {
  */
 export enum ErrorSeverity {
   /** Low severity - informational */
+
   INFO = 'info',
   /** Medium severity - warning */
+
   WARNING = 'warning',
   /** High severity - error */
+
   ERROR = 'error',
   /** Critical severity - fatal error */
+
   CRITICAL = 'critical',
 }
 
@@ -130,7 +143,8 @@ export class ApiError extends Error {
       return {
         category: ErrorCategory.VALIDATION,
         severity: ErrorSeverity.WARNING,
-        userMessage: 'Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.',
+        userMessage:
+          'Agent reached maximum iteration limit. Consider increasing max_iterations or simplifying the task.',
         retryable: false,
       };
     }
@@ -139,14 +153,19 @@ export class ApiError extends Error {
     const nonRetryableExecutionErrors = [
       'MaxIterationsReachedError',
       'ValidationError',
-      'ConfigurationError'
+      'ConfigurationError',
     ];
-    
-    if (status >= 500 && details?.error?.error_type && nonRetryableExecutionErrors.includes(details.error.error_type)) {
+
+    if (
+      status >= 500 &&
+      details?.error?.error_type &&
+      nonRetryableExecutionErrors.includes(details.error.error_type)
+    ) {
       return {
         category: ErrorCategory.VALIDATION,
         severity: ErrorSeverity.WARNING,
-        userMessage: details?.error?.message || 'Execution failed due to configuration or validation issue.',
+        userMessage:
+          details?.error?.message || 'Execution failed due to configuration or validation issue.',
         retryable: false,
       };
     }
@@ -337,8 +356,8 @@ export type LLMProvider = 'openai' | 'anthropic' | 'local' | 'azure';
 /**
  * Execution error types that should not be retried
  */
-export type ExecutionErrorType = 
+export type ExecutionErrorType =
   | 'MaxIterationsReachedError'
-  | 'TimeoutError' 
+  | 'TimeoutError'
   | 'ValidationError'
   | 'ConfigurationError';

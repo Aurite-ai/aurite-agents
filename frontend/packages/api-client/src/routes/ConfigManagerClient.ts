@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 /**
  * Client for the Configuration Manager API endpoints
  *

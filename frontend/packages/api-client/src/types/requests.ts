@@ -47,7 +47,7 @@ export interface AgentConfig {
   // LLM Configuration
   /** LLM configuration ID to use */
   llm_config_id?: string;
-  
+
   // LLM Override Parameters (optional, overrides llm_config_id settings)
   /** Model name/identifier override */
   model?: string;

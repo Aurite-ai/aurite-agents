@@ -257,19 +257,19 @@ export class RetryHandler {
  * Error boundary helper for React-like error handling
  */
 export class ErrorBoundary {
-  private errorHandlers: Array<(error: Error, errorInfo?: any) => void> = [];
+  private errorHandlers: Array<(_error: Error, _errorInfo?: any) => void> = [];
 
   /**
    * Adds an error handler
    */
-  addErrorHandler(handler: (error: Error, errorInfo?: any) => void): void {
+  addErrorHandler(handler: (_error: Error, _errorInfo?: any) => void): void {
     this.errorHandlers.push(handler);
   }
 
   /**
    * Removes an error handler
    */
-  removeErrorHandler(handler: (error: Error, errorInfo?: any) => void): void {
+  removeErrorHandler(handler: (_error: Error, _errorInfo?: any) => void): void {
     const index = this.errorHandlers.indexOf(handler);
     if (index > -1) {
       this.errorHandlers.splice(index, 1);
@@ -283,8 +283,9 @@ export class ErrorBoundary {
     this.errorHandlers.forEach(handler => {
       try {
         handler(error, errorInfo);
-      } catch (handlerError) {
-        console.error('Error in error handler:', handlerError);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Error in error handler:', e);
       }
     });
   }
@@ -299,18 +300,45 @@ export class ErrorBoundary {
 
         // Handle async functions
         if (result instanceof Promise) {
-          return result.catch(error => {
-            this.handleError(error);
-            throw error;
+          return result.catch(e => {
+            this.handleError(e);
+            throw e;
           });
         }
 
         return result;
-      } catch (error) {
-        this.handleError(error as Error);
-        throw error;
+      } catch (e) {
+        this.handleError(e as Error);
+        throw e;
       }
     }) as T;
+  }
+}
+
+/**
+ * Logs errors with structured information for debugging
+ */
+export function logError(error: Error | ApiError, context?: string): void {
+  const timestamp = new Date().toISOString();
+
+  if (error instanceof ApiError) {
+    // eslint-disable-next-line no-console
+    console.error('API Error:', {
+      timestamp,
+      context,
+      error: error.toJSON(),
+    });
+  } else {
+    // eslint-disable-next-line no-console
+    console.error('API Error:', {
+      timestamp,
+      context,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      },
+    });
   }
 }
 
@@ -318,30 +346,3 @@ export class ErrorBoundary {
  * Global error boundary instance
  */
 export const globalErrorBoundary = new ErrorBoundary();
-
-/**
- * Logs error details for debugging
- */
-export function logError(
-  error: ApiError | TimeoutError | CancellationError | Error,
-  context?: string
-): void {
-  const timestamp = new Date().toISOString();
-  const logData = {
-    timestamp,
-    context,
-    error:
-      error instanceof ApiError
-        ? error.toJSON()
-        : {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-          },
-  };
-
-  console.error('API Error:', logData);
-
-  // In production, you might want to send this to an error tracking service
-  // Example: Sentry, LogRocket, etc.
-}
