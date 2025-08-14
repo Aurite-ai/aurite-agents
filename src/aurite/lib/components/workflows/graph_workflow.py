@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional
 
 import networkx as nx
 
-from ...models.api.responses import GraphWorkflowExecutionResult, GraphWorkflowNodeResult
+from ...models.api.responses import AgentRunResult, GraphWorkflowExecutionResult, GraphWorkflowNodeResult
 
 # Relative imports assuming this file is in src/workflows/
 from ...models.config.components import GraphWorkflowConfig
@@ -106,9 +106,11 @@ class GraphWorkflowExecutor:
 
         logger.info(f"Executing graph workflow: '{workflow_name}' with session_id: {session_id}")
 
-        node_results: dict[str, GraphWorkflowNodeResult] = {}
-
         try:
+            # Store full_node_results for detailed node_results in output, and simple_node_results for passing to agents and creating final output
+            full_node_results: dict[str, GraphWorkflowNodeResult] = {}
+            simple_node_results: dict[str, str] = {}
+
             # Create a mapping from node_id to node config for easy lookup
             node_config_map = {node.node_id: node for node in self.config.nodes}
 
@@ -156,13 +158,14 @@ class GraphWorkflowExecutor:
 
                     # Get the result and handle any exceptions
                     try:
-                        result = await task
+                        full_result, str_result = await task
                         node_config = node_config_map[completed_node_id]
 
                         # Store the result
-                        node_results[completed_node_id] = GraphWorkflowNodeResult(
-                            name=node_config.name, type=node_config.type, result=result
+                        full_node_results[completed_node_id] = GraphWorkflowNodeResult(
+                            name=node_config.name, type=node_config.type, result=full_result
                         )
+                        simple_node_results[completed_node_id] = str_result
 
                         completed_nodes.add(completed_node_id)
                         del running_tasks[completed_node_id]
@@ -177,7 +180,7 @@ class GraphWorkflowExecutor:
                                 if all(pred in completed_nodes for pred in predecessors):
                                     # All predecessors completed, we can start this node
 
-                                    pred_dict = {node_id: node_results[node_id].result for node_id in predecessors}
+                                    pred_dict = {node_id: simple_node_results[node_id] for node_id in predecessors}
 
                                     # Start the successor node
                                     successor_config = node_config_map[successor_node_id]
@@ -204,7 +207,7 @@ class GraphWorkflowExecutor:
                         return GraphWorkflowExecutionResult(
                             workflow_name=workflow_name,
                             status="failed",
-                            node_results=node_results,
+                            node_results=full_node_results,
                             final_output=None,
                             error=f"Node '{completed_node_id}' failed: {str(e)}",
                             session_id=session_id,
@@ -213,7 +216,7 @@ class GraphWorkflowExecutor:
             # All nodes completed successfully
             # Find final output nodes (nodes with out-degree 0) and combine their results
             final_outputs = {
-                node_id: node_results[node_id].result
+                node_id: simple_node_results[node_id]
                 for node_id in self.graph.nodes
                 if self.graph.out_degree[node_id] == 0
             }
@@ -223,7 +226,7 @@ class GraphWorkflowExecutor:
             return GraphWorkflowExecutionResult(
                 workflow_name=workflow_name,
                 status="completed",
-                node_results=node_results,
+                node_results=full_node_results,
                 final_output=final_outputs,
                 error=None,
                 session_id=session_id,
@@ -234,7 +237,7 @@ class GraphWorkflowExecutor:
             return GraphWorkflowExecutionResult(
                 workflow_name=workflow_name,
                 status="failed",
-                node_results=node_results,
+                node_results=full_node_results,
                 final_output=None,
                 error=f"Workflow setup error: {str(e)}",
                 session_id=session_id,
@@ -247,7 +250,7 @@ class GraphWorkflowExecutor:
         session_id: Optional[str],
         base_session_id: Optional[str],
         force_logging: Optional[bool],
-    ) -> str:
+    ) -> tuple[dict, str]:
         """
         Execute a single node in the graph workflow.
 
@@ -259,14 +262,14 @@ class GraphWorkflowExecutor:
             force_logging: Whether to force logging
 
         Returns:
-            The text output from the node execution
+            (dict, str) A tuple of the full output from the node execution and the final string output
         """
         logger.info(f"Executing node '{node_config.node_id}' ({node_config.name}) with input: {input_text[:200]}...")
 
         try:
             if node_config.type == "agent":
                 # Execute the agent using the engine
-                agent_result = await self.engine.run_agent(
+                agent_result: AgentRunResult = await self.engine.run_agent(
                     agent_name=node_config.name,
                     user_message=input_text,
                     session_id=f"{session_id}-{node_config.node_id}" if session_id else None,
@@ -284,7 +287,7 @@ class GraphWorkflowExecutor:
                     raise Exception(f"Agent '{node_config.name}' succeeded but produced no response.")
 
                 # Return the text content from the agent's response
-                return agent_result.final_response.content or ""
+                return agent_result.model_dump(), (agent_result.final_response.content or "")
 
             else:
                 # For future extension - other node types like workflows
