@@ -1,6 +1,6 @@
 {
   "name": "@aurite-ai/api-client",
-  "version": "0.1.0",
+  "version": "0.3.6",
   "description": "Production-ready TypeScript client for the Aurite Framework API with comprehensive error handling and retry logic",
   "main": "dist/index.js",
   "module": "dist/index.js",
