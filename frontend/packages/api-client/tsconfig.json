@@ -33,7 +33,11 @@
     /* Completeness */
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    
+    /* Skip missing type definitions */
+    "skipDefaultLibCheck": true,
+    "types": []
   },
   "include": ["src/**/*.ts"],
   "exclude": [
