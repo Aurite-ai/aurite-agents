@@ -11,7 +11,7 @@ import {
   CancellationError,
   AgentRunRequest,
   AgentRunResult,
-} from '@aurite/api-client';
+} from '@aurite-ai/api-client';
 
 class AgentsService {
   // List all registered agents (components)

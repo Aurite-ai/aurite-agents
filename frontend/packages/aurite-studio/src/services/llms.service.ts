@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 import { LLMConfig as LocalLLMConfig, SuccessResponse } from '../types';
-import { ApiError, TimeoutError, CancellationError, LLMTestResult } from '@aurite/api-client';
+import { ApiError, TimeoutError, CancellationError, LLMTestResult } from '@aurite-ai/api-client';
 
 class LLMsService {
   // List all registered LLM configurations

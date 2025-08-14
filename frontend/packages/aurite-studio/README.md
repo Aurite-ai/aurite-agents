@@ -226,7 +226,7 @@ docker run -p 3000:3000 -e REACT_APP_API_BASE_URL=http://localhost:8000 aurite-s
 - **Animations**: Framer Motion for smooth transitions
 - **UI Components**: Radix UI primitives
 - **State Management**: TanStack Query for server state
-- **API Client**: Custom `@aurite/api-client` package
+- **API Client**: Custom `@aurite-ai/api-client` package
 - **Build Tool**: Create React App with CRACO
 
 ### Project Structure

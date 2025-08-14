@@ -1,9 +1,9 @@
 {
-  "name": "@aurite/aurite-studio",
+  "name": "@aurite-ai/aurite-studio",
   "version": "0.3.6",
   "private": true,
   "dependencies": {
-    "@aurite/api-client": "file:../api-client",
+    "@aurite-ai/api-client": "file:../api-client",
     "@babel/runtime": "^7.27.6",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.2.5",
@@ -40,6 +40,7 @@
     "build": "craco build",
     "clean": "rimraf build",
     "test": "craco test",
+    "test:integration": "echo 'No integration tests for aurite-studio yet'",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

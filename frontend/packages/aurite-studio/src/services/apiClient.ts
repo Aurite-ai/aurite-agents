@@ -1,4 +1,4 @@
-import { AuriteApiClient } from '@aurite/api-client';
+import { AuriteApiClient } from '@aurite-ai/api-client';
 
 // Create and configure the API client manually to avoid Node.js dependencies
 const apiClient = new AuriteApiClient({
