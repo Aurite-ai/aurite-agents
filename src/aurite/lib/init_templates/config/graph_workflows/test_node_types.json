@@ -1,0 +1,30 @@
+[
+    {
+        "name": "Test Graph Workflow",
+        "type": "graph_workflow",
+        "nodes": [
+            {
+                "type": "graph_workflow",
+                "name": "Color Graph Workflow",
+                "node_id": "a"
+            }
+        ],
+        "edges": [
+            
+        ]
+    },
+    {
+        "name": "Test Custom Workflow",
+        "type": "graph_workflow",
+        "nodes": [
+            {
+                "type": "custom_workflow",
+                "name": "ExampleCustomWorkflow",
+                "node_id": "a"
+            }
+        ],
+        "edges": [
+            
+        ]
+    }
+]
