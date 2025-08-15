@@ -26,7 +26,6 @@ from ..lib.models.config.components import (
     ClientConfig,
     CustomWorkflowConfig,
     LLMConfig,
-    LLMConfigOverrides,
     WorkflowConfig,
 )
 
@@ -181,9 +180,7 @@ class AuriteEngine:
             )
 
         if system_prompt_override:
-            if agent_config_for_run.llm is None:
-                agent_config_for_run.llm = LLMConfigOverrides()
-            agent_config_for_run.llm.system_prompt = system_prompt_override
+            agent_config_for_run.system_prompt = system_prompt_override
 
         agent_instance = Agent(
             agent_config=agent_config_for_run,
