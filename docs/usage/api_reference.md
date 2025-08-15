@@ -107,6 +107,7 @@ The API is structured around four main routers.
     | `POST` | `/execution/agents/{agent_name}/run` | Execute an agent and wait for the result. |
     | `POST` | `/execution/agents/{agent_name}/stream` | Execute an agent and stream the response. |
     | `POST` | `/execution/workflows/linear/{workflow_name}/run` | Execute a linear workflow. |
+    | `POST` | `/execution/workflows/graph/{workflow_name}/run` | Execute a graph workflow. |
     | `POST` | `/execution/workflows/custom/{workflow_name}/run` | Execute a custom workflow. |
 
     **Testing & Validation**
