@@ -8,11 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ....execution.aurite_engine import AuriteEngine
+from ....lib.components.evaluation.evaluator import evaluate_agent
 from ....lib.components.llm.litellm_client import LiteLLMClient
 from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
     AgentConfig,
     AgentRunRequest,
+    EvaluationRequest,
     ExecutionHistoryResponse,
     LLMConfig,
     SessionListResponse,
@@ -183,6 +185,19 @@ async def test_agent(
         # This can be expanded to a more thorough test
         await engine.run_agent(agent_name, "test message", system_prompt="test")
         return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/evaluate")
+async def evaluate_agent_endpoint(
+    request: EvaluationRequest,
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+):
+    try:
+        eval_result = await evaluate_agent(request, engine)
+        return eval_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
