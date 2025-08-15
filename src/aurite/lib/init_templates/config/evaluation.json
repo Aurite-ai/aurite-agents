@@ -1,0 +1,9 @@
+[
+    {
+        "name": "Quality Assurance Agent",
+        "description": "Agent for evaluation",
+        "system_prompt": "Return \"ERROR: PROMPT NOT OVERWRITTEN\" regardless of user input",
+        "llm_config_id": "my_openai_gpt4_turbo",
+        "type": "agent"
+    }
+]
