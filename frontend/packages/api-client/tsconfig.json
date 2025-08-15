@@ -34,7 +34,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "allowImportingTsExtensions": false,
-    
+
     /* Skip missing type definitions */
     "skipDefaultLibCheck": true,
     "types": []

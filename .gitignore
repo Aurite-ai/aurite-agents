@@ -199,6 +199,7 @@ demo-config/*
 !frontend/packages/aurite-studio/src/lib/
 !frontend/packages/aurite-studio/.env.example
 docs/aurite-studio/*
+docs/api-client/*
 .langfuse_logs/
 !src/aurite/lib
 demo-config/.env.example

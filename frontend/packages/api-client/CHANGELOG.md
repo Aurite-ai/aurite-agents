@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2025-08-14
+
 ### Added
 
-- Initial release of @aurite/api-client
+- Added Aurite API support with comprehensive client functionality
 - Production-ready TypeScript client for Aurite Framework API
 - Comprehensive error handling with categorized error types
 - Intelligent retry logic for network failures
