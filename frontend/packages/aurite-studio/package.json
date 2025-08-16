@@ -2,6 +2,7 @@
   "name": "@aurite-ai/aurite-studio",
   "version": "0.3.6",
   "private": true,
+  "homepage": "/studio",
   "dependencies": {
     "@aurite-ai/api-client": "file:../api-client",
     "@babel/runtime": "^7.27.6",

@@ -6,7 +6,7 @@ authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
     { name = "Blake R", email = "blake@aurite.ai" },
     { name = "Patrick W", email = "patrick@aurite.ai" },
-    { name = "Jiten O", email = "jiten@aurite.ai" },
+    { name = "Jiten Oswal", email = "jiten@aurite.ai" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -60,6 +60,14 @@ packages = [{ include = "aurite", from = "src" }]
 include = [
     "LICENSE",
     { path = "src/aurite/lib/init_templates", format = [
+        "sdist",
+        "wheel",
+    ] },
+    { path = "src/aurite/bin/studio/static", format = [
+        "sdist",
+        "wheel",
+    ] },
+    { path = "src/aurite/bin/studio/static/**/*", format = [
         "sdist",
         "wheel",
     ] },
