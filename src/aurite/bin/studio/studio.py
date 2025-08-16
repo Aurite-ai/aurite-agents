@@ -3,6 +3,8 @@ Main orchestration logic for the Aurite Studio command.
 
 This module handles starting both the API server and React frontend
 concurrently with unified logging and graceful shutdown.
+
+Now supports both development mode (React dev server) and production mode (static assets).
 """
 
 import asyncio
@@ -12,6 +14,7 @@ import platform
 import signal
 import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 from typing import Optional
 
@@ -19,7 +22,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from ..api.api import start as start_api_server
+# Removed direct import to avoid circular dependency
+# from ..api.api import start as start_api_server
+from .static_server import is_static_assets_available, get_static_assets_info
 from .utils import (
     build_frontend_packages,
     check_build_artifacts,
@@ -49,11 +54,10 @@ async def start_studio(rebuild_fresh: bool = False):
     Main entry point for the aurite studio command.
     
     This function orchestrates the entire studio startup process:
-    1. Validates system dependencies and frontend structure
-    2. Prepares frontend (dependencies and builds)
-    3. Starts API server if not already running
-    4. Starts React development server
-    5. Manages concurrent execution with graceful shutdown
+    1. Detects if static assets are available (production mode) or development mode
+    2. For production mode: starts only API server with static assets
+    3. For development mode: validates dependencies, prepares frontend, starts both servers
+    4. Manages concurrent execution with graceful shutdown
     
     Args:
         rebuild_fresh: If True, performs a fresh rebuild of frontend packages
@@ -64,8 +68,132 @@ async def start_studio(rebuild_fresh: bool = False):
         border_style="blue"
     ))
     
-    # Phase 1: System validation
-    console.print("\n[bold yellow]Phase 1:[/bold yellow] Validating system requirements...")
+    # Phase 1: Mode Detection
+    console.print("\n[bold yellow]Phase 1:[/bold yellow] Detecting studio mode...")
+    
+    # Check if static assets are available (production mode)
+    if is_static_assets_available():
+        static_info = get_static_assets_info()
+        console.print(f"[bold green]✓[/bold green] Static assets detected ({static_info['files']} files, {static_info['size_mb']} MB)")
+        console.print("[bold blue]Running in PRODUCTION mode[/bold blue] - serving pre-built static assets")
+        return await start_studio_production_mode()
+    else:
+        console.print("[bold yellow]Static assets not found[/bold yellow]")
+        console.print("[bold blue]Running in DEVELOPMENT mode[/bold blue] - using React dev server")
+        return await start_studio_development_mode(rebuild_fresh)
+
+
+async def start_studio_production_mode():
+    """
+    Start Aurite Studio in production mode using static assets.
+    Only starts the API server which serves both API and static files.
+    """
+    console.print("\n[bold yellow]Phase 2:[/bold yellow] Starting production server...")
+    
+    # Get server configuration
+    server_config = get_server_config_for_studio()
+    if not server_config:
+        return False
+    
+    api_port = server_config.PORT
+    
+    # Check if API server is already running
+    if is_api_server_running(api_port):
+        console.print(f"[bold green]✓[/bold green] API server already running on port {api_port}")
+        studio_url = f"http://localhost:{api_port}/studio"
+        console.print(Panel.fit(
+            f"[bold green]🚀 Aurite Studio is running![/bold green]\n\n"
+            f"[bold]Studio UI:[/bold] {studio_url}\n"
+            f"[bold]API Server:[/bold] http://localhost:{api_port}\n\n"
+            f"[dim]Static assets are being served by the API server[/dim]\n"
+            f"[dim]Press Ctrl+C to stop[/dim]",
+            border_style="green",
+            title="Production Mode"
+        ))
+        
+        # Open browser
+        try:
+            webbrowser.open(studio_url)
+            console.print(f"[dim]Opened {studio_url} in your default browser[/dim]")
+        except Exception as e:
+            logger.warning(f"Could not open browser: {e}")
+        
+        # Wait for shutdown signal with immediate response
+        setup_signal_handlers()
+        try:
+            await shutdown_event.wait()
+        except KeyboardInterrupt:
+            console.print("\n[bold yellow]Received shutdown signal...[/bold yellow]")
+        finally:
+            # For external API server, we just need to exit cleanly
+            console.print("[bold green]Aurite Studio shutdown complete[/bold green]")
+        
+        return True
+    
+    # Start API server with static assets
+    console.print(f"[bold blue]Starting API server with static assets on port {api_port}...[/bold blue]")
+    
+    # Setup signal handlers for graceful shutdown
+    setup_signal_handlers()
+    
+    global api_process
+    
+    try:
+        # Start API server
+        api_task = asyncio.create_task(start_api_server_process(api_port))
+        shutdown_task = asyncio.create_task(monitor_shutdown())
+        
+        # Wait a moment for server to start, then show success message
+        await asyncio.sleep(2)
+        
+        studio_url = f"http://localhost:{api_port}/studio"
+        console.print(Panel.fit(
+            f"[bold green]🚀 Aurite Studio is running![/bold green]\n\n"
+            f"[bold]Studio UI:[/bold] {studio_url}\n"
+            f"[bold]API Server:[/bold] http://localhost:{api_port}\n\n"
+            f"[dim]Static assets are being served by the API server[/dim]\n"
+            f"[dim]Press Ctrl+C to stop[/dim]",
+            border_style="green",
+            title="Production Mode"
+        ))
+        
+        # Open browser
+        try:
+            webbrowser.open(studio_url)
+            console.print(f"[dim]Opened {studio_url} in your default browser[/dim]")
+        except Exception as e:
+            logger.warning(f"Could not open browser: {e}")
+        
+        # Wait for shutdown or process completion
+        done, pending = await asyncio.wait([api_task, shutdown_task], return_when=asyncio.FIRST_COMPLETED)
+        
+        # Cancel remaining tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+                
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow]Received shutdown signal...[/bold yellow]")
+    except Exception as e:
+        console.print(f"\n[bold red]Error during server execution:[/bold red] {str(e)}")
+        logger.error(f"Server execution error: {e}", exc_info=True)
+    finally:
+        await cleanup_processes()
+    
+    console.print("\n[bold green]Aurite Studio shutdown complete[/bold green]")
+    return True
+
+
+async def start_studio_development_mode(rebuild_fresh: bool = False):
+    """
+    Start Aurite Studio in development mode using React dev server.
+    This is the original behavior with full dependency checking and frontend building.
+    """
+    # Phase 2: System validation
+    console.print("\n[bold yellow]Phase 2:[/bold yellow] Validating system requirements...")
     
     # Check system dependencies
     deps_ok, deps_error = check_system_dependencies()
@@ -324,10 +452,10 @@ async def start_api_server_process(port: int):
     global api_process
     
     try:
-        # Start API server using the existing start function in a subprocess
-        # We'll use the CLI command to ensure proper environment setup
+        # Start API server using uvicorn directly to avoid circular imports
         api_process = await asyncio.create_subprocess_exec(
-            sys.executable, "-c", "from aurite.bin.api.api import start; start()",
+            sys.executable, "-m", "uvicorn", "aurite.bin.api.api:app",
+            "--host", "0.0.0.0", "--port", str(port), "--log-level", "info",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
             env=os.environ.copy()
@@ -411,10 +539,9 @@ def setup_signal_handlers():
     """
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, initiating shutdown...")
+        console.print("\n[bold yellow]Shutting down servers...[/bold yellow]")
         shutdown_event.set()
-        # On Windows, we need to be more aggressive about stopping processes
-        if platform.system() == "Windows":
-            asyncio.create_task(force_cleanup_on_signal())
+        # Immediate response - don't wait for cleanup tasks
     
     # Handle SIGINT (Ctrl+C) and SIGTERM
     signal.signal(signal.SIGINT, signal_handler)

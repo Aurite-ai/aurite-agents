@@ -33,7 +33,7 @@ export class BaseClient {
     body?: any,
     options: RequestOptions = {}
   ): Promise<T> {
-    const { timeout = 30000, retries = 3, retryDelay = 1000 } = options;
+    const { timeout = 100000, retries = 3, retryDelay = 1000 } = options;
     const url = `${this.config.baseUrl}${path}`;
     const requestContext = { method, url };
 

@@ -33,6 +33,7 @@ from ..dependencies import (
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
 from .routes import main_router
+from ..studio.static_server import setup_studio_routes_with_static
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -298,13 +299,27 @@ except Exception as e:
 # --- Health Check Endpoint (Moved earlier) ---
 
 
-# Catch-all route to serve index.html for client-side routing
+# Setup static file serving for Aurite Studio if available
 # IMPORTANT: This must come AFTER all other API routes
-@app.get("/{full_path:path}", include_in_schema=False)
-async def serve_react_app(full_path: str):  # Parameter name doesn't matter much here
-    # This is a placeholder for serving a frontend.
-    # For now, it will return a 404 for any path not matching an API route.
-    raise HTTPException(status_code=404, detail="Not Found")
+try:
+    studio_static_setup = setup_studio_routes_with_static(app)
+    if studio_static_setup:
+        logger.info("✓ Aurite Studio static assets configured and available at /studio")
+    else:
+        logger.info("⚠ Aurite Studio static assets not available - studio will use development mode")
+        
+        # Fallback catch-all route for paths not handled by API
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_fallback(full_path: str):
+            """Fallback for unmatched routes when static assets are not available."""
+            raise HTTPException(status_code=404, detail="Not Found")
+except Exception as e:
+    logger.error(f"Error setting up static file serving: {e}")
+    # Fallback catch-all route for paths not handled by API
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_fallback_error(full_path: str):
+        """Fallback for unmatched routes when static setup failed."""
+        raise HTTPException(status_code=404, detail="Not Found")
 
 
 # --- End Serve React Frontend Build ---
