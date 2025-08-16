@@ -150,11 +150,15 @@ If you use Aurite Agents in your research or projects, please cite:
 ```bibtex
 @software{aurite_agents_2025,
   title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
-  author={Ryan W and Blake R and Jiten O},
+  author={Ryan W and Blake R and Jiten Oswal},
   year={2025},
   version={0.3.26},
+  publisher={GitHub},
   url={https://github.com/Aurite-ai/aurite-agents},
-  note={Configuration-driven AI agent framework with MCP integration and multi-LLM support}
+  note={Configuration-driven AI agent framework with MCP integration and multi-LLM support},
+  keywords={artificial intelligence, agents, python, framework, MCP, multi-LLM},
+  abstract={A configuration-driven AI agent framework with Model Context Protocol (MCP) integration and multi-LLM support for building and orchestrating intelligent agents},
+  license={MIT}
 }
 ```
 
