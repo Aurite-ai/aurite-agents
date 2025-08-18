@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional  # Added Dict and Literal
 
-from pydantic import BaseModel, Field, model_validator, ConfigDict  # Use model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -339,3 +339,16 @@ class BaseCustomWorkflow:
         This method must be implemented by the subclass.
         """
         raise NotImplementedError
+
+
+# --- Evaluation Config ---
+class EvaluationConfig(BaseComponentConfig):
+    type: Literal["evaluation"] = "evaluation"
+    eval_name: str = Field(description="The name of the component being evaluated")
+    eval_type: Literal["agent"] = Field(
+        description="The type of component being evaluated. Currently, only supports agents"
+    )
+    user_input: str | list[str] = Field(
+        description="The user input to be fed to the component. If it is a list of strings, each will be ran in parallel while testing"
+    )
+    expected_output: str = Field(description="A description of the expected output of the component")
