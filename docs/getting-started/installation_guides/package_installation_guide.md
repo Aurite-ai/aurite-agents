@@ -115,6 +115,26 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     For more details on the API endpoints, see the [API Reference](../../usage/api_reference.md).
 
+    #### Use Aurite Studio
+
+    For the best development experience, use Aurite Studio - an integrated development environment that provides a web-based UI for managing your agents, workflows, and configurations. From anywhere inside your workspace, run:
+
+    ```bash
+    aurite studio
+    ```
+
+    This command will:
+    - Automatically start the API server (if not already running)
+    - Launch the React-based web interface at `http://localhost:8000/studio`
+    - Handle all frontend dependencies and build processes automatically
+    - Open your default browser to the Studio interface
+
+    <!-- prettier-ignore -->
+    !!! info "System Requirements"
+        Aurite Studio requires Node.js >= 18.0.0 and npm >= 8.0.0. The command will automatically check and try to install if these are missing.
+
+    For advanced options like fresh rebuilds, see the [CLI Reference](../../usage/cli_reference.md#aurite-studio).
+
     #### Edit Configurations
     You can edit your component configurations using the `aurite edit` command, which opens a text editor for the specified component type. For example, to edit agents:
     ```bash
