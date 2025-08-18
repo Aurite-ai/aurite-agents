@@ -31,6 +31,11 @@ This guide walks you through installing the `aurite` Python package and setting 
         ```bash
         pip install aurite
         ```
+    5.  **Verify the installation:**
+        ```bash
+        aurite --version
+        ```
+        This should display the installed version of Aurite (e.g., `aurite 0.3.27`).
 
 === "Initialize Your Project"
 
@@ -115,7 +120,7 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     For more details on the API endpoints, see the [API Reference](../../usage/api_reference.md).
 
-    #### Use Aurite Studio
+    #### Start Aurite Studio
 
     For the best development experience, use Aurite Studio - an integrated development environment that provides a web-based UI for managing your agents, workflows, and configurations. From anywhere inside your workspace, run:
 

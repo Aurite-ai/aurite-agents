@@ -14,7 +14,6 @@ except ImportError:
 from ...lib.config import ConfigManager
 from ...lib.storage import StorageManager
 from ...utils.cli.fast_loader import list_component_names
-from ..api.api import start as start_api_server
 from ..studio import start_studio
 from ..tui.apps.edit import AuriteEditTUI
 from .commands.init import init_project, init_workspace, interactive_init
@@ -97,6 +96,8 @@ def api():
     Starts the Aurite FastAPI server.
     """
     logger("[bold green]Starting Aurite API server...[/bold green]")
+    # Lazy import - only load API module when actually starting the server
+    from ..api.api import start as start_api_server
     start_api_server()
 
 

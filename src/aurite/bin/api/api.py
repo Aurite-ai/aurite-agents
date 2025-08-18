@@ -264,19 +264,19 @@ async def log_requests(request: Request, call_next: Callable):
     return response
 
 
-# Add CORS middleware
-# Origins are loaded from ServerConfig
-server_config_for_cors = get_server_config()
-if server_config_for_cors is None:
-    raise RuntimeError("Server configuration not found, cannot configure CORS.")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=server_config_for_cors.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def setup_cors_middleware(app: FastAPI):
+    """Setup CORS middleware when server actually starts."""
+    server_config = get_server_config()
+    if server_config is None:
+        raise RuntimeError("Server configuration not found, cannot configure CORS.")
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=server_config.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # --- Static Files for Swagger UI ---
@@ -331,6 +331,9 @@ def start():
     In development, this function will re-exec uvicorn with --reload.
     In production, it runs the server directly.
     """
+    # Setup CORS middleware when server actually starts
+    setup_cors_middleware(app)
+    
     # Load config to get server settings
     config = get_server_config()
     if not config:
