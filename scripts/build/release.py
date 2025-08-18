@@ -30,7 +30,7 @@ def run_command(cmd, check=True, capture_output=True):
         shell=True, 
         capture_output=capture_output, 
         text=True,
-        cwd=Path(__file__).parent.parent
+        cwd=Path(__file__).parent.parent.parent
     )
     
     if check and result.returncode != 0:
@@ -44,7 +44,7 @@ def run_command(cmd, check=True, capture_output=True):
 
 def get_current_version():
     """Get current version from pyproject.toml."""
-    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+    pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
     
     with open(pyproject_path, 'r') as f:
         content = f.read()
@@ -138,7 +138,7 @@ def main():
     
     # Build frontend
     print("\n🏗️  Building frontend assets...")
-    run_command("python scripts/build_frontend_for_package.py")
+    run_command("python scripts/build/build_frontend.py")
     
     # Run tests
     print("\n🧪 Running tests...")
@@ -150,11 +150,11 @@ def main():
     
     # Test wheel installation
     print("\n🔍 Testing wheel installation...")
-    run_command("python scripts/test_wheel_install.py")
+    run_command("python scripts/build/test_wheel_install.py")
     
     # Test static asset detection
     print("\n🔍 Testing static asset detection...")
-    run_command("python scripts/test_static_detection.py")
+    run_command("python scripts/build/test_static_detection.py")
     
     # Commit and tag
     print(f"\n📝 Committing changes and creating tag v{target_version}...")

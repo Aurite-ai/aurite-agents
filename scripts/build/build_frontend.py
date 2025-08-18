@@ -124,7 +124,7 @@ def build_frontend_for_package():
     print("🚀 Starting frontend build for package distribution...")
     
     # Define paths
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     frontend_dir = project_root / "frontend"
     build_dir = frontend_dir / "packages" / "aurite-studio" / "build"
     target_dir = project_root / "src" / "aurite" / "bin" / "studio" / "static"
