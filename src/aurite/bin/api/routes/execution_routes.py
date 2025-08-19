@@ -228,6 +228,8 @@ async def evaluate_component_by_config(
         eval_result = await evaluate(request, engine)
         return eval_result
     except Exception as e:
+        if type(e) is HTTPException:
+            raise e
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
