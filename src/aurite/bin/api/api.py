@@ -82,6 +82,7 @@ app = FastAPI(
     docs_url="/api-docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
     openapi_url="/openapi.json",  # OpenAPI schema endpoint
+    swagger_ui_parameters={"defaultModelsExpandDepth": -1}  # Collapse models by default
 )
 
 # Setup CORS middleware immediately during app creation
@@ -289,27 +290,39 @@ async def log_requests(request: Request, call_next: Callable):
 
 
 # --- Static Files for Swagger UI ---
-# Mount static files to serve Swagger UI assets
-# This is required for the /api-docs endpoint to work properly
+# FastAPI 0.115+ changed how Swagger UI assets are served
+# We need to configure it to use CDN assets instead of local files
 try:
-    # Try to mount static files - FastAPI will handle Swagger UI assets automatically
-    # We just need to ensure StaticFiles is available for any custom static content
+    # Override the default swagger_ui_parameters to use CDN assets
+    app.swagger_ui_parameters = {
+        **app.swagger_ui_parameters,
+        "swagger_js_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
+        "swagger_css_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
+    }
+    logger.info("✓ Swagger UI configured to use CDN assets")
+except Exception as e:
+    logger.warning(f"⚠ Error configuring Swagger UI CDN assets: {e}")
+
+logger.info("✓ Swagger UI configured at /api-docs")
+logger.info("✓ ReDoc configured at /redoc") 
+logger.info("✓ OpenAPI schema available at /openapi.json")
+
+# Mount custom static files if they exist (for studio assets)
+try:
     from pathlib import Path
     static_dir = Path(__file__).parent.parent / "studio" / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-        logger.debug(f"Mounted static files from {static_dir}")
+        logger.debug(f"✓ Mounted custom static files from {static_dir}")
 except Exception as e:
-    # If static files can't be mounted, log but don't fail startup
-    # Swagger UI should still work with FastAPI's built-in static file handling
-    logger.warning(f"Could not mount static files: {e}")
+    logger.debug(f"No custom static files to mount: {e}")
 
 
 # --- Health Check Endpoint (Moved earlier) ---
 
 
 # Setup static file serving for Aurite Studio if available
-# IMPORTANT: This must come AFTER all other API routes
+# IMPORTANT: This must come AFTER all other API routes but BEFORE catch-all routes
 try:
     studio_static_setup = setup_studio_routes_with_static(app)
     if studio_static_setup:
@@ -318,16 +331,24 @@ try:
         logger.info("⚠ Aurite Studio static assets not available - studio will use development mode")
         
         # Fallback catch-all route for paths not handled by API
+        # IMPORTANT: Exclude FastAPI's internal paths for Swagger UI
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_fallback(full_path: str):
             """Fallback for unmatched routes when static assets are not available."""
+            # Don't intercept FastAPI's internal Swagger UI assets
+            if full_path.startswith("swagger/") or full_path.startswith("redoc/"):
+                raise HTTPException(status_code=404, detail="Not Found")
             raise HTTPException(status_code=404, detail="Not Found")
 except Exception as e:
     logger.error(f"Error setting up static file serving: {e}")
     # Fallback catch-all route for paths not handled by API
+    # IMPORTANT: Exclude FastAPI's internal paths for Swagger UI
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_fallback_error(full_path: str):
         """Fallback for unmatched routes when static setup failed."""
+        # Don't intercept FastAPI's internal Swagger UI assets
+        if full_path.startswith("swagger/") or full_path.startswith("redoc/"):
+            raise HTTPException(status_code=404, detail="Not Found")
         raise HTTPException(status_code=404, detail="Not Found")
 
 

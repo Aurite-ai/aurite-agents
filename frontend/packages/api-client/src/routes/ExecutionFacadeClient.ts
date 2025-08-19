@@ -105,49 +105,69 @@ export class ExecutionFacadeClient extends BaseClient {
     onEvent: (_event: StreamEvent) => void
   ): Promise<void> {
     const url = `${this.config.baseUrl}/execution/agents/${encodeURIComponent(agentName)}/stream`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'X-API-Key': this.config.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Stream request failed: ${response.status}`);
-    }
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': this.config.apiKey,
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify(request),
+      });
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('No response body');
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    let reading = true;
-    while (reading) {
-      const { done, value } = await reader.read();
-      if (done) {
-        reading = false;
-        break;
+      if (!response.ok) {
+        let errorMessage = `Stream request failed: ${response.status} ${response.statusText}`;
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            errorMessage += ` - ${errorText}`;
+          }
+        } catch {
+          // If we can't read the error text, use the basic message
+        }
+        throw new Error(errorMessage);
       }
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body available for streaming');
+      }
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            onEvent(JSON.parse(line.slice(6)));
-          } catch (error) {
-            // Silently ignore malformed SSE events
-            void error; // Explicitly mark as intentionally unused
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      let reading = true;
+      while (reading) {
+        const { done, value } = await reader.read();
+        if (done) {
+          reading = false;
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              onEvent(JSON.parse(line.slice(6)));
+            } catch (error) {
+              console.warn('Failed to parse SSE event:', line, error);
+              // Continue processing other events
+            }
           }
         }
       }
+    } catch (error) {
+      // Add more context to streaming errors
+      if (error instanceof Error) {
+        throw new Error(`Streaming failed for agent '${agentName}': ${error.message}`);
+      }
+      throw error;
     }
   }
 
