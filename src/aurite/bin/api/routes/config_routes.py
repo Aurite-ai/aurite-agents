@@ -35,6 +35,8 @@ PLURAL_TO_SINGULAR = {
     "custom_workflows": "custom_workflow",
 }
 
+VALID_COMPONENT_TYPES = ["agent", "llm", "mcp_server", "linear_workflow", "custom_workflow"]
+
 
 # Helper function to refresh config if needed
 def _refresh_config_if_needed(config_manager: ConfigManager):
@@ -51,8 +53,7 @@ async def list_component_types(
     """
     List all available component types.
     """
-    _refresh_config_if_needed(config_manager)
-    return list(config_manager.get_all_configs().keys())
+    return VALID_COMPONENT_TYPES
 
 
 @router.get("/components/{component_type}", response_model=List[Dict[str, Any]])
@@ -69,11 +70,10 @@ async def list_components_by_type(
     # Convert plural to singular if needed
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
-    valid_types = list(config_manager.get_all_configs().keys())
-    if singular_type not in valid_types:
+    if singular_type not in VALID_COMPONENT_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(valid_types)}",
+            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(VALID_COMPONENT_TYPES)}",
         )
 
     return config_manager.list_configs(singular_type)
@@ -117,11 +117,10 @@ async def create_component(
     singular_type = PLURAL_TO_SINGULAR.get(component_type, component_type)
 
     # Validate component type
-    valid_types = list(config_manager.get_all_configs().keys())
-    if singular_type not in valid_types:
+    if singular_type not in VALID_COMPONENT_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(valid_types)}",
+            detail=f"Invalid component type '{component_type}'. Valid types are: {', '.join(VALID_COMPONENT_TYPES)}",
         )
 
     # Check if component already exists
