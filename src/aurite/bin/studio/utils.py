@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...bin.dependencies import get_server_config
+from .static_server import is_static_assets_available, get_static_assets_info
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -325,8 +326,20 @@ def get_server_config_for_studio():
     """
     try:
         return get_server_config()
+    except RuntimeError as e:
+        # RuntimeError from get_server_config already contains user-friendly message
+        error_message = str(e)
+        if "Server configuration error:" in error_message:
+            # Extract the user-friendly part (after the prefix)
+            user_message = error_message.replace("Server configuration error:", "").strip()
+            console.print(f"[bold red]Configuration Error:[/bold red]")
+            console.print(user_message)
+        else:
+            console.print(f"[bold red]Error:[/bold red] {error_message}")
+        return None
     except Exception as e:
-        logger.error(f"Failed to load server configuration: {e}")
+        # Fallback for any other unexpected errors
+        logger.error(f"Unexpected error loading server configuration: {e}")
         console.print(f"[bold red]Error:[/bold red] Failed to load server configuration: {str(e)}")
         return None
 
@@ -517,3 +530,83 @@ async def clear_frontend_cache() -> bool:
     except Exception as e:
         console.print(f"[bold red]Error clearing cache:[/bold red] {str(e)}")
         return False
+
+
+def detect_studio_mode() -> str:
+    """
+    Detect whether to run studio in production (static) or development mode.
+    
+    Returns:
+        "production" if static assets are available, "development" otherwise
+    """
+    if is_static_assets_available():
+        return "production"
+    else:
+        return "development"
+
+
+def is_production_mode() -> bool:
+    """
+    Check if studio should run in production mode (static assets).
+    
+    Returns:
+        True if static assets are available for serving
+    """
+    return detect_studio_mode() == "production"
+
+
+def is_development_mode() -> bool:
+    """
+    Check if studio should run in development mode (React dev server).
+    
+    Returns:
+        True if should use development mode
+    """
+    return detect_studio_mode() == "development"
+
+
+def get_studio_mode_info() -> dict:
+    """
+    Get detailed information about the current studio mode.
+    
+    Returns:
+        Dictionary with mode information
+    """
+    mode = detect_studio_mode()
+    static_info = get_static_assets_info()
+    
+    info = {
+        "mode": mode,
+        "static_assets": static_info,
+        "frontend_available": validate_frontend_structure()[0],
+        "node_dependencies": check_system_dependencies()[0]
+    }
+    
+    if mode == "production":
+        info["description"] = "Using pre-built static assets (production mode)"
+        info["requires_nodejs"] = False
+    else:
+        info["description"] = "Using React development server (development mode)"
+        info["requires_nodejs"] = True
+    
+    return info
+
+
+def print_studio_mode_info():
+    """
+    Print information about the detected studio mode.
+    """
+    info = get_studio_mode_info()
+    mode = info["mode"]
+    
+    if mode == "production":
+        console.print("[bold green]✓[/bold green] Production mode: Using pre-built static assets")
+        static_info = info["static_assets"]
+        if static_info["available"]:
+            console.print(f"[dim]Static assets: {static_info['files']} files, {static_info['size_mb']} MB[/dim]")
+    else:
+        console.print("[bold yellow]⚠[/bold yellow] Development mode: Will use React development server")
+        if not info["node_dependencies"]:
+            console.print("[bold red]✗[/bold red] Node.js dependencies required for development mode")
+        if not info["frontend_available"]:
+            console.print("[bold red]✗[/bold red] Frontend source code not available")

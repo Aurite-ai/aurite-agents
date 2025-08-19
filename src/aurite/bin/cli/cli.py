@@ -4,11 +4,16 @@ from typing import Optional
 import typer
 from rich.console import Console
 
+try:
+    from importlib.metadata import version
+except ImportError:
+    # Python < 3.8
+    from importlib_metadata import version
+
 # Relative imports from within the bin directory
 from ...lib.config import ConfigManager
 from ...lib.storage import StorageManager
 from ...utils.cli.fast_loader import list_component_names
-from ..api.api import start as start_api_server
 from ..studio import start_studio
 from ..tui.apps.edit import AuriteEditTUI
 from .commands.init import init_project, init_workspace, interactive_init
@@ -16,11 +21,36 @@ from .commands.list import list_all, list_components_by_type, list_index, list_w
 from .commands.run import run_component
 from .commands.show import show_components
 
+console = Console()
+logger = console.print
+
+
+def version_callback(value: bool):
+    """Callback function to display version information."""
+    if value:
+        try:
+            aurite_version = version("aurite")
+            console.print(f"aurite {aurite_version}")
+        except Exception:
+            console.print("aurite version unknown")
+        raise typer.Exit()
+
+
 app = typer.Typer(
     name="aurite",
     help="A framework for building, testing, and running AI agents.",
     no_args_is_help=True,
 )
+
+# Add global --version option
+@app.callback()
+def main(
+    version: Optional[bool] = typer.Option(
+        None, "--version", "-v", callback=version_callback, is_eager=True, help="Show version and exit."
+    ),
+):
+    """A framework for building, testing, and running AI agents."""
+    pass
 
 list_app = typer.Typer(
     name="list",
@@ -38,10 +68,6 @@ def list_main(ctx: typer.Context):
     """
     if ctx.invoked_subcommand is None:
         list_index()
-
-
-console = Console()
-logger = console.print
 
 
 @app.command()
@@ -70,6 +96,8 @@ def api():
     Starts the Aurite FastAPI server.
     """
     logger("[bold green]Starting Aurite API server...[/bold green]")
+    # Lazy import - only load API module when actually starting the server
+    from ..api.api import start as start_api_server
     start_api_server()
 
 

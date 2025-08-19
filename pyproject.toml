@@ -6,7 +6,7 @@ authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
     { name = "Blake R", email = "blake@aurite.ai" },
     { name = "Patrick W", email = "patrick@aurite.ai" },
-    { name = "Jiten O", email = "jiten@aurite.ai" },
+    { name = "Jiten Oswal", email = "jiten@aurite.ai" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -35,7 +35,7 @@ dependencies = [
     "typer[all] (>=0.16.0,<0.17.0)",
     "uvicorn (>=0.29.0,<0.36.0)",
     "anyio (>=4.9.0,<5.0.0)",
-    "openai (>=1.99.6,<2.0.0)",
+    "openai (>=1.99.6,<1.100.0)",
     "pydantic-settings (>=2.10.1,<3.0.0)",
     "sqlalchemy (>=2.0.41,<3.0.0)",
     "cryptography (>=43.0.0,<46.0.0)",
@@ -60,6 +60,14 @@ packages = [{ include = "aurite", from = "src" }]
 include = [
     "LICENSE",
     { path = "src/aurite/lib/init_templates", format = [
+        "sdist",
+        "wheel",
+    ] },
+    { path = "src/aurite/bin/studio/static", format = [
+        "sdist",
+        "wheel",
+    ] },
+    { path = "src/aurite/bin/studio/static/**/*", format = [
         "sdist",
         "wheel",
     ] },

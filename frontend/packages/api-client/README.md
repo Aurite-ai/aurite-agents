@@ -497,7 +497,7 @@ If you use the Aurite API Client in your projects or research, please cite:
 ```bibtex
 @software{aurite_api_client_2025,
   title={Aurite API Client: Production TypeScript Client for AI Agent Framework},
-  author={Jiten O and Ryan W and Blake R},
+  author={Jiten Oswal and Ryan W and Blake R},
   year={2025},
   url={https://github.com/Aurite-ai/aurite-agents/tree/main/frontend/packages/api-client},
   note={TypeScript client library with streaming support and comprehensive error handling}
@@ -509,7 +509,7 @@ If you use the Aurite API Client in your projects or research, please cite:
 ```bibtex
 @software{aurite_agents_2025,
   title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
-  author={Ryan W and Blake R and Jiten O},
+  author={Ryan W and Blake R and Jiten Oswal},
   year={2025},
   version={0.3.26},
   url={https://github.com/Aurite-ai/aurite-agents},

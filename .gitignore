@@ -200,6 +200,21 @@ demo-config/*
 !frontend/packages/aurite-studio/.env.example
 docs/aurite-studio/*
 docs/api-client/*
+!docs/aurite-studio/static-assets-bundling-guide.md
 .langfuse_logs/
 !src/aurite/lib
 demo-config/.env.example
+
+# Static assets bundling - exclude generated static files from git
+# These are built by scripts/build_frontend_for_package.py and included in pip packages
+src/aurite/bin/studio/static/
+# But keep the static_server.py file (it's source code, not generated)
+!src/aurite/bin/studio/static_server.py
+
+# Frontend build artifacts that shouldn't be in git
+frontend/packages/aurite-studio/build/
+frontend/packages/api-client/dist/
+!/scripts/build
+
+docs/deployments/aurite-studio/
+docs/deployments/api-client/

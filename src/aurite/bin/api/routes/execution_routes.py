@@ -239,6 +239,8 @@ async def stream_agent(
         # first, validate the agent
         _validate_agent(agent_name, config_manager)
 
+        logger.info(f"Starting stream for agent '{agent_name}' - User message length: {len(request.user_message)}")
+
         async def event_generator():
             async for event in engine.stream_agent_run(
                 agent_name=agent_name,
@@ -248,7 +250,19 @@ async def stream_agent(
             ):
                 yield f"data: {json.dumps(event)}\n\n"
 
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
+        # Add streaming-specific headers to ensure compatibility across environments
+        headers = {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Expose-Headers": "Content-Type",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+
+        return StreamingResponse(
+            event_generator(), 
+            media_type="text/event-stream",
+            headers=headers
+        )
     except Exception as e:
         status_code = 500
         if type(e) is ConfigurationError:

@@ -18,7 +18,7 @@ class TestRunner:
     """Advanced test runner with optimization strategies."""
     
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent
+        self.project_root = Path(__file__).parent.parent.parent
         self.test_results = {}
         
     def run_fast_tests(self) -> Dict[str, Any]:

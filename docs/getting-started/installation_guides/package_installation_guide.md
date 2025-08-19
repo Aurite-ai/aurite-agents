@@ -31,6 +31,11 @@ This guide walks you through installing the `aurite` Python package and setting 
         ```bash
         pip install aurite
         ```
+    5.  **Verify the installation:**
+        ```bash
+        aurite --version
+        ```
+        This should display the installed version of Aurite (e.g., `aurite 0.3.27`).
 
 === "Initialize Your Project"
 
@@ -114,6 +119,33 @@ This guide walks you through installing the `aurite` Python package and setting 
     The API will be available at `http://localhost:8000`.
 
     For more details on the API endpoints, see the [API Reference](../../usage/api_reference.md).
+
+    #### Launch Aurite Studio (Web UI)
+
+    For the best development experience, use Aurite Studio - an integrated development environment that provides a web-based UI for managing your agents, workflows, and configurations. From anywhere inside your workspace, run:
+
+    ```bash
+    aurite studio
+    ```
+
+    This command will:
+    - Automatically start the API server (if not already running)
+    - Launch the React-based web interface at `http://localhost:8000/studio` (or the port you configured in your `.env` file)
+    - Handle all frontend dependencies and build processes automatically
+    - Open your default browser to the Studio interface
+
+    Aurite Studio provides:
+    - Visual agent configuration and testing
+    - Workflow management and execution
+    - LLM provider setup and testing
+    - MCP server integration
+    - Real-time execution monitoring
+
+    <!-- prettier-ignore -->
+    !!! info "System Requirements"
+        Aurite Studio requires Node.js >= 18.0.0 and npm >= 8.0.0. The command will automatically check and try to install if these are missing.
+
+    For advanced options like fresh rebuilds, see the [CLI Reference](../../usage/cli_reference.md#aurite-studio).
 
     #### Edit Configurations
     You can edit your component configurations using the `aurite edit` command, which opens a text editor for the specified component type. For example, to edit agents:

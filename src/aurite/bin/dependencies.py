@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, Security, status  # Added status
 from fastapi.security import APIKeyHeader
+from pydantic import ValidationError
 
 from ..aurite import Aurite  # Needed for get_aurite
 from ..execution.aurite_engine import AuriteEngine
@@ -24,6 +25,64 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path.cwd()
 
 
+def _format_validation_error_message(validation_error: ValidationError) -> str:
+    """
+    Convert Pydantic ValidationError into a user-friendly error message.
+    
+    Args:
+        validation_error: The ValidationError from Pydantic
+        
+    Returns:
+        A formatted, user-friendly error message with setup instructions
+    """
+    missing_fields = []
+    error_details = []
+    
+    for error in validation_error.errors():
+        field_name = error.get('loc', ['unknown'])[0] if error.get('loc') else 'unknown'
+        error_type = error.get('type', 'unknown')
+        
+        if error_type == 'missing':
+            missing_fields.append(field_name)
+        else:
+            error_details.append(f"{field_name}: {error.get('msg', 'validation error')}")
+    
+    # Build user-friendly message
+    message_parts = []
+    
+    if missing_fields:
+        message_parts.append("Missing required environment variables:")
+        for field in missing_fields:
+            if field == 'API_KEY':
+                message_parts.append(f"  • {field} - Required for API authentication")
+                message_parts.append("    Example: API_KEY=your_secret_key_here")
+            elif field == 'ENCRYPTION_KEY':
+                message_parts.append(f"  • {field} - Required for data encryption")
+                message_parts.append("    Example: ENCRYPTION_KEY=your_encryption_key_here")
+            else:
+                message_parts.append(f"  • {field}")
+    
+    if error_details:
+        if missing_fields:
+            message_parts.append("")
+        message_parts.append("Configuration errors:")
+        for detail in error_details:
+            message_parts.append(f"  • {detail}")
+    
+    # Add setup instructions
+    message_parts.extend([
+        "",
+        "To fix this:",
+        "1. Create a .env file in your project root, or",
+        "2. Set the environment variables in your shell",
+        "",
+        "For more information, see the installation guide:",
+        "https://docs.aurite.ai/getting-started/installation/"
+    ])
+    
+    return "\n".join(message_parts)
+
+
 # --- Configuration Dependency ---
 # Moved from api.py - needed by get_api_key
 @lru_cache()
@@ -34,11 +93,28 @@ def get_server_config() -> ServerConfig:
     """
     try:
         config = ServerConfig()  # type: ignore[call-arg] # Ignore pydantic-settings false positive
-        logger.debug("Server configuration loaded successfully.")  # Changed to DEBUG
+        logger.debug("Server configuration loaded successfully.")
         logging.getLogger().setLevel(config.LOG_LEVEL.upper())
         return config
-    except Exception as e:  # Catch generic Exception during config load
-        logger.error(f"!!! Failed to load server configuration: {e}", exc_info=True)
+    except ValidationError as e:
+        # Handle Pydantic validation errors with user-friendly messages
+        user_friendly_message = _format_validation_error_message(e)
+        logger.error("Server configuration validation failed:")
+        logger.error(user_friendly_message)
+        
+        # Only show stack trace in debug mode
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Validation error details:", exc_info=True)
+        
+        raise RuntimeError(f"Server configuration error:\n{user_friendly_message}") from e
+    except Exception as e:
+        # Handle other configuration errors
+        logger.error(f"Failed to load server configuration: {e}")
+        
+        # Only show stack trace in debug mode
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Configuration error details:", exc_info=True)
+        
         raise RuntimeError(f"Server configuration error: {e}") from e
 
 
