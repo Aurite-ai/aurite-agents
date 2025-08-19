@@ -43,6 +43,42 @@ from .utils import (
 logger = logging.getLogger(__name__)
 console = Console()
 
+
+def safe_decode_line(line_bytes: bytes) -> str:
+    """
+    Safely decode a line of bytes using multiple encoding attempts.
+    
+    This function tries multiple encodings to handle cases where subprocess
+    output contains special characters (like degree symbols) that may not
+    be valid UTF-8.
+    
+    Args:
+        line_bytes: Raw bytes from subprocess output
+        
+    Returns:
+        Decoded string, with problematic characters replaced if necessary
+    """
+    # List of encodings to try, in order of preference
+    encodings = ['utf-8', 'windows-1252', 'latin-1']
+    
+    for encoding in encodings:
+        try:
+            return line_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    
+    # Final fallback: decode with error replacement
+    # This will show � for any problematic characters but won't crash
+    try:
+        decoded = line_bytes.decode('utf-8', errors='replace')
+        logger.debug(f"Used error replacement for line decoding: {repr(line_bytes[:50])}")
+        return decoded
+    except Exception as e:
+        # Absolute last resort - return a safe representation
+        logger.warning(f"Complete decoding failure for line: {e}")
+        return f"<binary data: {len(line_bytes)} bytes>"
+
+
 # Global variables for process management
 api_process: Optional[asyncio.subprocess.Process] = None
 frontend_process: Optional[asyncio.subprocess.Process] = None
@@ -444,7 +480,7 @@ async def immediate_windows_cleanup():
 
 async def start_api_server_process(port: int):
     """
-    Start the API server as a subprocess.
+    Start the API server as a subprocess with robust error handling.
     
     Args:
         port: Port for the API server
@@ -461,22 +497,41 @@ async def start_api_server_process(port: int):
             env=os.environ.copy()
         )
         
-        # Stream API server output with prefix
-        async for line in api_process.stdout:
-            line_str = line.decode().strip()
-            if line_str:
-                console.print(f"[dim][API][/dim] {line_str}")
+        # Stream API server output with prefix and robust error handling
+        try:
+            async for line in api_process.stdout:
+                try:
+                    line_str = safe_decode_line(line).strip()
+                    if line_str:
+                        console.print(f"[dim][API][/dim] {line_str}")
+                except Exception as decode_error:
+                    # Log the error but continue processing other lines
+                    logger.debug(f"Error decoding API output line: {decode_error}")
+                    # Show a safe representation of the problematic line
+                    console.print(f"[dim][API][/dim] <output decoding error: {len(line)} bytes>")
+                    continue
+        except Exception as stream_error:
+            logger.error(f"Error streaming API server output: {stream_error}")
+            console.print(f"[bold yellow][API] Warning:[/bold yellow] Output streaming interrupted")
         
+        # Wait for process completion
         await api_process.wait()
         
     except Exception as e:
         logger.error(f"API server process error: {e}", exc_info=True)
         console.print(f"[bold red][API] Error:[/bold red] {str(e)}")
+    finally:
+        # Ensure process cleanup
+        if api_process and api_process.returncode is None:
+            try:
+                api_process.terminate()
+            except Exception:
+                pass
 
 
 async def start_frontend_server_process(port: int, api_port: int = 8000):
     """
-    Start the React frontend development server.
+    Start the React frontend development server with robust error handling.
     
     Args:
         port: Port for the frontend server (should be 3000)
@@ -521,19 +576,38 @@ async def start_frontend_server_process(port: int, api_port: int = 8000):
                 }
             )
         
-        # Stream frontend output with prefix
-        async for line in frontend_process.stdout:
-            line_str = line.decode().strip()
-            if line_str:
-                # Filter out some verbose webpack output
-                if not any(skip in line_str.lower() for skip in ["compiled successfully", "webpack compiled"]):
-                    console.print(f"[dim][STUDIO][/dim] {line_str}")
+        # Stream frontend output with prefix and robust error handling
+        try:
+            async for line in frontend_process.stdout:
+                try:
+                    line_str = safe_decode_line(line).strip()
+                    if line_str:
+                        # Filter out some verbose webpack output
+                        if not any(skip in line_str.lower() for skip in ["compiled successfully", "webpack compiled"]):
+                            console.print(f"[dim][STUDIO][/dim] {line_str}")
+                except Exception as decode_error:
+                    # Log the error but continue processing other lines
+                    logger.debug(f"Error decoding frontend output line: {decode_error}")
+                    # Show a safe representation of the problematic line
+                    console.print(f"[dim][STUDIO][/dim] <output decoding error: {len(line)} bytes>")
+                    continue
+        except Exception as stream_error:
+            logger.error(f"Error streaming frontend server output: {stream_error}")
+            console.print(f"[bold yellow][STUDIO] Warning:[/bold yellow] Output streaming interrupted")
         
+        # Wait for process completion
         await frontend_process.wait()
         
     except Exception as e:
         logger.error(f"Frontend server process error: {e}", exc_info=True)
         console.print(f"[bold red][STUDIO] Error:[/bold red] {str(e)}")
+    finally:
+        # Ensure process cleanup
+        if frontend_process and frontend_process.returncode is None:
+            try:
+                frontend_process.terminate()
+            except Exception:
+                pass
 
 
 def setup_signal_handlers():
