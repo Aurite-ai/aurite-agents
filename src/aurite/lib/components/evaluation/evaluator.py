@@ -40,7 +40,7 @@ async def evaluate(
     logger.info(f"Evaluation started with input: {input}")
 
     try:
-        testing_config = generate_config(input.name, input.user_input, input.expected_output, input.type)
+        testing_config = generate_config(input.eval_name, input.user_input, input.expected_output, input.eval_type)
 
         results, full_agent_responses = await run_iterations(
             executor=executor,

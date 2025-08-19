@@ -219,8 +219,8 @@ async def evaluate_component_by_config(
         resolved_config = EvaluationConfig(**eval_config).model_copy(deep=True)
 
         request = EvaluationRequest(
-            name=resolved_config.eval_name,
-            type=resolved_config.eval_type,
+            eval_name=resolved_config.eval_name,
+            eval_type=resolved_config.eval_type,
             user_input=resolved_config.user_input,
             expected_output=resolved_config.expected_output,
         )
@@ -302,11 +302,7 @@ async def stream_agent(
             "X-Accel-Buffering": "no",  # Disable nginx buffering
         }
 
-        return StreamingResponse(
-            event_generator(), 
-            media_type="text/event-stream",
-            headers=headers
-        )
+        return StreamingResponse(event_generator(), media_type="text/event-stream", headers=headers)
     except Exception as e:
         status_code = 500
         if type(e) is ConfigurationError:
