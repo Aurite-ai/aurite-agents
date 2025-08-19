@@ -155,9 +155,8 @@ export class ExecutionFacadeClient extends BaseClient {
           if (line.startsWith('data: ')) {
             try {
               onEvent(JSON.parse(line.slice(6)));
-            } catch (error) {
-              console.warn('Failed to parse SSE event:', line, error);
-              // Continue processing other events
+            } catch (_error) {
+              // Continue processing other events even if one fails to parse
             }
           }
         }

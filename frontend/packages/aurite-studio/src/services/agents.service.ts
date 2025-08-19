@@ -143,10 +143,17 @@ class AgentsService {
       // Use the centralized API client for streaming instead of direct fetch
       // This ensures consistent configuration (baseUrl, apiKey) with non-streaming calls
       let conversationComplete = false;
-      let finalResult: any = null;
+      let accumulatedResponse = '';
+      let sessionId: string | undefined = undefined;
+      const conversationHistory: any[] = [];
 
       await apiClient.execution.streamAgent(agentName, apiRequest, event => {
         try {
+          // Check if this is a session info event
+          if ((event as any).type === 'session_info' && (event as any).data?.session_id) {
+            sessionId = (event as any).data.session_id;
+          }
+
           // Check if this is a max iterations reached event
           if (
             event.type === 'llm_response_stop' &&
@@ -160,6 +167,11 @@ class AgentsService {
             return;
           }
 
+          // Accumulate response text from streaming events
+          if (event.type === 'llm_response' && event.data?.content) {
+            accumulatedResponse += event.data.content;
+          }
+
           // Check if this is a completion event (conversation ends)
           // The streaming ends when we get llm_response_stop with message_complete and it's not a tool turn
           if (
@@ -169,15 +181,8 @@ class AgentsService {
             event.data.reason === 'message_complete'
           ) {
             conversationComplete = true;
-            // We need to construct a result from the conversation history
-            // Since we don't have the full result in the stream, we'll create a basic one
-            finalResult = {
-              status: 'success',
-              final_response: null, // Will be populated from the last assistant message
-              conversation_history: [], // Will be populated from stream events
-              error_message: null,
-              session_id: undefined, // Session ID will be provided by the server if needed
-            };
+            // Don't call onComplete here - let the stream end naturally
+            // The completion will be handled after the stream finishes
           }
 
           // Always forward the stream event to the UI
@@ -189,7 +194,18 @@ class AgentsService {
       });
 
       // After streaming completes, call onComplete if the conversation finished successfully
-      if (conversationComplete && finalResult) {
+      if (conversationComplete) {
+        const finalResult = {
+          status: 'success' as const,
+          final_response: {
+            role: 'assistant',
+            content: accumulatedResponse || 'Execution completed',
+          },
+          conversation_history: conversationHistory,
+          error_message: undefined,
+          session_id: sessionId,
+        };
+
         const result = this.mapToLocalExecutionResult(finalResult);
         onComplete(result);
       }

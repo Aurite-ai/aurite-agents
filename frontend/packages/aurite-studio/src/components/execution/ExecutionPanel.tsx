@@ -13,14 +13,14 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
   agent,
   executionState,
   onStateChange,
-  onClose
+  onClose,
 }) => {
   const navigate = useNavigate();
   const handleCancelExecution = () => {
     onStateChange({
       ...executionState,
       status: 'cancelled',
-      endTime: new Date()
+      endTime: new Date(),
     });
   };
 
@@ -56,16 +56,12 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
             <div className="flex-shrink-0 p-4 border-b space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">Executing Agent</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCancelExecution}
-                >
+                <Button variant="outline" size="sm" onClick={handleCancelExecution}>
                   <StopCircle className="h-3 w-3 mr-1" />
                   Cancel
                 </Button>
               </div>
-              
+
               <ExecutionProgress
                 progress={executionState.progress}
                 currentStep={executionState.currentStep}
@@ -84,18 +80,13 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                     </div>
                     <span className="text-sm font-medium">You</span>
                   </div>
-                  <div className="ml-8 p-3 bg-muted rounded-lg">
-                    {executionState.userMessage}
-                  </div>
+                  <div className="ml-8 p-3 bg-muted rounded-lg">{executionState.userMessage}</div>
                 </div>
               )}
 
               {/* Tool Calls */}
-              {executionState.toolCalls.map((toolCall) => (
-                <ToolCallIndicator
-                  key={toolCall.id}
-                  toolCall={toolCall}
-                />
+              {executionState.toolCalls.map(toolCall => (
+                <ToolCallIndicator key={toolCall.id} toolCall={toolCall} />
               ))}
 
               {/* Assistant Response */}
@@ -153,9 +144,9 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                   <h3 className="font-medium">Execution Completed</h3>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {executionState.endTime && executionState.startTime && 
-                    `${Math.round((executionState.endTime.getTime() - executionState.startTime.getTime()) / 1000)}s`
-                  }
+                  {executionState.endTime &&
+                    executionState.startTime &&
+                    `${Math.round((executionState.endTime.getTime() - executionState.startTime.getTime()) / 1000)}s`}
                 </div>
               </div>
             </div>
@@ -171,9 +162,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                       <User className="h-4 w-4" />
                       <span className="text-sm font-medium">You</span>
                     </div>
-                    <div className="ml-6 p-3 bg-muted rounded-lg">
-                      {executionState.userMessage}
-                    </div>
+                    <div className="ml-6 p-3 bg-muted rounded-lg">{executionState.userMessage}</div>
                   </div>
                 )}
 
@@ -185,7 +174,13 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                   </div>
                   <div className="ml-6">
                     <ResponseDisplay
-                      content={executionState.result?.final_response?.content?.[0]?.text || executionState.currentResponse || 'No response available'}
+                      content={
+                        executionState.result?.final_response?.content?.[0]?.text ||
+                        (typeof executionState.result?.final_response?.content === 'string'
+                          ? executionState.result.final_response.content
+                          : executionState.currentResponse) ||
+                        'No response available'
+                      }
                       isStreaming={false}
                     />
                   </div>
@@ -197,7 +192,7 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium">Tools Used</h4>
                   <div className="space-y-2">
-                    {executionState.toolCalls.map((toolCall) => (
+                    {executionState.toolCalls.map(toolCall => (
                       <ToolCallIndicator
                         key={toolCall.id}
                         toolCall={toolCall}
@@ -283,8 +278,9 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
               <div className="space-y-2">
                 <h3 className="text-lg font-medium">Maximum Iterations Reached</h3>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  The agent reached its maximum iteration limit{agent.max_iterations ? ` of ${agent.max_iterations}` : ''}. 
-                  Consider increasing the max_iterations setting or simplifying your request.
+                  The agent reached its maximum iteration limit
+                  {agent.max_iterations ? ` of ${agent.max_iterations}` : ''}. Consider increasing
+                  the max_iterations setting or simplifying your request.
                 </p>
                 <div className="flex gap-2 justify-center">
                   <Button
@@ -297,7 +293,9 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
                     variant="default"
                     onClick={() => {
                       // Navigate to agent edit page and close modal
-                      navigate(`/agents/${encodeURIComponent(agent.name)}/edit?focus=max_iterations`);
+                      navigate(
+                        `/agents/${encodeURIComponent(agent.name)}/edit?focus=max_iterations`
+                      );
                       onClose?.();
                     }}
                   >
@@ -314,9 +312,5 @@ export const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
     }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      {renderContent()}
-    </div>
-  );
+  return <div className="flex flex-col h-full">{renderContent()}</div>;
 };
