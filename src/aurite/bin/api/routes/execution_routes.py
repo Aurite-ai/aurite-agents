@@ -14,6 +14,7 @@ from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
     AgentConfig,
     AgentRunRequest,
+    EvaluationConfig,
     EvaluationRequest,
     ExecutionHistoryResponse,
     LLMConfig,
@@ -190,12 +191,40 @@ async def test_agent(
 
 
 @router.post("/evaluate")
-async def evaluate_agent_endpoint(
+async def evaluate_component(
     request: EvaluationRequest,
     api_key: str = Security(get_api_key),
     engine: AuriteEngine = Depends(get_execution_facade),
 ):
     try:
+        eval_result = await evaluate_agent(request, engine)
+        return eval_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/evaluate/{evaluation_config_id}")
+async def evaluate_component_by_config(
+    evaluation_config_id: str,
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+    config_manager: ConfigManager = Depends(get_config_manager),
+):
+    try:
+        eval_config = config_manager.get_config("evaluation", evaluation_config_id)
+
+        if not eval_config:
+            raise HTTPException(status_code=404, detail=f"Evaluation configuration '{evaluation_config_id}' not found.")
+
+        resolved_config = EvaluationConfig(**eval_config).model_copy(deep=True)
+
+        request = EvaluationRequest(
+            name=resolved_config.eval_name,
+            type=resolved_config.eval_type,
+            user_input=resolved_config.user_input,
+            expected_output=resolved_config.expected_output,
+        )
+
         eval_result = await evaluate_agent(request, engine)
         return eval_result
     except Exception as e:

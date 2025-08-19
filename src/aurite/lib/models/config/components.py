@@ -28,6 +28,7 @@ __all__ = [
     "WorkflowConfig",
     "CustomWorkflowConfig",
     "BaseCustomWorkflow",
+    "EvaluationConfig",
 ]
 
 
