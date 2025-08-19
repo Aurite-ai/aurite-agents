@@ -344,7 +344,7 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
     return result
 
 
-def generate_config(agent_name: str, user_input: str, testing_prompt: str) -> ValidationConfig:
+def generate_config(agent_name: str, user_input: str | list[str], testing_prompt: str) -> ValidationConfig:
     """Generate a simple ValidationConfig for an agent
 
     Args:
