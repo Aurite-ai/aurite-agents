@@ -349,7 +349,5 @@ class EvaluationConfig(BaseComponentConfig):
     eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
         description="The type of component being evaluated"
     )
-    user_input: str | list[str] = Field(
-        description="The user input to be fed to the component. If it is a list of strings, each will be ran in parallel while testing"
-    )
+    user_input: str = Field(description="The user input to be fed to the component")
     expected_output: str = Field(description="A description of the expected output of the component")
