@@ -193,6 +193,17 @@
   <!-- Main Application Root -->
   <div id="root"></div>
 
+  <!-- Runtime Configuration Injection -->
+  <script>
+    window.AURITE_CONFIG = {
+      apiKey: '{{API_KEY}}',
+      apiBaseUrl: '{{API_BASE_URL}}',
+      serverPort: '{{SERVER_PORT}}',
+      environment: '{{ENVIRONMENT}}',
+      version: '{{VERSION}}'
+    };
+  </script>
+
   <!-- Loading Screen Script -->
   <script>
     // Hide loading screen when React app is ready

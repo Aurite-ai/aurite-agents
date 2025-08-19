@@ -311,7 +311,7 @@ async def start_concurrent_servers(start_api: bool, api_port: int, frontend_port
         tasks.append(api_task)
     
     # Start frontend server
-    frontend_task = asyncio.create_task(start_frontend_server_process(frontend_port))
+    frontend_task = asyncio.create_task(start_frontend_server_process(frontend_port, api_port))
     tasks.append(frontend_task)
     
     # Add shutdown monitoring task
@@ -474,12 +474,13 @@ async def start_api_server_process(port: int):
         console.print(f"[bold red][API] Error:[/bold red] {str(e)}")
 
 
-async def start_frontend_server_process(port: int):
+async def start_frontend_server_process(port: int, api_port: int = 8000):
     """
     Start the React frontend development server.
     
     Args:
         port: Port for the frontend server (should be 3000)
+        api_port: Port for the API server (for development mode cross-port communication)
     """
     global frontend_process
     
@@ -500,7 +501,8 @@ async def start_frontend_server_process(port: int):
                 env={
                     **os.environ, 
                     # "BROWSER": "none",  # Prevent auto-opening browser
-                    "PORT": "3000"      # Explicitly set React dev server port
+                    "PORT": "3000",      # Explicitly set React dev server port
+                    "REACT_APP_API_BASE_URL": f"http://localhost:{api_port}"  # Dynamic API port for dev mode
                 },
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
             )
@@ -514,7 +516,8 @@ async def start_frontend_server_process(port: int):
                 env={
                     **os.environ, 
                     # "BROWSER": "none",  # Prevent auto-opening browser
-                    "PORT": "3000"      # Explicitly set React dev server port
+                    "PORT": "3000",      # Explicitly set React dev server port
+                    "REACT_APP_API_BASE_URL": f"http://localhost:{api_port}"  # Dynamic API port for dev mode
                 }
             )
         

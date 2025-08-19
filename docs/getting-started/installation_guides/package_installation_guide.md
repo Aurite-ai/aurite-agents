@@ -120,7 +120,7 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     For more details on the API endpoints, see the [API Reference](../../usage/api_reference.md).
 
-    #### Start Aurite Studio
+    #### Launch Aurite Studio (Web UI)
 
     For the best development experience, use Aurite Studio - an integrated development environment that provides a web-based UI for managing your agents, workflows, and configurations. From anywhere inside your workspace, run:
 
@@ -130,9 +130,16 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     This command will:
     - Automatically start the API server (if not already running)
-    - Launch the React-based web interface at `http://localhost:8000/studio`
+    - Launch the React-based web interface at `http://localhost:8000/studio` (or the port you configured in your `.env` file)
     - Handle all frontend dependencies and build processes automatically
     - Open your default browser to the Studio interface
+
+    Aurite Studio provides:
+    - Visual agent configuration and testing
+    - Workflow management and execution
+    - LLM provider setup and testing
+    - MCP server integration
+    - Real-time execution monitoring
 
     <!-- prettier-ignore -->
     !!! info "System Requirements"

@@ -13,6 +13,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+# Import for server configuration
+from ..dependencies import get_server_config
+
 
 def get_static_assets_path() -> Optional[Path]:
     """
@@ -99,30 +102,80 @@ def setup_static_serving(app: FastAPI, mount_path: str = "/studio") -> bool:
     return True
 
 
-def serve_spa_file(static_dir: Path, path: str) -> FileResponse:
+def serve_spa_file(static_dir: Path, path: str):
     """
-    Serve SPA files with proper fallback to index.html.
+    Serve SPA files with proper fallback to index.html and template injection.
     
     Args:
         static_dir: Directory containing static assets
         path: Requested path
         
     Returns:
-        FileResponse for the requested file or index.html
+        FileResponse for the requested file or HTMLResponse with injected config for index.html
     """
-    # Handle root path
-    if not path or path == "/":
-        return FileResponse(static_dir / "index.html", media_type="text/html")
+    # Handle root path or SPA routes - serve index.html with template injection
+    if not path or path == "/" or not (static_dir / path).exists():
+        return serve_injected_html(static_dir / "index.html")
     
     # Check if specific file exists
     file_path = static_dir / path
     if file_path.exists() and file_path.is_file():
-        # Determine media type based on file extension
+        # For HTML files, inject configuration
+        if file_path.suffix.lower() == '.html':
+            return serve_injected_html(file_path)
+        
+        # For other files, serve directly
         media_type = get_media_type(file_path.suffix)
         return FileResponse(file_path, media_type=media_type)
     
-    # For all other routes (React Router paths), serve index.html
-    return FileResponse(static_dir / "index.html", media_type="text/html")
+    # For all other routes (React Router paths), serve index.html with injection
+    return serve_injected_html(static_dir / "index.html")
+
+
+def serve_injected_html(html_file_path: Path) -> HTMLResponse:
+    """
+    Serve HTML file with server configuration injected.
+    
+    Args:
+        html_file_path: Path to the HTML file to serve
+        
+    Returns:
+        HTMLResponse with injected configuration
+    """
+    try:
+        # Read the HTML template
+        html_content = html_file_path.read_text(encoding='utf-8')
+        
+        # Get server configuration
+        server_config = get_server_config()
+        
+        if server_config:
+            # Get version info
+            try:
+                from importlib.metadata import version
+                aurite_version = version("aurite")
+            except Exception:
+                aurite_version = "unknown"
+            
+            # Replace template placeholders with actual values
+            html_content = html_content.replace('{{API_KEY}}', server_config.API_KEY or '')
+            html_content = html_content.replace('{{API_BASE_URL}}', f'http://localhost:{server_config.PORT}')
+            html_content = html_content.replace('{{SERVER_PORT}}', str(server_config.PORT))
+            html_content = html_content.replace('{{ENVIRONMENT}}', 'production')
+            html_content = html_content.replace('{{VERSION}}', aurite_version)
+        else:
+            # Fallback values if server config is not available
+            html_content = html_content.replace('{{API_KEY}}', '')
+            html_content = html_content.replace('{{API_BASE_URL}}', 'http://localhost:8000')
+            html_content = html_content.replace('{{SERVER_PORT}}', '8000')
+            html_content = html_content.replace('{{ENVIRONMENT}}', 'production')
+            html_content = html_content.replace('{{VERSION}}', 'unknown')
+        
+        return HTMLResponse(content=html_content, media_type="text/html")
+        
+    except Exception as e:
+        # If template injection fails, serve the file directly
+        return FileResponse(html_file_path, media_type="text/html")
 
 
 def get_media_type(file_extension: str) -> str:

@@ -326,8 +326,20 @@ def get_server_config_for_studio():
     """
     try:
         return get_server_config()
+    except RuntimeError as e:
+        # RuntimeError from get_server_config already contains user-friendly message
+        error_message = str(e)
+        if "Server configuration error:" in error_message:
+            # Extract the user-friendly part (after the prefix)
+            user_message = error_message.replace("Server configuration error:", "").strip()
+            console.print(f"[bold red]Configuration Error:[/bold red]")
+            console.print(user_message)
+        else:
+            console.print(f"[bold red]Error:[/bold red] {error_message}")
+        return None
     except Exception as e:
-        logger.error(f"Failed to load server configuration: {e}")
+        # Fallback for any other unexpected errors
+        logger.error(f"Unexpected error loading server configuration: {e}")
         console.print(f"[bold red]Error:[/bold red] Failed to load server configuration: {str(e)}")
         return None
 

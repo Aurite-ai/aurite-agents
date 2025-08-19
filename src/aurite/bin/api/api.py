@@ -84,6 +84,30 @@ app = FastAPI(
     openapi_url="/openapi.json",  # OpenAPI schema endpoint
 )
 
+# Setup CORS middleware immediately during app creation
+# This ensures CORS is configured regardless of how the server is started
+try:
+    server_config = get_server_config()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=server_config.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.info(f"CORS middleware configured with origins: {server_config.ALLOWED_ORIGINS}")
+except Exception as e:
+    # Fallback CORS configuration for development
+    logger.warning(f"Could not load server config for CORS, using development fallback: {e}")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://localhost:8000", "*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.info("CORS middleware configured with development fallback origins")
+
 
 # --- Health Check Endpoint ---
 # Define simple routes directly on app first
@@ -264,21 +288,6 @@ async def log_requests(request: Request, call_next: Callable):
     return response
 
 
-def setup_cors_middleware(app: FastAPI):
-    """Setup CORS middleware when server actually starts."""
-    server_config = get_server_config()
-    if server_config is None:
-        raise RuntimeError("Server configuration not found, cannot configure CORS.")
-    
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=server_config.ALLOWED_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-
 # --- Static Files for Swagger UI ---
 # Mount static files to serve Swagger UI assets
 # This is required for the /api-docs endpoint to work properly
@@ -331,9 +340,6 @@ def start():
     In development, this function will re-exec uvicorn with --reload.
     In production, it runs the server directly.
     """
-    # Setup CORS middleware when server actually starts
-    setup_cors_middleware(app)
-    
     # Load config to get server settings
     config = get_server_config()
     if not config:
