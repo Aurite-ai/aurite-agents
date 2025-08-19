@@ -346,8 +346,8 @@ class BaseCustomWorkflow:
 class EvaluationConfig(BaseComponentConfig):
     type: Literal["evaluation"] = "evaluation"
     eval_name: str = Field(description="The name of the component being evaluated")
-    eval_type: Literal["agent"] = Field(
-        description="The type of component being evaluated. Currently, only supports agents"
+    eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
+        description="The type of component being evaluated"
     )
     user_input: str | list[str] = Field(
         description="The user input to be fed to the component. If it is a list of strings, each will be ran in parallel while testing"

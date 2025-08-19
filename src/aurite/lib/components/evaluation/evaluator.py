@@ -21,18 +21,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def evaluate_agent(
+async def evaluate(
     input: EvaluationRequest,
     executor: "AuriteEngine",
     session_id: Optional[str] = None,
 ) -> Any:
     """
-    Evaluates an agent
+    Evaluates an component
 
     Args:
-        input: The info for validation ("agent_name", "testing_prompt", and "user_input").
+        input: The info for validation
         executor: The AuriteEngine instance to run agents
-        session_id: An optional session_id for the agent run
+        session_id: An optional session_id for the component run
 
     Returns:
         A dictionary containing the result or an error.
@@ -40,11 +40,7 @@ async def evaluate_agent(
     logger.info(f"Evaluation started with input: {input}")
 
     try:
-        testing_config = generate_config(
-            input.name,
-            input.user_input,
-            input.expected_output,
-        )
+        testing_config = generate_config(input.name, input.user_input, input.expected_output, input.type)
 
         results, full_agent_responses = await run_iterations(
             executor=executor,

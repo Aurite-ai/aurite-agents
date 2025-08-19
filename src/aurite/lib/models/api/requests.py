@@ -34,7 +34,9 @@ class WorkflowRunRequest(BaseModel):
 
 class EvaluationRequest(BaseModel):
     name: str = Field(description="The name of the component being evaluated")
-    type: Literal["agent"] = Field(description="The type of component being evaluated. Currently, only supports agents")
+    type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
+        description="The type of component being evaluated"
+    )
     user_input: str = Field(description="The user input to be fed to the component")
     expected_output: str = Field(description="A semantic description of the expected output of the component")
 

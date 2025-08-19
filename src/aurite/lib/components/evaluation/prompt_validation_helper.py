@@ -37,7 +37,7 @@ class ValidationConfig(BaseModel):
     test_type: str = Field(
         ...,
         description="The type of object being tested",
-        pattern="^(agent|workflow|custom_workflow)$",
+        pattern="^(agent|linear_workflow|custom_workflow)$",
     )
     name: str = Field(
         ...,
@@ -344,20 +344,23 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
     return result
 
 
-def generate_config(agent_name: str, user_input: str | list[str], testing_prompt: str) -> ValidationConfig:
-    """Generate a simple ValidationConfig for an agent
+def generate_config(
+    agent_name: str, user_input: str | list[str], testing_prompt: str, test_type: str = "agent"
+) -> ValidationConfig:
+    """Generate a simple ValidationConfig
 
     Args:
-        agent_name: The name of the agent being tested
+        agent_name: The name of the component being tested
         user_input: The user message
         testing_prompt: A description of what the expected output should look like
+        test_type: The type of the component being tested
 
     Returns:
         A ValidationConfig object
     """
 
     return ValidationConfig(
-        test_type="agent",
+        test_type=test_type,
         name=agent_name,
         user_input=user_input,
         testing_prompt=testing_prompt,
@@ -489,7 +492,7 @@ async def _get_agent_result(
                     agent_name=testing_config.name,
                     user_message=test_input,
                 )
-            case "workflow":
+            case "linear_workflow":
                 full_output = await executor.run_linear_workflow(
                     workflow_name=testing_config.name,
                     initial_input=test_input,

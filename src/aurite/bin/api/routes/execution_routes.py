@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ....execution.aurite_engine import AuriteEngine
-from ....lib.components.evaluation.evaluator import evaluate_agent
+from ....lib.components.evaluation.evaluator import evaluate
 from ....lib.components.llm.litellm_client import LiteLLMClient
 from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
@@ -197,7 +197,7 @@ async def evaluate_component(
     engine: AuriteEngine = Depends(get_execution_facade),
 ):
     try:
-        eval_result = await evaluate_agent(request, engine)
+        eval_result = await evaluate(request, engine)
         return eval_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -225,7 +225,7 @@ async def evaluate_component_by_config(
             expected_output=resolved_config.expected_output,
         )
 
-        eval_result = await evaluate_agent(request, engine)
+        eval_result = await evaluate(request, engine)
         return eval_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
