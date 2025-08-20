@@ -152,7 +152,7 @@ If you use Aurite Agents in your research or projects, please cite:
   title={Aurite Agents Framework: A Python Framework for Building and Orchestrating AI Agents},
   author={Ryan W and Blake R and Jiten Oswal},
   year={2025},
-  version={0.3.26},
+  version={0.3.28},
   publisher={GitHub},
   url={https://github.com/Aurite-ai/aurite-agents},
   note={Configuration-driven AI agent framework with MCP integration and multi-LLM support},

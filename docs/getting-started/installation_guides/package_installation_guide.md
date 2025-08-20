@@ -35,7 +35,7 @@ This guide walks you through installing the `aurite` Python package and setting 
         ```bash
         aurite --version
         ```
-        This should display the installed version of Aurite (e.g., `aurite 0.3.27`).
+        This should display the installed version of Aurite (e.g., `aurite 0.3.28`).
 
 === "Initialize Your Project"
 
