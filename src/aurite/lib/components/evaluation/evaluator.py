@@ -4,6 +4,8 @@ import logging
 # from aurite.lib.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
 from typing import TYPE_CHECKING, Any, Optional
 
+from aurite.lib.models.config.components import LLMConfig
+
 from ...models.api.requests import EvaluationRequest
 
 # Need to adjust import path based on how tests are run relative to src
@@ -40,7 +42,18 @@ async def evaluate(
     logger.info(f"Evaluation started with input: {input}")
 
     try:
-        testing_config = generate_config(input.eval_name, input.user_input, input.expected_output, input.eval_type)
+        config_manager = executor._config_manager
+
+        llm_config = config_manager.get_config(component_id=input.review_llm, component_type="llm")
+
+        if not llm_config:
+            raise ValueError(f"No config found for llm id {input.review_llm}")
+
+        llm_config = LLMConfig(**llm_config)
+
+        testing_config = generate_config(
+            input.eval_name, input.user_input, input.expected_output, input.eval_type, llm_config
+        )
 
         results, full_agent_responses = await run_iterations(
             executor=executor,

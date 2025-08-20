@@ -11,6 +11,9 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
 
+from aurite.lib.components.llm.litellm_client import LiteLLMClient
+from aurite.lib.models.config.components import LLMConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +104,7 @@ class ValidationConfig(BaseModel):
         default=True,
         description="If analysis should be performed on the agent output. Set to false for cases where you only want to check tool calls",
     )
+    llm_config: LLMConfig = Field(default=None, description="The llm config to use when evaluating the component")
 
 
 async def run_iterations(
@@ -345,7 +349,7 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
 
 
 def generate_config(
-    agent_name: str, user_input: str | list[str], testing_prompt: str, test_type: str = "agent"
+    agent_name: str, user_input: str | list[str], testing_prompt: str, test_type: str, llm_config: LLMConfig
 ) -> ValidationConfig:
     """Generate a simple ValidationConfig
 
@@ -367,6 +371,7 @@ def generate_config(
         retry=False,
         max_retries=0,
         rubric=None,
+        llm_config=llm_config,
     )
 
 
@@ -533,14 +538,15 @@ async def _run_single_iteration(
 
     if testing_config.analysis:
         # analyze the agent/workflow output, overriding system prompt
-        analysis_output = await executor.run_agent(
-            agent_name="Quality Assurance Agent",
-            user_message=f"Input:{test_input}\n\nOutput:{output}",
-            system_prompt=prompts["qa_system_prompt"],
+        llm_client = LiteLLMClient(testing_config.llm_config)
+        analysis_output = await llm_client.create_message(
+            messages=[{"role": "user", "content": f"Input:{test_input}\n\nOutput:{output}"}],
+            tools=None,
+            system_prompt_override=prompts["qa_system_prompt"],
         )
 
         # Extract text from the Quality Assurance Agent's response
-        analysis_text_output = analysis_output.primary_text
+        analysis_text_output = analysis_output.content
 
         logging.info(f"Analysis result {i + 1}: {analysis_text_output}")
 
