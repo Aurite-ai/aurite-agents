@@ -2,15 +2,15 @@ import time
 
 from fastmcp import FastMCP
 
-mcp = FastMCP("Error Server")
+mcp = FastMCP("Error STDIO Server")
 
 
-@mcp.tool
+@mcp.tool()
 def timeout(a: float, b: float) -> float:
-    # for testing timeout
+    # for testing timeout - sleeps for 10 seconds to trigger timeout
     time.sleep(10)
     return a + b
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="stdio")

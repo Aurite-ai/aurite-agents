@@ -1,16 +1,21 @@
-import time
+"""
+Error MCP server for HTTP testing using FastMCP HTTP transport
+"""
 
+import time
 from fastmcp import FastMCP
 
-mcp = FastMCP("Error Server")
+mcp = FastMCP("error-http-server")
 
 
-@mcp.tool
+@mcp.tool()
 def timeout(a: float, b: float) -> float:
-    # for testing timeout
+    """A tool that sleeps for 10 seconds to trigger timeout."""
+    # for testing timeout - sleeps for 10 seconds to trigger timeout
     time.sleep(10)
     return a + b
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="127.0.0.1", port=8088, path="/mcp")
+    # Use streamable-http transport on port 8088 as expected by tests
+    mcp.run(transport="streamable-http", host="127.0.0.1", port=8088)

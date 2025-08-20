@@ -22,7 +22,7 @@ include_configs = ["./ws_config"]
     (workspace_path / "ws_config" / "ws_components.json").write_text("""
 [
     {"type": "agent", "name": "ws_agent", "llm_config_id": "ws_model"},
-    {"type": "llm", "name": "ws_model", "provider": "test"}
+    {"type": "llm", "name": "ws_model", "provider": "test", "model": "test-model"}
 ]
 """)
 
@@ -38,7 +38,7 @@ include_configs = ["./config"]
     (project_a_path / "config" / "proj_a_components.json").write_text("""
 [
     {"type": "agent", "name": "proj_a_agent", "llm_config_id": "proj_a_model"},
-    {"type": "llm", "name": "proj_a_model", "provider": "test"}
+    {"type": "llm", "name": "proj_a_model", "provider": "test", "model": "test-model"}
 ]
 """)
 

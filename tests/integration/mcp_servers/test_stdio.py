@@ -7,7 +7,7 @@ from aurite.aurite import Aurite
 from aurite.lib.models.config.components import ClientConfig
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stdio_server_working(with_test_config):
     """
     Tests that an stdio server can be called successfully
@@ -31,7 +31,7 @@ async def test_stdio_server_working(with_test_config):
         assert len(tool_result.content) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stdio_server_wrong_args(with_test_config):
     """
     Tests that an stdio server handles incorrect arguments
@@ -54,7 +54,7 @@ async def test_stdio_server_wrong_args(with_test_config):
         assert tool_result.isError
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stdio_server_tool_dne(with_test_config):
     """
     Tests that a error is raised if a nonexistant tool is called
@@ -74,7 +74,7 @@ async def test_stdio_server_tool_dne(with_test_config):
             await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stdio_server_incorrect_path(with_test_config):
     """
     Tests that a error is raised if a server is registered with an incorrect path

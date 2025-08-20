@@ -7,7 +7,7 @@ from aurite.aurite import Aurite
 from aurite.lib.models.config.components import ClientConfig
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_local_server_working(with_test_config):
     """
     Tests that an local server can be called successfully
@@ -31,7 +31,7 @@ async def test_local_server_working(with_test_config):
         assert len(tool_result.content) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_local_server_wrong_tool_args(with_test_config):
     """
     Tests that an local server handles incorrect tool arguments
@@ -54,7 +54,7 @@ async def test_local_server_wrong_tool_args(with_test_config):
         assert tool_result.isError
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_local_server_wrong_keys(with_test_config):
     """
     Tests that an local server handles incorrect arguments
