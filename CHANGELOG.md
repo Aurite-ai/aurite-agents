@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (though we are pre-1.0.0).
 
-## [0.3.28] - 2025-01-20
+## [0.3.28] - 2025-08-20
 
-### 🚀 Major Release: Aurite Studio Launch
+### 🚀 Major Release: Framework Enhancements & Aurite Studio Launch!
 
 This release marks a significant milestone with the launch of **Aurite Studio** - a comprehensive React-based web GUI for the Aurite framework, along with major enhancements across the entire platform.
 
