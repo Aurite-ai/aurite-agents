@@ -42,14 +42,24 @@ async def evaluate(
     logger.info(f"Evaluation started with input: {input}")
 
     try:
-        config_manager = executor._config_manager
+        if input.review_llm:
+            config_manager = executor._config_manager
 
-        llm_config = config_manager.get_config(component_id=input.review_llm, component_type="llm")
+            llm_config = config_manager.get_config(component_id=input.review_llm, component_type="llm")
 
-        if not llm_config:
-            raise ValueError(f"No config found for llm id {input.review_llm}")
+            if not llm_config:
+                raise ValueError(f"No config found for llm id {input.review_llm}")
 
-        llm_config = LLMConfig(**llm_config)
+            llm_config = LLMConfig(**llm_config)
+        else:
+            # default to hardcoded openai llm config
+            llm_config = LLMConfig(
+                name="Default Eval",
+                type="llm",
+                model="gpt-3.5-turbo",
+                provider="openai",
+                temperature=0.5,
+            )
 
         testing_config = generate_config(
             input.eval_name, input.user_input, input.expected_output, input.eval_type, llm_config

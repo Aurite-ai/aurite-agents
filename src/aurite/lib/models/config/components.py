@@ -351,4 +351,6 @@ class EvaluationConfig(BaseComponentConfig):
     )
     user_input: str = Field(description="The user input to be fed to the component")
     expected_output: str = Field(description="A description of the expected output of the component")
-    review_llm: str = Field(description="The name of the llm to use to review the component's output")
+    review_llm: Optional[str] = Field(
+        default=None, description="The name of the llm to use to review the component's output"
+    )
