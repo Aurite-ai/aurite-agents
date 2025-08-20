@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall,
+    ChatCompletionMessageFunctionToolCall,
     Function,
 )
 
@@ -60,7 +60,7 @@ async def test_agent_run_conversation_with_tool_use(
     # --- Arrange ---
 
     # Turn 1: LLM asks to use a tool
-    tool_call = ChatCompletionMessageToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="tool_abc",
         function=Function(name="get_user_info", arguments='{"user_id": "123"}'),
         type="function",

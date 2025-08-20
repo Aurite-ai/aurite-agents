@@ -7,7 +7,7 @@ from aurite.lib.models.config.components import ClientConfig
 from aurite.utils.errors import MCPServerTimeoutError
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_stdio_server_working(with_test_config):
     """
     Tests that a stdio server will handle a tool timeout properly
@@ -27,7 +27,7 @@ async def test_stdio_server_working(with_test_config):
             await host.call_tool("error_stdio_server-timeout", {"a": 1, "b": 2})
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/error_http_server.py"], indirect=True)
 async def test_http_server_error(with_test_config, start_http_server):
     """

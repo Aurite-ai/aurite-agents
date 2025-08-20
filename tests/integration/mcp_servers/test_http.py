@@ -7,7 +7,7 @@ from aurite.aurite import Aurite
 from aurite.lib.models.config.components import ClientConfig
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
 async def test_http_server_working(with_test_config, start_http_server):
     """
@@ -32,7 +32,7 @@ async def test_http_server_working(with_test_config, start_http_server):
         assert len(tool_result.content) > 0
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
 async def test_http_server_error(with_test_config, start_http_server):
     """
@@ -56,7 +56,7 @@ async def test_http_server_error(with_test_config, start_http_server):
         assert tool_result.isError
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("start_http_server", ["tests/fixtures/mcp_servers/math_http_server.py"], indirect=True)
 async def test_http_server_wrong_args(with_test_config, start_http_server):
     """

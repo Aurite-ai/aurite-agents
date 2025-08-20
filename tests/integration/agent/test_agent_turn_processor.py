@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from openai.types.chat import ChatCompletionMessage
 from openai.types.chat.chat_completion_message_tool_call import (
-    ChatCompletionMessageToolCall,
+    ChatCompletionMessageFunctionToolCall,
     Function,
 )
 
@@ -84,7 +84,7 @@ async def test_process_turn_successful_tool_call(
     Tests a turn where the LLM requests a tool and the host executes it successfully.
     """
     # Arrange
-    tool_call = ChatCompletionMessageToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="tool_123",
         function=Function(name="get_weather", arguments='{"location": "Boston"}'),
         type="function",
@@ -130,7 +130,7 @@ async def test_process_turn_failed_tool_call(
     Tests a turn where the host fails to execute a requested tool.
     """
     # Arrange
-    tool_call = ChatCompletionMessageToolCall(
+    tool_call = ChatCompletionMessageFunctionToolCall(
         id="tool_456",
         function=Function(name="get_stock_price", arguments='{"ticker": "XYZ"}'),
         type="function",
