@@ -181,4 +181,5 @@ If you use Aurite Agents in your research or projects, please cite:
 
 ## Contributing
 
+<!-- Test comment for changelog workflow integration testing -->
 Contributions are welcome! Please follow standard fork/pull request workflows. Ensure tests pass and documentation is updated for any changes.
