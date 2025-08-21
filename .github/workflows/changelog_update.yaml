@@ -1,8 +1,6 @@
 name: Update Changelog
 
 on:
-  push:
-    branches: [changelog-automation]
   pull_request:
     types: [closed]
     branches: [changelog-automation]
