@@ -44,6 +44,7 @@ VALID_COMPONENT_TYPES = [
     "linear_workflow",
     "custom_workflow",
     "evaluation",
+    "graph_workflow",
 ]
 
 
@@ -88,9 +89,7 @@ async def list_components_by_type(
     return config_manager.list_configs(singular_type)
 
 
-@router.get(
-    "/components/{component_type}/{component_id}", response_model=Dict[str, Any]
-)
+@router.get("/components/{component_type}/{component_id}", response_model=Dict[str, Any])
 async def get_component_by_id(
     component_type: str,
     component_id: str,
@@ -159,9 +158,7 @@ async def create_component(
     component_config["name"] = component_data.name
 
     # Validate the component configuration before creating it
-    is_valid, validation_errors = config_manager._validate_component_config(
-        singular_type, component_config
-    )
+    is_valid, validation_errors = config_manager._validate_component_config(singular_type, component_config)
     if not is_valid:
         raise HTTPException(
             status_code=422,
@@ -200,9 +197,7 @@ async def create_component(
     return result
 
 
-@router.put(
-    "/components/{component_type}/{component_id}", response_model=Dict[str, Any]
-)
+@router.put("/components/{component_type}/{component_id}", response_model=Dict[str, Any])
 async def update_component(
     component_type: str,
     component_id: str,
@@ -229,9 +224,7 @@ async def update_component(
     full_config = component_data.config.copy()
     full_config["name"] = component_id
 
-    is_valid, validation_errors = config_manager._validate_component_config(
-        singular_type, full_config
-    )
+    is_valid, validation_errors = config_manager._validate_component_config(singular_type, full_config)
     if not is_valid:
         raise HTTPException(
             status_code=422,
@@ -250,9 +243,7 @@ async def update_component(
     return {"message": f"Component '{component_id}' updated successfully."}
 
 
-@router.delete(
-    "/components/{component_type}/{component_id}", response_model=Dict[str, Any]
-)
+@router.delete("/components/{component_type}/{component_id}", response_model=Dict[str, Any])
 async def delete_component(
     component_type: str,
     component_id: str,
@@ -352,15 +343,12 @@ async def list_config_files_by_source(
     _refresh_config_if_needed(config_manager)
     files = config_manager.list_config_files(source_name)
     if not files and source_name not in [
-        s["project_name"] or s.get("workspace_name", "")
-        for s in config_manager.list_config_sources()
+        s["project_name"] or s.get("workspace_name", "") for s in config_manager.list_config_sources()
     ]:
         # Check if the source itself exists to differentiate empty source from invalid source
         sources = config_manager.list_config_sources()
         source_names = [
-            s.get("project_name")
-            or ("workspace" if s["context"] == "workspace" else None)
-            for s in sources
+            s.get("project_name") or ("workspace" if s["context"] == "workspace" else None) for s in sources
         ]
         if source_name not in source_names:
             raise HTTPException(
@@ -400,9 +388,7 @@ async def create_config_file(
     Create a new configuration file.
     """
     _refresh_config_if_needed(config_manager)
-    success = config_manager.create_config_file(
-        request.source_name, request.relative_path, request.content
-    )
+    success = config_manager.create_config_file(request.source_name, request.relative_path, request.content)
     if not success:
         raise HTTPException(
             status_code=400,
