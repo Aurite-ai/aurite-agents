@@ -117,6 +117,8 @@ The API is structured around four main routers.
     | `POST` | `/execution/llms/{llm_config_id}/test` | Test an LLM configuration. |
     | `POST` | `/execution/workflows/linear/{workflow_name}/test` | Test a linear workflow. |
     | `POST` | `/execution/workflows/custom/{workflow_name}/test` | Test a custom workflow. |
+    | `POST` | `/execution/evaluate` | Run evaluation on a component. |
+    | `POST` | `/execution/evaluate/{evaluation_config_id}` | Run evaluation on a component, using an evaluation config. |
 
     **Execution History**
 
