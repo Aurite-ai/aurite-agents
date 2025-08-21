@@ -6,7 +6,7 @@ For installing Aurite as a Python package to use in your own projects, please se
 
 ## Prerequisites
 
-- Python >= 3.12
+- Python >= 3.11
 - [Poetry](https://python-poetry.org/docs/#installation) (Python package and dependency manager)
 - Node.js (LTS version recommended, for frontend development)
 - Docker & Docker Compose (for the quickstart script and containerized setup)
@@ -35,8 +35,8 @@ The fastest way to get the entire Aurite Agents environment (Backend API, Fronte
     - **For Windows:**
       In the project root directory (`aurite-agents`), execute:
       `bat
-    ./scripts/setup.bat
-    `
+./scripts/setup.bat
+`
       These scripts will:
     - Check for Docker and Docker Compose.
     - Guide you through creating and configuring your `.env` file (including API keys and project selection).
@@ -73,6 +73,19 @@ If you prefer to set up and run components manually or without Docker for all se
 
     This command reads the `pyproject.toml` file, resolves the dependencies, and installs them into a dedicated virtual environment managed by Poetry.
 
+    To include optional dependencies for features like database storage or machine learning, you can add them to the install command:
+
+    ```bash
+    # To include storage dependencies (Redis, PostgreSQL)
+    poetry install --with dev,storage
+
+    # To include machine learning dependencies (Pandas, Sentence Transformers)
+    poetry install --with dev,ml
+
+    # To include all optional dependencies
+    poetry install --with dev,storage,ml
+    ```
+
 2.  **Activate the Virtual Environment:**
     To activate the virtual environment and use the installed packages, run:
 
@@ -87,8 +100,8 @@ If you prefer to set up and run components manually or without Docker for all se
 
     a. **Copy the Example File:** In the project root, copy the `.env.example` file to a new file named `.env`:
     `bash
-    cp .env.example .env
-    `
+cp .env.example .env
+`
 
     b. **Edit `.env`:** Open the newly created `.env` file and fill in your specific configurations and secrets. Pay close attention to comments like `#REPLACE` indicating values you must change.
 
@@ -144,6 +157,7 @@ If you prefer to set up and run components manually or without Docker for all se
 To set up and run the frontend developer UI for interacting with the Aurite Agents Framework:
 
 **Prerequisites:**
+
 - Node.js >= 18.0.0
 - npm >= 8.0.0
 - Running Aurite Framework API server (Step 4 above)
@@ -173,6 +187,7 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
 
 4.  **Environment Configuration:**
     Set up environment variables for Aurite Studio:
+
     ```bash
     # Copy environment template for Aurite Studio
     cp packages/aurite-studio/.env.example packages/aurite-studio/.env
@@ -180,6 +195,7 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
     ```
 
     Create a `.env` file in the `packages/aurite-studio/` directory with:
+
     ```bash
     # API Server URL - where the Aurite API server is running
     REACT_APP_API_BASE_URL=http://localhost:8000
@@ -192,11 +208,13 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
     Once dependencies are installed and environment is configured, you have two options:
 
     **Option A: Start from frontend root (recommended):**
+
     ```bash
     npm run start
     ```
 
     **Option B: Start from package directory:**
+
     ```bash
     cd packages/aurite-studio
     npm start
@@ -205,5 +223,6 @@ To set up and run the frontend developer UI for interacting with the Aurite Agen
     The frontend UI will be available in your web browser at `http://localhost:3000`.
 
 **Troubleshooting:**
+
 - If you encounter connection issues, ensure the API server is fully started (it may take a moment to initialize MCP servers)
 - Verify that your API key matches the one configured in your backend `.env` file
