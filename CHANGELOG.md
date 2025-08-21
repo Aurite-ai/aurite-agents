@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (though we are pre-1.0.0).
 
+## [Unreleased]
+
 ## [0.3.28] - 2025-08-20
 
 ### 🚀 Major Release: Framework Enhancements & Aurite Studio Launch!
@@ -52,3 +54,6 @@ This release represents over a month of intensive development, transforming Auri
 ### Changed
 - Logging improved: Removed unnecessary logging and colored the most important log statements (different color for each framework layer).
 - Agent final response improved: Now handled through a Pydantic model, replacing a simple Python dict. This simplifies retrieving the agent's response (e.g., `response_text = agent_result.primary_text`) and includes built-in error handling.
+
+[Unreleased]: https://github.com/aurite-agents/aurite-agents/compare/v0.3.28...HEAD
+[0.3.28]: https://github.com/aurite-agents/aurite-agents/compare/v0.2.17...v0.3.28
