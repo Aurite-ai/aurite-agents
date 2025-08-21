@@ -16,7 +16,7 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     Before installing, ensure your environment is ready.
 
-    1.  **Python >= 3.12:** The Aurite framework requires Python 3.12 or higher. Check your version with `python --version`.
+    1.  **Python >= 3.11:** The Aurite framework requires Python 3.11 or higher. Check your version with `python --version`.
     2.  **Create a Workspace Directory:** Choose a location on your computer for your Aurite projects.
         ```bash
         mkdir my-aurite-workspace
@@ -31,7 +31,24 @@ This guide walks you through installing the `aurite` Python package and setting 
         ```bash
         pip install aurite
         ```
-    5.  **Verify the installation:**
+
+    6.  **Install Optional Dependencies (Extras):**
+        The core `aurite` package is lightweight. Additional functionality is available through "extras," which can be installed as needed.
+
+        - **Storage:** To use database integrations like Redis or PostgreSQL for session and cache management, install the `storage` extra:
+          ```bash
+          pip install "aurite[storage]"
+          ```
+        - **Machine Learning:** For features requiring ML libraries like Pandas or Sentence Transformers, install the `ml` extra:
+          ```bash
+          pip install "aurite[ml]"
+          ```
+        You can also install multiple extras at once:
+        ```bash
+        pip install "aurite[storage,ml]"
+        ```
+
+    7.  **Verify the installation:**
         ```bash
         aurite --version
         ```
