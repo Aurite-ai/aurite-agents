@@ -9,7 +9,7 @@ on:
 
 jobs:
   update-changelog:
-    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'major') && !contains(github.event.pull_request.labels.*.name, 'minor') && !contains(github.event.pull_request.labels.*.name, 'patch')
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
