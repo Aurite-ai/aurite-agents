@@ -753,6 +753,7 @@ class ConfigManager:
             ClientConfig,
             CustomWorkflowConfig,
             EvaluationConfig,
+            GraphWorkflowConfig,
             LLMConfig,
             WorkflowConfig,
         )
@@ -765,6 +766,7 @@ class ConfigManager:
             "linear_workflow": WorkflowConfig,
             "custom_workflow": CustomWorkflowConfig,
             "evaluation": EvaluationConfig,
+            "graph_workflow": GraphWorkflowConfig,
         }
 
         model_class = model_map.get(component_type)

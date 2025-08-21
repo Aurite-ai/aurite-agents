@@ -25,7 +25,7 @@ from termcolor import colored
 from .execution.aurite_engine import AuriteEngine
 from .execution.mcp_host.mcp_host import MCPHost
 from .lib.config.config_manager import ConfigManager
-from .lib.models.api.responses import AgentRunResult, LinearWorkflowExecutionResult
+from .lib.models.api.responses import AgentRunResult, GraphWorkflowExecutionResult, LinearWorkflowExecutionResult
 from .lib.models.config.components import (
     AgentConfig,
     ClientConfig,
@@ -245,6 +245,10 @@ class Aurite:
     async def run_linear_workflow(self, workflow_name: str, initial_input: Any) -> LinearWorkflowExecutionResult:
         await self._ensure_initialized()
         return await self.kernel.execution.run_linear_workflow(workflow_name=workflow_name, initial_input=initial_input)
+
+    async def run_graph_workflow(self, workflow_name: str, initial_input: Any) -> GraphWorkflowExecutionResult:
+        await self._ensure_initialized()
+        return await self.kernel.execution.run_graph_workflow(workflow_name=workflow_name, initial_input=initial_input)
 
     async def run_custom_workflow(
         self, workflow_name: str, initial_input: Any, session_id: Optional[str] = None

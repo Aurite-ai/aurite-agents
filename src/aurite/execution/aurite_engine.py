@@ -14,17 +14,24 @@ from termcolor import colored
 from ..lib.components.agent.agent import Agent
 from ..lib.components.llm.litellm_client import LiteLLMClient
 from ..lib.components.workflows.custom_workflow import CustomWorkflowExecutor
+from ..lib.components.workflows.graph_workflow import GraphWorkflowExecutor
 from ..lib.components.workflows.linear_workflow import LinearWorkflowExecutor
 
 # Import Config Manager
 from ..lib.config.config_manager import ConfigManager
 
 # Import Models
-from ..lib.models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, SessionMetadata
+from ..lib.models.api.responses import (
+    AgentRunResult,
+    GraphWorkflowExecutionResult,
+    LinearWorkflowExecutionResult,
+    SessionMetadata,
+)
 from ..lib.models.config.components import (
     AgentConfig,
     ClientConfig,
     CustomWorkflowConfig,
+    GraphWorkflowConfig,
     LLMConfig,
     WorkflowConfig,
 )
@@ -487,6 +494,84 @@ class AuriteEngine:
             raise e
         except Exception as e:
             error_msg = f"Unexpected error running Linear Workflow '{workflow_name}': {e}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            raise WorkflowExecutionError(error_msg) from e
+
+    async def run_graph_workflow(
+        self,
+        workflow_name: str,
+        initial_input: Any,
+        session_id: Optional[str] = None,
+        force_logging: Optional[bool] = None,
+    ) -> GraphWorkflowExecutionResult:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
+        logger.info(f"Facade: Received request to run Graph Workflow '{workflow_name}' with session_id: {session_id}")
+        try:
+            workflow_config_dict = self._config_manager.get_config("graph_workflow", workflow_name)
+            if not workflow_config_dict:
+                raise ConfigurationError(f"Graph Workflow '{workflow_name}' not found.")
+
+            workflow_config = GraphWorkflowConfig(**workflow_config_dict)
+
+            # --- Logging Management ---
+            enable_logging = self._should_enable_logging(workflow_config, force_logging)
+            trace: Optional["StatefulTraceClient"] = None
+            if self.langfuse and workflow_config.include_logging:
+                trace = self.langfuse.trace(
+                    name=f"Workflow: {workflow_name} - Aurite Runtime",
+                    session_id=session_id,
+                    user_id=session_id or "anonymous",
+                    input=initial_input,
+                    metadata={
+                        "workflow_name": workflow_name,
+                        "source": "execution-engine",
+                    },
+                )
+
+            # --- Session ID Management ---
+            final_session_id = session_id
+            base_session_id = session_id  # Capture the original ID
+            if workflow_config.include_history:
+                if final_session_id:
+                    if not final_session_id.startswith("workflow-"):
+                        final_session_id = f"workflow-{final_session_id}"
+                else:
+                    final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+                    base_session_id = final_session_id  # The generated ID is the base
+                    logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
+            # --- End Session ID Management ---
+
+            workflow_executor = GraphWorkflowExecutor(
+                config=workflow_config,
+                engine=self,
+            )
+
+            result = await workflow_executor.execute(
+                initial_input=initial_input,
+                session_id=final_session_id,
+                base_session_id=base_session_id,
+                force_logging=enable_logging if workflow_config.include_logging is not None else None,
+            )
+            if trace:
+                trace.update(output=result.final_output)
+            logger.info(f"Facade: Graph Workflow '{workflow_name}' execution finished.")
+
+            # Save the complete workflow execution result if it has a session_id
+            if result.session_id and self._session_manager:
+                self._session_manager.save_workflow_result(
+                    session_id=result.session_id, workflow_result=result, base_session_id=base_session_id
+                )
+                logger.info(
+                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}'."
+                )
+
+            return result
+        except ConfigurationError as e:
+            # Re-raise configuration errors directly
+            raise e
+        except Exception as e:
+            error_msg = f"Unexpected error running Graph Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 
