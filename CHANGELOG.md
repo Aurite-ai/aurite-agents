@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Changed
+- test: Add test file for changelog workflow ([@jwilcox17](https://github.com/jwilcox17)) [#138](https://github.com/Aurite-ai/aurite-agents/pull/138)
 ## [0.3.28] - 2025-08-20
 
 ### 🚀 Major Release: Framework Enhancements & Aurite Studio Launch!
