@@ -408,8 +408,6 @@ class SessionManager:
             name = execution_result.get("agent_name")
             message_count = len(execution_result.get("conversation_history", []))
 
-        logger.info(f"===== processing node_results for {name}, msg: {message_count}, agents: {agents_involved}")
-
         return {
             "name": name,
             "message_count": message_count,
