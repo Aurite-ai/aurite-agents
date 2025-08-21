@@ -3,7 +3,7 @@ name: Update Changelog
 on:
   pull_request:
     types: [closed]
-    branches: [changelog-automation]
+    branches: [main]
 
 jobs:
   update-changelog:
