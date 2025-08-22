@@ -224,6 +224,7 @@ async def evaluate_component_by_config(
             user_input=resolved_config.user_input,
             expected_output=resolved_config.expected_output,
             review_llm=resolved_config.review_llm,
+            expected_schema=resolved_config.expected_schema,
         )
 
         eval_result = await evaluate(request, engine)

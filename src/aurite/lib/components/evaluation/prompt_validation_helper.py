@@ -2,9 +2,11 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING, Any, Tuple
 
+import jsonschema
 import yaml
+from jsonschema import validate
 from pydantic import BaseModel, Field
 
 # Type hint for AuriteEngine to avoid circular import
@@ -83,15 +85,6 @@ class ValidationConfig(BaseModel):
         description="The maximum retries, after the initial run",
         ge=0,
     )
-    edit_prompt: bool = Field(
-        default=False,
-        description="If the prompt validator should try to improve the prompt if it fails to meet threshold",
-    )
-    editor_model: str = Field(
-        default="gemini",
-        description="The model to use for prompt editing",
-        pattern="^(gemini|claude)$",
-    )
     new_prompt: str | None = Field(
         default=None,
         description="For A/B Testing. The new prompt to try and compare to the original prompt",
@@ -105,6 +98,9 @@ class ValidationConfig(BaseModel):
         description="If analysis should be performed on the agent output. Set to false for cases where you only want to check tool calls",
     )
     llm_config: LLMConfig = Field(default=None, description="The llm config to use when evaluating the component")
+    expected_schema: dict[str, Any] | None = Field(
+        default=None, description="The JSON schema the component output is expected to have."
+    )
 
 
 async def run_iterations(
@@ -349,7 +345,12 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
 
 
 def generate_config(
-    agent_name: str, user_input: str | list[str], testing_prompt: str, test_type: str, llm_config: LLMConfig
+    agent_name: str,
+    user_input: str | list[str],
+    testing_prompt: str,
+    test_type: str,
+    llm_config: LLMConfig,
+    expected_schema: dict[str, Any] | None,
 ) -> ValidationConfig:
     """Generate a simple ValidationConfig
 
@@ -358,6 +359,7 @@ def generate_config(
         user_input: The user message
         testing_prompt: A description of what the expected output should look like
         test_type: The type of the component being tested
+        expected_schema: The expected json schema the component should output
 
     Returns:
         A ValidationConfig object
@@ -372,6 +374,7 @@ def generate_config(
         max_retries=0,
         rubric=None,
         llm_config=llm_config,
+        expected_schema=expected_schema,
     )
 
 
@@ -532,11 +535,36 @@ async def _run_single_iteration(
     i,
     override_system_prompt: str | None = None,
 ) -> tuple[dict, dict]:
-    logging.info(f"Prompt Validation: Iteration {i + 1}")
+    logging.debug(f"Prompt Validation: Iteration {i + 1}")
 
     output, full_output = await _get_agent_result(executor, testing_config, test_input, override_system_prompt)
 
-    if testing_config.analysis:
+    analysis_json = {"grade": "PASS"}
+
+    if testing_config.expected_schema:
+        try:
+            if isinstance(output, str):
+                data_to_validate = json.loads(output)
+            elif isinstance(output, dict):
+                data_to_validate = output
+            else:
+                raise TypeError("Component output not str/dict")
+
+            validate(instance=data_to_validate, schema=testing_config.expected_schema)
+
+        except json.JSONDecodeError as e:
+            analysis_json = {
+                "analysis": "Schema Validation Failed: Component did not output valid JSON",
+                "grade": "FAIL",
+            }
+        except jsonschema.ValidationError as e:
+            analysis_json = {"analysis": f"Schema Validation Failed: {e.message}", "grade": "FAIL"}
+        except jsonschema.SchemaError as e:
+            analysis_json = {"analysis": f"Schema Validation Failed: Invalid schema: {e.message}", "grade": "FAIL"}
+        except TypeError as e:
+            analysis_json = {"analysis": f"Schema Validation Failed: {e}", "grade": "FAIL"}
+
+    if analysis_json["grade"] == "PASS" and testing_config.analysis:
         # analyze the agent/workflow output, overriding system prompt
         llm_client = LiteLLMClient(testing_config.llm_config)
         analysis_output = await llm_client.create_message(
@@ -548,15 +576,12 @@ async def _run_single_iteration(
         # Extract text from the Quality Assurance Agent's response
         analysis_text_output = analysis_output.content
 
-        logging.info(f"Analysis result {i + 1}: {analysis_text_output}")
+        logging.debug(f"Analysis result {i + 1}: {analysis_text_output}")
 
         try:
             analysis_json = json.loads(_clean_thinking_output(analysis_text_output))
         except Exception as e:
-            raise ValueError(f"Error converting agent output to json: {e}") from e
-    else:
-        # if no analysis to be done, automatically pass
-        analysis_json = {"grade": "PASS"}
+            raise ValueError(f"Error converting evaluation agent output to json: {e}") from e
 
     analysis_json["input"] = test_input
     analysis_json["output"] = output
