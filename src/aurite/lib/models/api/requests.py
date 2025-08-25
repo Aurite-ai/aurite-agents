@@ -20,7 +20,8 @@ __all__ = [
 class AgentRunRequest(BaseModel):
     """Request model for running an agent."""
 
-    user_message: str
+    user_message: Optional[str] = None
+    messages: Optional[list[dict[str, str]]] = None
     system_prompt: Optional[str] = None
     session_id: Optional[str] = None
 

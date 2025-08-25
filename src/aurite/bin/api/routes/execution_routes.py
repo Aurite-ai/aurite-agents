@@ -71,6 +71,7 @@ async def run_agent(
         result = await engine.run_agent(
             agent_name=agent_name,
             user_message=request.user_message,
+            messages=request.messages,
             system_prompt=request.system_prompt,
             session_id=request.session_id,
         )
@@ -287,12 +288,13 @@ async def stream_agent(
         # first, validate the agent
         _validate_agent(agent_name, config_manager)
 
-        logger.info(f"Starting stream for agent '{agent_name}' - User message length: {len(request.user_message)}")
+        logger.info(f"Starting stream for agent '{agent_name}")
 
         async def event_generator():
             async for event in engine.stream_agent_run(
                 agent_name=agent_name,
                 user_message=request.user_message,
+                messages=request.messages,
                 system_prompt=request.system_prompt,
                 session_id=request.session_id,
             ):
