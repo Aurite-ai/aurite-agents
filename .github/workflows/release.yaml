@@ -5,8 +5,6 @@ on:
     workflows: ["Update Changelog"]
     types: [completed]
     branches: [main]
-  push:
-    branches: [changelog-automation]
 
 permissions:
   contents: write
@@ -87,7 +85,7 @@ jobs:
 
   build:
     needs: detect-tags
-    if: needs.detect-tags.outputs.should-release == 'true' || github.ref_name == 'changelog-automation'
+    if: needs.detect-tags.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version-bump.outputs.version }}
@@ -152,15 +150,7 @@ jobs:
         run: |
           set -e
           
-          if [[ "${{ github.ref_name }}" == "changelog-automation" ]]; then
-            # Test run - add timestamp to current version (don't update pyproject.toml)
-            CURRENT_VERSION=$(poetry version -s)
-            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
-            TEST_VERSION="${CURRENT_VERSION}.dev${TIMESTAMP}"
-            
-            echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
-            echo "🧪 Test run - using timestamped version: $TEST_VERSION"
-          else
+          if [[ "${{ needs.detect-tags.outputs.environment }}" == "prod" ]]; then
             # Production run - bump version and tag
             # Configure git
             git config --local user.email "action@github.com"
@@ -184,6 +174,14 @@ jobs:
             # Push changes and tag
             git push origin main
             git push origin "v$NEW_VERSION"
+          else
+            # Test run - use current version with pre-release suffix
+            CURRENT_VERSION=$(poetry version -s)
+            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            TEST_VERSION="${CURRENT_VERSION}rc${TIMESTAMP}"
+            
+            echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
+            echo "🧪 Test run - using pre-release version: $TEST_VERSION"
           fi
 
       - name: Build final package
@@ -207,7 +205,7 @@ jobs:
           path: dist/
 
       - name: Publish to TestPyPI
-        if: needs.detect-tags.outputs.environment == 'test' || github.ref_name == 'changelog-automation'
+        if: needs.detect-tags.outputs.environment == 'test'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
@@ -220,6 +218,7 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub Release
+        if: needs.detect-tags.outputs.environment == 'prod'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.build.outputs.version }}
@@ -231,4 +230,4 @@ jobs:
             Version Type: ${{ needs.detect-tags.outputs.version-type }}
             Package: aurite-agents==${{ needs.build.outputs.version }}
           draft: false
-          prerelease: ${{ needs.detect-tags.outputs.environment == 'test' }}
+          prerelease: false
