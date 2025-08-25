@@ -1,0 +1,234 @@
+name: Release to PyPI
+
+on:
+  workflow_run:
+    workflows: ["Update Changelog"]
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [changelog-automation]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  detect-tags:
+    runs-on: ubuntu-latest
+    outputs:
+      version-type: ${{ steps.parse-tags.outputs.version-type }}
+      environment: ${{ steps.parse-tags.outputs.environment }}
+      should-release: ${{ steps.parse-tags.outputs.should-release }}
+    steps:
+      - name: Get PR info from workflow_run or direct trigger
+        id: get-pr-info
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            # For workflow_run trigger, get PR info from the triggering workflow
+            PR_NUM=$(echo '${{ github.event.workflow_run.pull_requests[0].number }}')
+            echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
+            
+            # Fetch PR details using GitHub API
+            PR_DATA=$(gh api repos/${{ github.repository }}/pulls/$PR_NUM)
+            echo "pr_labels=$(echo "$PR_DATA" | jq -r '[.labels[].name] | join(",")')" >> $GITHUB_OUTPUT
+            echo "pr_merged=$(echo "$PR_DATA" | jq -r '.merged')" >> $GITHUB_OUTPUT
+          else
+            # For direct PR trigger
+            echo "pr_num=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "pr_labels=${{ join(github.event.pull_request.labels.*.name, ',') }}" >> $GITHUB_OUTPUT
+            echo "pr_merged=${{ github.event.pull_request.merged }}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Parse PR labels for tags
+        id: parse-tags
+        run: |
+          VERSION_TYPE=""
+          ENVIRONMENT=""
+          SHOULD_RELEASE="false"
+          
+          # Get PR labels from previous step
+          LABELS_STR="${{ steps.get-pr-info.outputs.pr_labels }}"
+          PR_MERGED="${{ steps.get-pr-info.outputs.pr_merged }}"
+          
+          echo "PR Labels: $LABELS_STR"
+          echo "PR Merged: $PR_MERGED"
+          
+          # Parse labels from comma-separated string
+          # Set version type (prioritize major > minor > patch)
+          if echo "$LABELS_STR" | grep -q "major"; then
+            VERSION_TYPE="major"
+          elif echo "$LABELS_STR" | grep -q "minor"; then
+            VERSION_TYPE="minor"
+          elif echo "$LABELS_STR" | grep -q "patch"; then
+            VERSION_TYPE="patch"
+          fi
+          
+          # Set environment
+          if echo "$LABELS_STR" | grep -q "prod"; then
+            ENVIRONMENT="prod"
+          elif echo "$LABELS_STR" | grep -q "test"; then
+            ENVIRONMENT="test"
+          fi
+          
+          # Only trigger release if PR is merged and has both version and environment tags
+          if [[ "$PR_MERGED" == "true" && -n "$VERSION_TYPE" && -n "$ENVIRONMENT" ]]; then
+            SHOULD_RELEASE="true"
+          fi
+          
+          echo "version-type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "should-release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+          
+          echo "Version Type: $VERSION_TYPE"
+          echo "Environment: $ENVIRONMENT"
+          echo "Should Release: $SHOULD_RELEASE"
+
+  build:
+    needs: detect-tags
+    if: needs.detect-tags.outputs.should-release == 'true' || github.ref_name == 'changelog-automation'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version-bump.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Test build package
+        run: |
+          # Clean any existing dist directory first
+          rm -rf dist/
+          poetry build
+
+      - name: Verify build artifacts
+        run: |
+          # Ensure build artifacts exist and are valid
+          if [ ! -d "dist/" ] || [ -z "$(ls -A dist/)" ]; then
+            echo "::error::Build artifacts not found in dist/"
+            exit 1
+          fi
+          
+          # List build artifacts
+          echo "Build artifacts created:"
+          ls -la dist/
+          
+          # Verify wheel file exists
+          if ! ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "::error::No .whl file found in dist/"
+            exit 1
+          fi
+          
+          echo "Wheel file successfully created"
+
+      - name: Get version for test or bump version for production
+        id: version-bump
+        run: |
+          set -e
+          
+          if [[ "${{ github.ref_name }}" == "changelog-automation" ]]; then
+            # Test run - add timestamp to current version (don't update pyproject.toml)
+            CURRENT_VERSION=$(poetry version -s)
+            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            TEST_VERSION="${CURRENT_VERSION}.dev${TIMESTAMP}"
+            
+            echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
+            echo "🧪 Test run - using timestamped version: $TEST_VERSION"
+          else
+            # Production run - bump version and tag
+            # Configure git
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # Clean dist directory from test build
+            rm -rf dist/
+            
+            # Bump version using Poetry
+            poetry version ${{ needs.detect-tags.outputs.version-type }}
+            NEW_VERSION=$(poetry version -s)
+            
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "New version: $NEW_VERSION"
+            
+            # Commit version bump
+            git add pyproject.toml
+            git commit -m "chore: bump version to $NEW_VERSION"
+            git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+            
+            # Push changes and tag
+            git push origin main
+            git push origin "v$NEW_VERSION"
+          fi
+
+      - name: Build final package
+        run: poetry build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  release:
+    needs: [detect-tags, build]
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+      - name: Publish to TestPyPI
+        if: needs.detect-tags.outputs.environment == 'test' || github.ref_name == 'changelog-automation'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          
+      - name: Publish to PyPI
+        if: needs.detect-tags.outputs.environment == 'prod'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: Release ${{ needs.build.outputs.version }}
+          body: |
+            Released version ${{ needs.build.outputs.version }} to ${{ needs.detect-tags.outputs.environment == 'prod' && 'PyPI' || 'TestPyPI' }}
+            
+            Environment: ${{ needs.detect-tags.outputs.environment }}
+            Version Type: ${{ needs.detect-tags.outputs.version-type }}
+            Package: aurite-agents==${{ needs.build.outputs.version }}
+          draft: false
+          prerelease: ${{ needs.detect-tags.outputs.environment == 'test' }}
