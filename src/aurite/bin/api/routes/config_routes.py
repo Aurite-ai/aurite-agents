@@ -33,9 +33,10 @@ PLURAL_TO_SINGULAR = {
     "mcp_servers": "mcp_server",
     "linear_workflows": "linear_workflow",
     "custom_workflows": "custom_workflow",
+    "evaluations": "evaluation",
 }
 
-VALID_COMPONENT_TYPES = ["agent", "llm", "mcp_server", "linear_workflow", "custom_workflow"]
+VALID_COMPONENT_TYPES = ["agent", "llm", "mcp_server", "linear_workflow", "custom_workflow", "evaluation"]
 
 
 # Helper function to refresh config if needed

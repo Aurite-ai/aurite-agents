@@ -1,10 +1,11 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 __all__ = [
     "AgentRunRequest",
     "WorkflowRunRequest",
+    "EvaluationRequest",
     "ComponentCreate",
     "ComponentUpdate",
     "FileCreateRequest",
@@ -29,6 +30,22 @@ class WorkflowRunRequest(BaseModel):
 
     initial_input: Any
     session_id: Optional[str] = None
+
+
+class EvaluationRequest(BaseModel):
+    eval_name: str = Field(description="The name of the component being evaluated")
+    eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
+        description="The type of component being evaluated"
+    )
+    user_input: str = Field(description="The user input to be fed to the component")
+    expected_output: str = Field(description="A semantic description of the expected output of the component")
+    review_llm: Optional[str] = Field(
+        default=None, description="The name of the llm to use to review the component's output"
+    )
+    expected_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="The JSON schema the component output is expected to have.",
+    )
 
 
 # --- Component Configuration Request Models ---
