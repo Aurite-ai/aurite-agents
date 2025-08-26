@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
 
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
+from aurite.lib.models.api.requests import EvaluationRequest
+from aurite.lib.models.api.responses import AgentRunResult
 from aurite.lib.models.config.components import LLMConfig
 
 logger = logging.getLogger(__name__)
@@ -100,6 +102,15 @@ class ValidationConfig(BaseModel):
     llm_config: LLMConfig = Field(default=None, description="The llm config to use when evaluating the component")
     expected_schema: dict[str, Any] | None = Field(
         default=None, description="The JSON schema the component output is expected to have."
+    )
+    conversation_instructions: str | None = Field(
+        default=None,
+        description="Instructions to be given to a conversation agent, to test a continued conversation with the tested agent. Ignored if eval_type is not 'agent'",
+    )
+    conversation_turns: int = Field(
+        default=0,
+        ge=0,
+        description="The number of conversation turns to process with the conversation agent, after the initial response from the tested agent. Ignored if eval_type is not 'agent'",
     )
 
 
@@ -345,36 +356,31 @@ def check_tool_calls(agent_response, expected_tools: list[ExpectedToolCall]) -> 
 
 
 def generate_config(
-    agent_name: str,
-    user_input: str | list[str],
-    testing_prompt: str,
-    test_type: str,
+    input: EvaluationRequest,
     llm_config: LLMConfig,
-    expected_schema: dict[str, Any] | None,
 ) -> ValidationConfig:
     """Generate a simple ValidationConfig
 
     Args:
-        agent_name: The name of the component being tested
-        user_input: The user message
-        testing_prompt: A description of what the expected output should look like
-        test_type: The type of the component being tested
-        expected_schema: The expected json schema the component should output
+        input: The EvaluationRequest
+        llm_config: The llm_config to use in evaluation and simulated conversation
 
     Returns:
         A ValidationConfig object
     """
 
     return ValidationConfig(
-        test_type=test_type,
-        name=agent_name,
-        user_input=user_input,
-        testing_prompt=testing_prompt,
+        test_type=input.eval_type,
+        name=input.eval_name,
+        user_input=input.user_input,
+        testing_prompt=input.expected_output,
         retry=False,
         max_retries=0,
         rubric=None,
         llm_config=llm_config,
-        expected_schema=expected_schema,
+        expected_schema=input.expected_schema,
+        conversation_instructions=input.conversation_instructions,
+        conversation_turns=input.conversation_turns,
     )
 
 
@@ -496,9 +502,10 @@ async def _get_agent_result(
         # call the agent/workflow being tested
         match testing_config.test_type:
             case "agent":
-                full_output = await executor.run_agent(
-                    agent_name=testing_config.name,
-                    user_message=test_input,
+                full_output = await _run_agent_conversation(
+                    executor=executor,
+                    testing_config=testing_config,
+                    test_input=test_input,
                 )
             case "linear_workflow":
                 full_output = await executor.run_linear_workflow(
@@ -525,6 +532,65 @@ async def _get_agent_result(
 
     # Ensure the function still returns both output and full_output as a tuple
     return output, full_output
+
+
+async def _run_agent_conversation(executor: "AuriteEngine", testing_config: ValidationConfig, test_input):
+    """Run an agent conversation with another agent acting as the user"""
+
+    def swap_roles_in_messages(messages):
+        swapped_messages = []
+        for message in messages:
+            if message.get("role") == "tool" or "tool_calls" in message:
+                continue
+
+            new_message = message.copy()
+
+            if message.get("role") == "user":
+                new_message["role"] = "assistant"
+            elif message.get("role") == "assistant":
+                new_message["role"] = "user"
+
+            swapped_messages.append(new_message)
+
+        return swapped_messages
+
+    try:
+        llm_client = LiteLLMClient(testing_config.llm_config)
+
+        agent_output: AgentRunResult = await executor.run_agent(
+            agent_name=testing_config.name,
+            user_message=test_input,
+        )
+
+        messages = agent_output.conversation_history
+
+        for _ in range(testing_config.conversation_turns):
+            tester_output = await llm_client.create_message(
+                messages=swap_roles_in_messages(messages),
+                tools=None,
+                system_prompt_override=f"""
+                You are an expert testing engineer. You will be in a simulated conversation with an agent, where you will be acting as a user.
+                You have been given some instructions on how you should act in this simulation:
+
+                <instructions>
+                {testing_config.conversation_instructions}
+                </instructions>
+
+                Always act as if you were a real end user. NEVER reveal yourself as a tester.
+                """,
+            )
+
+            messages.append({"role": "user", "content": tester_output.content})
+
+            agent_output: AgentRunResult = await executor.run_agent(agent_name=testing_config.name, messages=messages)
+
+            messages = agent_output.conversation_history
+
+        return agent_output
+
+    except Exception as e:
+        logger.error(f"Error occured while simulating conversation for evaluation: {e}")
+        raise e
 
 
 async def _run_single_iteration(
@@ -568,7 +634,9 @@ async def _run_single_iteration(
         # analyze the agent/workflow output, overriding system prompt
         llm_client = LiteLLMClient(testing_config.llm_config)
         analysis_output = await llm_client.create_message(
-            messages=[{"role": "user", "content": f"Input:{test_input}\n\nOutput:{output}"}],
+            messages=[
+                {"role": "user", "content": f"Input:{test_input}\n\nOutput:{output}"}
+            ],  # TODO: change to include full conversation history?
             tools=None,
             system_prompt_override=prompts["qa_system_prompt"],
         )

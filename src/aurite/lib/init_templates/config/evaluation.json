@@ -73,5 +73,16 @@
             "required": ["status"],
             "additionalProperties": false
         }
+    },
+    {
+        "type": "evaluation",
+        "name": "Eval Weather Agent Conversation",
+        "eval_name": "Weather Agent",
+        "eval_type": "agent",
+        "user_input": "london",
+        "expected_output": "The result should include information about the weather, including the temperature in celcius",
+        "conversation_instructions": "You should ask for the temperature in fahrenheit if it is not given in fahrenheit",
+        "conversation_turns": 1,
+        "review_llm": "anthropic_claude_3_haiku"
     }
 ]

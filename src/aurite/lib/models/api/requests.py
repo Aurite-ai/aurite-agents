@@ -51,10 +51,10 @@ class EvaluationRequest(BaseModel):
         default=None,
         description="Instructions to be given to a conversation agent, to test a continued conversation with the tested agent. Ignored if eval_type is not 'agent'",
     )
-    max_conversation_turns: Optional[int] = Field(
-        default=1,
-        ge=1,
-        description="The max additional conversation turns to process with the conversation agent. Ignored if eval_type is not 'agent'",
+    conversation_turns: int = Field(
+        default=0,
+        ge=0,
+        description="The number of conversation turns to process with the conversation agent, after the initial response from the tested agent. Ignored if eval_type is not 'agent'",
     )
 
 
