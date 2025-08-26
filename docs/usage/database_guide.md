@@ -22,13 +22,13 @@ When this variable is set to `true`, the framework will connect to the database 
 
 The following environment variables are used to configure the database connection. These should be set in your `.env` file or as environment variables in your deployment environment.
 
-| Variable             | Description                                              | Default     |
-| -------------------- | -------------------------------------------------------- | ----------- |
-| `AURITE_DB_HOST`     | The hostname or IP address of your PostgreSQL server.    | `localhost` |
-| `AURITE_DB_PORT`     | The port your PostgreSQL server is running on.           | `5432`      |
-| `AURITE_DB_USER`     | The username for connecting to the database.             |             |
-| `AURITE_DB_PASSWORD` | The password for the database user.                      |             |
-| `AURITE_DB_NAME`     | The name of the database to use for storing Aurite data. |             |
+| Variable             | Description                                              | Default    |
+| -------------------- | -------------------------------------------------------- | ---------- |
+| `AURITE_DB_HOST`     | The hostname or IP address of your PostgreSQL server.    | `postgres` |
+| `AURITE_DB_PORT`     | The port your PostgreSQL server is running on.           | `5432`     |
+| `AURITE_DB_USER`     | The username for connecting to the database.             |            |
+| `AURITE_DB_PASSWORD` | The password for the database user.                      |            |
+| `AURITE_DB_NAME`     | The name of the database to use for storing Aurite data. |            |
 
 ## Exporting Configurations to the Database
 
