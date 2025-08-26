@@ -631,12 +631,14 @@ async def _run_single_iteration(
             analysis_json = {"analysis": f"Schema Validation Failed: {e}", "grade": "FAIL"}
 
     if analysis_json["grade"] == "PASS" and testing_config.analysis:
+        if testing_config.test_type == "agent":
+            # Use full conversation history for agents
+            output = full_output.conversation_history
+
         # analyze the agent/workflow output, overriding system prompt
         llm_client = LiteLLMClient(testing_config.llm_config)
         analysis_output = await llm_client.create_message(
-            messages=[
-                {"role": "user", "content": f"Input:{test_input}\n\nOutput:{output}"}
-            ],  # TODO: change to include full conversation history?
+            messages=[{"role": "user", "content": f"Input:{test_input}\n\nOutput:{output}"}],
             tools=None,
             system_prompt_override=prompts["qa_system_prompt"],
         )
