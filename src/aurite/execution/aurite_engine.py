@@ -393,7 +393,7 @@ class AuriteEngine:
                 )
             )
             run_result = await agent_instance.run_conversation()
-            if trace:
+            if trace and run_result.final_response:
                 trace.update(output=run_result.final_response.content)
             logger.info(
                 colored(

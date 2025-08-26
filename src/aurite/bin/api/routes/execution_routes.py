@@ -99,7 +99,7 @@ async def run_agent(
             status_code = 404
         elif type(e).__name__ == "AuthenticationError":
             status_code = 401
-        elif type(e) is ValueError or type(e) is TypeError:
+        elif type(e) is ValueError or type(e) is TypeError or type(e).__name__ == "BadRequestError":
             status_code = 400
 
         logger.error(f"Error running agent '{agent_name}': {e}")
@@ -325,7 +325,7 @@ async def stream_agent(
             status_code = 404
         elif type(e).__name__ == "AuthenticationError":
             status_code = 401
-        elif type(e) is ValueError or type(e) is TypeError:
+        elif type(e) is ValueError or type(e) is TypeError or type(e).__name__ == "BadRequestError":
             status_code = 400
 
         logger.error(f"Error streaming agent '{agent_name}': {e}")
