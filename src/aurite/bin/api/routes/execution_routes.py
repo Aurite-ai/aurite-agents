@@ -14,7 +14,6 @@ from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
     AgentConfig,
     AgentRunRequest,
-    EvaluationConfig,
     EvaluationRequest,
     ExecutionHistoryResponse,
     LLMConfig,
@@ -224,16 +223,9 @@ async def evaluate_component_by_config(
         if not eval_config:
             raise HTTPException(status_code=404, detail=f"Evaluation configuration '{evaluation_config_id}' not found.")
 
-        resolved_config = EvaluationConfig(**eval_config).model_copy(deep=True)
-
-        request = EvaluationRequest(
-            eval_name=resolved_config.eval_name,
-            eval_type=resolved_config.eval_type,
-            user_input=resolved_config.user_input,
-            expected_output=resolved_config.expected_output,
-            review_llm=resolved_config.review_llm,
-            expected_schema=resolved_config.expected_schema,
-        )
+        shared_fields = set(EvaluationRequest.model_fields.keys())
+        request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
+        request = EvaluationRequest(**request_data)
 
         eval_result = await evaluate(request, engine)
         return eval_result

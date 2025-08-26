@@ -14,6 +14,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional  # Added Di
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
 
+from ..api import EvaluationRequest
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -343,18 +345,5 @@ class BaseCustomWorkflow:
 
 
 # --- Evaluation Config ---
-class EvaluationConfig(BaseComponentConfig):
+class EvaluationConfig(BaseComponentConfig, EvaluationRequest):
     type: Literal["evaluation"] = "evaluation"
-    eval_name: str = Field(description="The name of the component being evaluated")
-    eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
-        description="The type of component being evaluated"
-    )
-    user_input: str = Field(description="The user input to be fed to the component")
-    expected_output: str = Field(description="A description of the expected output of the component")
-    review_llm: Optional[str] = Field(
-        default=None, description="The name of the llm to use to review the component's output"
-    )
-    expected_schema: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="The JSON schema the component output is expected to have.",
-    )

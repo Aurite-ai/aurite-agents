@@ -47,6 +47,15 @@ class EvaluationRequest(BaseModel):
         default=None,
         description="The JSON schema the component output is expected to have.",
     )
+    conversation_instructions: Optional[str] = Field(
+        default=None,
+        description="Instructions to be given to a conversation agent, to test a continued conversation with the tested agent. Ignored if eval_type is not 'agent'",
+    )
+    max_conversation_turns: Optional[int] = Field(
+        default=1,
+        ge=1,
+        description="The max additional conversation turns to process with the conversation agent. Ignored if eval_type is not 'agent'",
+    )
 
 
 # --- Component Configuration Request Models ---
