@@ -1,7 +1,7 @@
 # ✨ Aurite Agents Framework
 
 <p align="center">
-  <img src="docs/images/aurite_logo.png" alt="Aurite Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/Aurite-ai/aurite-agents/main/docs/images/aurite_logo.png" alt="Aurite Logo" width="200"/>
 </p>
 
 <p align="center">
