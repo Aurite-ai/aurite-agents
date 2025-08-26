@@ -21,7 +21,7 @@ class AgentRunRequest(BaseModel):
     """Request model for running an agent."""
 
     user_message: Optional[str] = None
-    messages: Optional[list[dict[str, str]]] = None
+    messages: Optional[list[dict[str, Any]]] = None
     system_prompt: Optional[str] = None
     session_id: Optional[str] = None
 
