@@ -1,15 +1,26 @@
 # Database Integration Guide
 
-The Aurite framework provides an optional database backend for managing component configurations and session history. This guide explains how to set up and use this feature with support for both SQLite (default) and PostgreSQL databases.
+The Aurite framework provides an optional database backend for managing component configurations and conversation history. This guide explains how to set up and use this feature with support for both SQLite (default) and PostgreSQL databases.
 
 ## Overview
 
-By default, Aurite uses a file-based system for managing configurations (agents, LLMs, etc.). When database mode is enabled, you can choose between:
+By default, Aurite uses a file-based system for managing configurations (agents, LLMs, etc.) and conversation history. When database mode is enabled, you can choose between:
 
 - **SQLite** (default): Zero-configuration, file-based database perfect for local development and single-user deployments
 - **PostgreSQL**: Full-featured database for production environments, multi-user setups, and distributed deployments
 
-When database mode is enabled, the `ConfigManager` loads all component configurations from the database into memory on startup. All subsequent CRUD (Create, Read, Update, Delete) operations are then performed against the database, ensuring that the in-memory index is kept in sync.
+### What Gets Stored in the Database
+
+When database mode is enabled, the following data is persisted:
+
+1. **Component Configurations**: All agents, LLMs, workflows, and MCP server configurations
+2. **Conversation History**: Complete agent conversation histories including:
+   - User messages
+   - Assistant responses
+   - Tool calls and results
+   - Session metadata (timestamps, agent names, session IDs)
+
+The `ConfigManager` loads all component configurations from the database into memory on startup. The `SessionManager` handles conversation history persistence, automatically storing and retrieving conversation data based on your storage configuration.
 
 ## Enabling Database Mode
 
@@ -124,6 +135,47 @@ could not change directory to "/path/to/aurite-agents": Permission denied
 
 This will create a user named `postgres_user` with the password `postgres_password`, and a database named `aurite_storage` owned by that user.
 
+## Conversation History Storage
+
+When database mode is enabled, all agent conversation histories are automatically stored in the database. This provides several benefits:
+
+- **Persistence**: Conversations survive application restarts
+- **Searchability**: Query historical conversations (future feature)
+- **Analytics**: Analyze conversation patterns and agent performance
+- **Compliance**: Maintain audit trails of all interactions
+
+### How It Works
+
+The `SessionManager` automatically detects whether database mode is enabled:
+
+- **Database Enabled** (`AURITE_ENABLE_DB=true`): Conversations are stored in the `agent_history` table
+- **Database Disabled** (default): Conversations are stored in `.aurite_cache/` as JSON files
+
+Each conversation message is stored with:
+
+- `agent_name`: The agent that handled the conversation
+- `session_id`: Unique identifier for the conversation session
+- `role`: Message role (user, assistant, or tool)
+- `content_json`: The actual message content
+- `timestamp`: When the message was created
+
+### Session Management
+
+Sessions are automatically managed based on agent configuration:
+
+```yaml
+# Agent configuration with history enabled
+name: "My Agent"
+type: agent
+include_history: true # Enables conversation history storage
+```
+
+When `include_history` is true:
+
+- A unique session ID is generated for each conversation
+- All messages are persisted to the configured storage backend
+- Previous conversation history can be retrieved for context
+
 ## Exporting Configurations to the Database
 
 If you have existing file-based configurations that you want to load into the database, use the `aurite export` command:
@@ -138,6 +190,8 @@ This command will:
 2. Connect to the database (SQLite or PostgreSQL based on your configuration)
 3. Create the necessary tables if they don't exist
 4. Upload all your component configurations to the database
+
+Note: Existing conversation histories in `.aurite_cache/` are not automatically migrated. Use the migration tool if you need to preserve historical conversations.
 
 ## Database Migration
 

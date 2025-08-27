@@ -4,8 +4,9 @@ Manages the lifecycle and persistence of execution sessions.
 
 import json
 import logging
+import os
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -13,36 +14,67 @@ from pydantic import ValidationError
 from ...models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, SessionMetadata
 from .cache_manager import CacheManager
 
+if TYPE_CHECKING:
+    from ..db.db_manager import StorageManager
+
 logger = logging.getLogger(__name__)
 
 
 class SessionManager:
     """
     Handles the creation, loading, saving, and querying of execution sessions.
-    This class acts as a high-level interface over a low-level storage
-    mechanism, like the CacheManager.
+    This class acts as a high-level interface over storage mechanisms,
+    supporting both file-based (CacheManager) and database (StorageManager) backends.
     """
 
-    def __init__(self, cache_manager: "CacheManager"):
+    def __init__(
+        self, cache_manager: Optional["CacheManager"] = None, storage_manager: Optional["StorageManager"] = None
+    ):
         """
         Initialize the SessionManager.
 
         Args:
             cache_manager: The low-level cache handler for file I/O.
+            storage_manager: The database storage manager for DB persistence.
         """
         self._cache = cache_manager
+        self._storage = storage_manager
+        self._use_db = bool(os.getenv("AURITE_ENABLE_DB", "false").lower() == "true" and storage_manager)
+
+        if self._use_db:
+            logger.info("SessionManager initialized with database backend")
+        elif self._cache:
+            logger.info("SessionManager initialized with file-based cache backend")
+        else:
+            logger.warning("SessionManager initialized without any storage backend")
 
     def get_session_result(self, session_id: str) -> Optional[Dict[str, Any]]:
         """
         Get the complete execution result for a specific session.
         """
-        session_data = self._cache.get_result(session_id)
-        if session_data:
-            # First, ensure the session data has the latest metadata format
-            if "message_count" not in session_data:
-                metadata = self._extract_metadata(session_data.get("execution_result", {}))
-                session_data.update(metadata)
-            return session_data.get("execution_result")
+        if self._use_db and self._storage:
+            # For database, we need to reconstruct the result from history
+            # This is primarily used for retrieving full session details
+            # The database doesn't store the full result object, just the history
+            history = self._storage.get_session_history(session_id)
+            if history:
+                metadata = self._storage.get_session_metadata(session_id)
+                if metadata:
+                    return {
+                        "session_id": session_id,
+                        "agent_name": metadata.get("agent_name"),
+                        "conversation_history": history,
+                        "message_count": metadata.get("message_count", len(history)),
+                    }
+            return None
+        elif self._cache:
+            session_data = self._cache.get_result(session_id)
+            if session_data:
+                # First, ensure the session data has the latest metadata format
+                if "message_count" not in session_data:
+                    metadata = self._extract_metadata(session_data.get("execution_result", {}))
+                    session_data.update(metadata)
+                return session_data.get("execution_result")
         return None
 
     def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
@@ -50,18 +82,23 @@ class SessionManager:
         Get conversation history for a specific session.
         Extracts conversation from the execution result.
         """
-        result = self.get_session_result(session_id)
-        if result:
-            if "conversation_history" in result:
-                return result["conversation_history"]
-            elif "step_results" in result:
-                all_messages = []
-                for step in result.get("step_results", []):
-                    if isinstance(step, dict) and "result" in step:
-                        step_result = step["result"]
-                        if isinstance(step_result, dict) and "conversation_history" in step_result:
-                            all_messages.extend(step_result["conversation_history"])
-                return all_messages if all_messages else None
+        if self._use_db and self._storage:
+            # Use database to get history
+            return self._storage.get_session_history(session_id)
+        else:
+            # Use file-based cache
+            result = self.get_session_result(session_id)
+            if result:
+                if "conversation_history" in result:
+                    return result["conversation_history"]
+                elif "step_results" in result:
+                    all_messages = []
+                    for step in result.get("step_results", []):
+                        if isinstance(step, dict) and "result" in step:
+                            step_result = step["result"]
+                            if isinstance(step_result, dict) and "conversation_history" in step_result:
+                                all_messages.extend(step_result["conversation_history"])
+                    return all_messages if all_messages else None
         return None
 
     def add_message_to_history(self, session_id: str, message: Dict[str, Any], agent_name: str):
@@ -83,13 +120,20 @@ class SessionManager:
         """
         Saves a conversation history, creating a minimal result format.
         """
-        execution_result = {
-            "conversation_history": conversation,
-            "agent_name": agent_name,
-            "workflow_name": workflow_name,
-        }
-        result_type = "workflow" if workflow_name else "agent"
-        self._save_result(session_id, execution_result, result_type)
+        if self._use_db and self._storage:
+            # Save to database
+            if agent_name:
+                self._storage.save_full_history(agent_name, session_id, conversation)
+                logger.debug(f"Saved conversation history to database for agent '{agent_name}', session '{session_id}'")
+        elif self._cache:
+            # Save to file cache
+            execution_result = {
+                "conversation_history": conversation,
+                "agent_name": agent_name,
+                "workflow_name": workflow_name,
+            }
+            result_type = "workflow" if workflow_name else "agent"
+            self._save_result(session_id, execution_result, result_type)
 
     def save_agent_result(self, session_id: str, agent_result: AgentRunResult, base_session_id: Optional[str] = None):
         """
@@ -109,72 +153,106 @@ class SessionManager:
         self, session_id: str, execution_result: Dict[str, Any], result_type: str, base_session_id: Optional[str] = None
     ):
         """
-        Internal method to save a result to the cache with metadata.
+        Internal method to save a result to storage with metadata.
         """
-        now = datetime.utcnow().isoformat()
-        existing_data = self._cache.get_result(session_id) or {}
+        if self._use_db and self._storage:
+            # For database, extract and save conversation history
+            agent_name = execution_result.get("agent_name")
+            conversation = execution_result.get("conversation_history", [])
+            if agent_name and conversation:
+                self._storage.save_full_history(agent_name, session_id, conversation)
+                logger.debug(f"Saved result to database for '{agent_name}', session '{session_id}'")
+        elif self._cache:
+            # For file cache, save the full result
+            now = datetime.utcnow().isoformat()
+            existing_data = self._cache.get_result(session_id) or {}
 
-        metadata = self._extract_metadata(execution_result)
-        session_data = {
-            "session_id": session_id,
-            "base_session_id": base_session_id,
-            "execution_result": execution_result,
-            "result_type": result_type,
-            "created_at": existing_data.get("created_at", now),
-            "last_updated": now,
-            **metadata,
-        }
-        self._cache.save_result(session_id, session_data)
+            metadata = self._extract_metadata(execution_result)
+            session_data = {
+                "session_id": session_id,
+                "base_session_id": base_session_id,
+                "execution_result": execution_result,
+                "result_type": result_type,
+                "created_at": existing_data.get("created_at", now),
+                "last_updated": now,
+                **metadata,
+            }
+            self._cache.save_result(session_id, session_data)
 
     def get_sessions_list(
         self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0
     ) -> Dict[str, Any]:
         """
         Get list of sessions with optional filtering, returning validated Pydantic models.
-        This method now iterates through the cache directory directly.
         """
         all_validated_sessions: List[SessionMetadata] = []
-        cache_dir = self._cache.get_cache_dir()
 
-        for session_file in cache_dir.glob("*.json"):
-            try:
-                with open(session_file, "r") as f:
-                    session_data = json.load(f)
+        if self._use_db and self._storage:
+            # Use database to get sessions
+            if agent_name:
+                sessions_data = self._storage.get_sessions_by_agent(agent_name, limit=limit)
+                for session_info in sessions_data:
+                    try:
+                        # Convert database format to SessionMetadata
+                        model = SessionMetadata(
+                            session_id=session_info["session_id"],
+                            name=session_info.get("agent_name", agent_name),
+                            created_at=session_info.get("created_at"),
+                            last_updated=session_info.get("last_updated"),
+                            message_count=session_info.get("message_count", 0),
+                            is_workflow=False,
+                            agents_involved=None,
+                            base_session_id=None,
+                        )
+                        all_validated_sessions.append(model)
+                    except ValidationError as e:
+                        logger.warning(f"Skipping session due to validation error: {e}")
+            # Note: Database doesn't currently support workflow listing, would need to extend
+        elif self._cache:
+            # Use file cache to get sessions
+            cache_dir = self._cache.get_cache_dir()
 
-                # Backwards compatibility: ensure message_count is present for older records
-                if "message_count" not in session_data:
-                    metadata = self._extract_metadata(session_data.get("execution_result", {}))
-                    session_data.update(metadata)
+            for session_file in cache_dir.glob("*.json"):
+                try:
+                    with open(session_file, "r") as f:
+                        session_data = json.load(f)
 
-                model = self._validate_and_transform_metadata(session_data)
-                all_validated_sessions.append(model)
-            except json.JSONDecodeError:
-                logger.warning(f"Skipping non-JSON file in cache: {session_file}")
-            except ValidationError as e:
-                session_id = session_data.get("session_id", "unknown")
-                logger.warning(
-                    f"Skipping session '{session_id}' from file '{session_file}' due to validation error: {e}"
-                )
-            except Exception as e:
-                logger.error(f"Unexpected error processing session file {session_file}: {e}", exc_info=True)
+                    # Backwards compatibility: ensure message_count is present for older records
+                    if "message_count" not in session_data:
+                        metadata = self._extract_metadata(session_data.get("execution_result", {}))
+                        session_data.update(metadata)
 
-        # Now, perform filtering on the validated Pydantic models
-        filtered_sessions: List[SessionMetadata] = []
-        if workflow_name:
-            filtered_sessions = [s for s in all_validated_sessions if s.is_workflow and s.name == workflow_name]
-        elif agent_name:
-            # When filtering by agent name, only return direct agent runs.
-            filtered_sessions = [s for s in all_validated_sessions if not s.is_workflow and s.name == agent_name]
-        else:
-            filtered_sessions = all_validated_sessions
+                    model = self._validate_and_transform_metadata(session_data)
+                    all_validated_sessions.append(model)
+                except json.JSONDecodeError:
+                    logger.warning(f"Skipping non-JSON file in cache: {session_file}")
+                except ValidationError as e:
+                    session_id = session_data.get("session_id", "unknown")
+                    logger.warning(
+                        f"Skipping session '{session_id}' from file '{session_file}' due to validation error: {e}"
+                    )
+                except Exception as e:
+                    logger.error(f"Unexpected error processing session file {session_file}: {e}", exc_info=True)
 
-        # Sort by last_updated descending
-        filtered_sessions.sort(key=lambda x: x.last_updated or "", reverse=True)
+            # Now, perform filtering on the validated Pydantic models
+            filtered_sessions: List[SessionMetadata] = []
+            if workflow_name:
+                filtered_sessions = [s for s in all_validated_sessions if s.is_workflow and s.name == workflow_name]
+            elif agent_name:
+                # When filtering by agent name, only return direct agent runs.
+                filtered_sessions = [s for s in all_validated_sessions if not s.is_workflow and s.name == agent_name]
+            else:
+                filtered_sessions = all_validated_sessions
 
-        total = len(filtered_sessions)
-        paginated_sessions = filtered_sessions[offset : offset + limit]
+            # Sort by last_updated descending
+            filtered_sessions.sort(key=lambda x: x.last_updated or "", reverse=True)
 
-        return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+            total = len(filtered_sessions)
+            paginated_sessions = filtered_sessions[offset : offset + limit]
+
+            return {"sessions": paginated_sessions, "total": total, "offset": offset, "limit": limit}
+
+        return {"sessions": [], "total": 0, "offset": offset, "limit": limit}
 
     def delete_session(self, session_id: str) -> bool:
         """
@@ -182,61 +260,91 @@ class SessionManager:
         of its child agent sessions. If it's a child agent session, remove it
         from the parent's 'agents_involved' list.
         """
-        session_to_delete = self.get_session_metadata(session_id)
-        if not session_to_delete:
-            return self._cache.delete_session(session_id)  # Let cache handle non-existent case
+        if self._use_db and self._storage:
+            # Use database to delete session
+            return self._storage.delete_session(session_id)
+        elif self._cache:
+            # Use file cache to delete session
+            session_to_delete = self.get_session_metadata(session_id)
+            if not session_to_delete:
+                return self._cache.delete_session(session_id)  # Let cache handle non-existent case
 
-        # Case 1: The deleted session is a workflow.
-        if session_to_delete.is_workflow:
-            # Find all child agent sessions that belong to this workflow.
-            all_sessions = self.get_sessions_list(limit=10000)["sessions"]
-            child_agent_sessions = [
-                s
-                for s in all_sessions
-                if not s.is_workflow
-                and s.base_session_id == session_to_delete.base_session_id
-                and s.session_id != session_to_delete.session_id
-            ]
-            for child in child_agent_sessions:
-                self._cache.delete_session(child.session_id)
-                logger.info(
-                    f"Cascading delete: removed child agent session '{child.session_id}' for workflow '{session_id}'."
-                )
+            # Case 1: The deleted session is a workflow.
+            if session_to_delete.is_workflow:
+                # Find all child agent sessions that belong to this workflow.
+                all_sessions = self.get_sessions_list(limit=10000)["sessions"]
+                child_agent_sessions = [
+                    s
+                    for s in all_sessions
+                    if not s.is_workflow
+                    and s.base_session_id == session_to_delete.base_session_id
+                    and s.session_id != session_to_delete.session_id
+                ]
+                for child in child_agent_sessions:
+                    self._cache.delete_session(child.session_id)
+                    logger.info(
+                        f"Cascading delete: removed child agent session '{child.session_id}' for workflow '{session_id}'."
+                    )
 
-        # Case 2: The deleted session is a child agent of a workflow.
-        elif session_to_delete.base_session_id and session_to_delete.base_session_id != session_id:
-            all_sessions = self.get_sessions_list(limit=10000)["sessions"]
-            parent_workflows = [
-                s for s in all_sessions if s.is_workflow and s.base_session_id == session_to_delete.base_session_id
-            ]
-            for parent in parent_workflows:
-                parent_data = self._cache.get_result(parent.session_id)
-                if parent_data and parent_data.get("agents_involved") and session_id in parent_data["agents_involved"]:
-                    del parent_data["agents_involved"][session_id]
-                    self._cache.save_result(parent.session_id, parent_data)
-                    logger.info(f"Removed deleted session '{session_id}' from parent workflow '{parent.session_id}'.")
+            # Case 2: The deleted session is a child agent of a workflow.
+            elif session_to_delete.base_session_id and session_to_delete.base_session_id != session_id:
+                all_sessions = self.get_sessions_list(limit=10000)["sessions"]
+                parent_workflows = [
+                    s for s in all_sessions if s.is_workflow and s.base_session_id == session_to_delete.base_session_id
+                ]
+                for parent in parent_workflows:
+                    parent_data = self._cache.get_result(parent.session_id)
+                    if (
+                        parent_data
+                        and parent_data.get("agents_involved")
+                        and session_id in parent_data["agents_involved"]
+                    ):
+                        del parent_data["agents_involved"][session_id]
+                        self._cache.save_result(parent.session_id, parent_data)
+                        logger.info(
+                            f"Removed deleted session '{session_id}' from parent workflow '{parent.session_id}'."
+                        )
 
-        # Finally, delete the main session file.
-        return self._cache.delete_session(session_id)
+            # Finally, delete the main session file.
+            return self._cache.delete_session(session_id)
+        return False
 
     def get_session_metadata(self, session_id: str) -> Optional[SessionMetadata]:
         """
         Get validated Pydantic metadata model for a specific session.
         """
-        session_data = self._cache.get_result(session_id)
-        if not session_data:
+        if self._use_db and self._storage:
+            # Use database to get metadata
+            metadata = self._storage.get_session_metadata(session_id)
+            if metadata:
+                return SessionMetadata(
+                    session_id=session_id,
+                    name=metadata.get("agent_name", f"Session {session_id[:8]}"),
+                    created_at=metadata.get("created_at"),
+                    last_updated=metadata.get("last_updated"),
+                    message_count=metadata.get("message_count", 0),
+                    is_workflow=False,  # Database currently only stores agent sessions
+                    agents_involved=None,
+                    base_session_id=None,
+                )
             return None
+        elif self._cache:
+            # Use file cache to get metadata
+            session_data = self._cache.get_result(session_id)
+            if not session_data:
+                return None
 
-        # Ensure the session data has the latest metadata format
-        if "message_count" not in session_data:
-            metadata = self._extract_metadata(session_data.get("execution_result", {}))
-            session_data.update(metadata)
+            # Ensure the session data has the latest metadata format
+            if "message_count" not in session_data:
+                metadata = self._extract_metadata(session_data.get("execution_result", {}))
+                session_data.update(metadata)
 
-        try:
-            return self._validate_and_transform_metadata(session_data)
-        except ValidationError as e:
-            logger.error(f"Validation failed for session '{session_id}': {e}")
-            return None
+            try:
+                return self._validate_and_transform_metadata(session_data)
+            except ValidationError as e:
+                logger.error(f"Validation failed for session '{session_id}': {e}")
+                return None
+        return None
 
     def get_full_session_details(self, session_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[SessionMetadata]]:
         """

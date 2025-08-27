@@ -48,7 +48,8 @@
       "weather_server"
     ],
     "name": "Weather Agent",
-    "type": "agent"
+    "type": "agent",
+    "include_history": true
   },
   {
     "name": "Weather Agent with Include History",

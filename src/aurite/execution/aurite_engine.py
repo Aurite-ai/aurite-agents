@@ -73,8 +73,12 @@ class AuriteEngine:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        # The engine now uses a SessionManager for history, which in turn uses the CacheManager.
-        self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
+        # The engine now uses a SessionManager for history, which supports both file and database storage
+        self._session_manager = (
+            SessionManager(cache_manager=cache_manager, storage_manager=storage_manager)
+            if (cache_manager or storage_manager)
+            else None
+        )
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         self.langfuse = langfuse
         logger.debug(f"AuriteEngine initialized (StorageManager {'present' if storage_manager else 'absent'}).")
