@@ -395,6 +395,34 @@ async def test_linear_workflow(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/workflows/graph/{workflow_name}/run")
+async def run_graph_workflow(
+    workflow_name: str,
+    request: WorkflowRunRequest,
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+):
+    """
+    Execute a linear workflow by name.
+    """
+    try:
+        result = await engine.run_graph_workflow(
+            workflow_name=workflow_name,
+            initial_input=request.initial_input,
+            session_id=request.session_id,
+        )
+        return result.model_dump()
+    except ConfigurationError as e:
+        logger.error(f"Configuration error for workflow '{workflow_name}': {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except WorkflowExecutionError as e:
+        logger.error(f"Workflow execution error for '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {clean_error_message(e)}") from e
+    except Exception as e:
+        logger.error(f"Unexpected error running graph workflow '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
+
+
 @router.post("/workflows/custom/{workflow_name}/run")
 async def run_custom_workflow(
     workflow_name: str,

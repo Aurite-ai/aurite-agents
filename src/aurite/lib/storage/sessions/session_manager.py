@@ -373,22 +373,37 @@ class SessionManager:
         message_count = 0
         name = None
         agents_involved: Dict[str, str] = {}
-        is_workflow = "step_results" in execution_result
+        is_workflow = "step_results" in execution_result or "node_results" in execution_result
 
         if is_workflow:
             name = execution_result.get("workflow_name")
-            for step in execution_result.get("step_results", []):
-                if isinstance(step, dict) and "result" in step:
-                    step_result = step["result"]
-                    if isinstance(step_result, dict):
-                        if "conversation_history" in step_result:
-                            message_count += len(step_result.get("conversation_history", []))
+            if "step_results" in execution_result:
+                for step in execution_result.get("step_results", []):
+                    if isinstance(step, dict) and "result" in step:
+                        step_result = step["result"]
+                        if isinstance(step_result, dict):
+                            if "conversation_history" in step_result:
+                                message_count += len(step_result.get("conversation_history", []))
 
-                        # We now look for both session_id and agent_name in the step result.
-                        agent_session_id = step_result.get("session_id")
-                        agent_name_in_step = step_result.get("agent_name")
-                        if agent_session_id and agent_name_in_step:
-                            agents_involved[agent_session_id] = agent_name_in_step
+                            # We now look for both session_id and agent_name in the step result.
+                            agent_session_id = step_result.get("session_id")
+                            agent_name_in_step = step_result.get("agent_name")
+                            if agent_session_id and agent_name_in_step:
+                                agents_involved[agent_session_id] = agent_name_in_step
+            elif "node_results" in execution_result:
+                for _, step in execution_result.get("node_results", {}).items():
+                    if isinstance(step, dict) and "result" in step:
+                        step_result = step["result"]
+                        if isinstance(step_result, dict):
+                            if "conversation_history" in step_result:
+                                message_count += len(step_result.get("conversation_history", []))
+
+                            # We now look for both session_id and agent_name in the step result.
+                            agent_session_id = step_result.get("session_id")
+                            agent_name_in_step = step_result.get("agent_name")
+                            if agent_session_id and agent_name_in_step:
+                                agents_involved[agent_session_id] = agent_name_in_step
+
         else:  # It's an agent result
             name = execution_result.get("agent_name")
             message_count = len(execution_result.get("conversation_history", []))
