@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Changed
+- Graph workflow ([@blakerandle](https://github.com/blakerandle)) [#120](https://github.com/Aurite-ai/aurite-agents/pull/120)
 - Container-updates-clean ([@wilcoxr](https://github.com/wilcoxr)) [#150](https://github.com/Aurite-ai/aurite-agents/pull/150)
 - added storage optional dep ([@wilcoxr](https://github.com/wilcoxr)) [#142](https://github.com/Aurite-ai/aurite-agents/pull/142)
 - database guide ([@wilcoxr](https://github.com/wilcoxr)) [#148](https://github.com/Aurite-ai/aurite-agents/pull/148)
