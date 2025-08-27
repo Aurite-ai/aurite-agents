@@ -27,4 +27,4 @@ EXPOSE 3000
 
 # Start the development server for aurite-studio using the npm workspace command.
 # This will enable hot-reloading inside the container.
-CMD ["npm", "start", "--workspace=@aurite/aurite-studio"]
+CMD ["npm", "start", "--workspace=@aurite-ai/aurite-studio"]
