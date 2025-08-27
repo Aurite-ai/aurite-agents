@@ -11,7 +11,7 @@ Features:
 - Run comprehensive security assessments
 - Compare security scores across providers and models
 - Generate detailed security reports with recommendations
-- Export results in multiple formats
+- Console output in multiple formats with sensitive data redaction
 
 Usage:
     python scripts/test_security_real_llm_configs.py [options]
@@ -19,7 +19,6 @@ Usage:
 Options:
     --config-file PATH    Path to LLM configurations JSON file
     --output-format FORMAT   Output format: console, json, markdown (default: console)
-    --output-file PATH    Output file path (optional)
     --parallel            Run assessments in parallel (default: sequential)
     --verbose             Enable verbose logging
 """
@@ -1162,10 +1161,6 @@ async def main():
         help='Output format (default: console)'
     )
     parser.add_argument(
-        '--output-file',
-        help='Output file path (optional)'
-    )
-    parser.add_argument(
         '--parallel',
         action='store_true',
         help='Run assessments in parallel'
@@ -1277,37 +1272,19 @@ async def main():
             report = report_generator.generate_console_report(
                 results, configurations, provider_analysis, patterns, recommendations
             )
-            
-            if args.output_file:
-                with open(args.output_file, 'w') as f:
-                    f.write(report)
-                print(f"📄 Report saved to: {args.output_file}")
-            else:
-                print(report)
+            print(report)
                 
         elif args.output_format == 'json':
             report = report_generator.generate_json_report(
                 results, configurations, provider_analysis, patterns, recommendations
             )
-            
-            if args.output_file:
-                with open(args.output_file, 'w') as f:
-                    json.dump(report, f, indent=2)
-                print(f"📄 JSON report saved to: {args.output_file}")
-            else:
-                print(json.dumps(report, indent=2))
+            print(json.dumps(report, indent=2))
                 
         elif args.output_format == 'markdown':
             report = report_generator.generate_markdown_report(
                 results, configurations, provider_analysis, patterns, recommendations
             )
-            
-            if args.output_file:
-                with open(args.output_file, 'w') as f:
-                    f.write(report)
-                print(f"📄 Markdown report saved to: {args.output_file}")
-            else:
-                print(report)
+            print(report)
         
         # Cleanup
         await security_engine.shutdown()
