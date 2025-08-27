@@ -752,6 +752,7 @@ class ConfigManager:
             AgentConfig,
             ClientConfig,
             CustomWorkflowConfig,
+            EvaluationConfig,
             LLMConfig,
             WorkflowConfig,
         )
@@ -763,6 +764,7 @@ class ConfigManager:
             "mcp_server": ClientConfig,
             "linear_workflow": WorkflowConfig,
             "custom_workflow": CustomWorkflowConfig,
+            "evaluation": EvaluationConfig,
         }
 
         model_class = model_map.get(component_type)
