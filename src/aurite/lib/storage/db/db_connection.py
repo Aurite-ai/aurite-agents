@@ -9,6 +9,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Optional
+import urllib.parse
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -116,11 +117,35 @@ def create_db_engine() -> Optional[Engine]:
 
         return engine
     except Exception as e:
-        # Sanitize URL for logging (hide password)
-        if db_url and "postgresql" in db_url:
-            sanitized_url = db_url.replace(f":{os.getenv('AURITE_DB_PASSWORD')}@", ":***@")
-        else:
-            sanitized_url = db_url
+        def sanitize_db_url(url: str) -> str:
+            # Only redact password for PostgreSQL URLs that match the format
+            try:
+                parsed = urllib.parse.urlparse(url)
+                if parsed.scheme.startswith("postgresql"):
+                    # Reconstruct netloc with username and redacted password if present
+                    username = parsed.username or ""
+                    host = parsed.hostname or ""
+                    port = f":{parsed.port}" if parsed.port else ""
+                    # Use *** for password if any username is set
+                    password = ":***" if username else ""
+                    # Rebuild netloc
+                    netloc = f"{username}{password}@{host}{port}"
+                    # Build sanitized URL
+                    sanitized = urllib.parse.urlunparse((
+                        parsed.scheme,
+                        netloc,
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment,
+                    ))
+                    return sanitized
+            except Exception:
+                pass
+            # For non-postgres URLs or on error, return as-is
+            return url
+
+        sanitized_url = sanitize_db_url(db_url) if db_url else None
         logger.error(f"Failed to create SQLAlchemy engine for URL {sanitized_url}: {e}", exc_info=True)
         return None
 
