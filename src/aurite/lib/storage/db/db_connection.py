@@ -6,10 +6,10 @@ Reads connection details from environment variables.
 
 import logging
 import os
+import urllib.parse
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Optional
-import urllib.parse
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
@@ -116,7 +116,8 @@ def create_db_engine() -> Optional[Engine]:
             logger.info(f"PostgreSQL engine created for {engine.url}.")
 
         return engine
-    except Exception as e:
+    except Exception:
+
         def sanitize_db_url(url: str) -> str:
             # Only redact password for PostgreSQL URLs that match the format
             try:
@@ -131,22 +132,24 @@ def create_db_engine() -> Optional[Engine]:
                     # Rebuild netloc
                     netloc = f"{username}{password}@{host}{port}"
                     # Build sanitized URL
-                    sanitized = urllib.parse.urlunparse((
-                        parsed.scheme,
-                        netloc,
-                        parsed.path,
-                        parsed.params,
-                        parsed.query,
-                        parsed.fragment,
-                    ))
+                    sanitized = urllib.parse.urlunparse(
+                        (
+                            parsed.scheme,
+                            netloc,
+                            parsed.path,
+                            parsed.params,
+                            parsed.query,
+                            parsed.fragment,
+                        )
+                    )
                     return sanitized
             except Exception:
                 pass
             # For non-postgres URLs or on error, return as-is
             return url
 
-        sanitized_url = sanitize_db_url(db_url) if db_url else None
-        logger.error(f"Failed to create SQLAlchemy engine for URL {sanitized_url}: {e}", exc_info=True)
+        sanitize_db_url(db_url) if db_url else None
+        logger.error("Failed to create SQLAlchemy engine. Check your database environment variables")
         return None
 
 
