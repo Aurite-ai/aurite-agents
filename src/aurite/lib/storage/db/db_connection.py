@@ -7,9 +7,10 @@ Reads connection details from environment variables.
 import logging
 import os
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Generator, Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -21,21 +22,55 @@ logger = logging.getLogger(__name__)
 
 
 def get_database_url() -> Optional[str]:
-    """Constructs the database URL from environment variables."""
-    db_user = os.getenv("AURITE_DB_USER")
-    db_password = os.getenv("AURITE_DB_PASSWORD")
-    db_host = os.getenv("AURITE_DB_HOST", "postgres")
-    db_port = os.getenv("AURITE_DB_PORT", "5432")
-    db_name = os.getenv("AURITE_DB_NAME")
+    """Constructs the database URL based on AURITE_DB_TYPE environment variable.
 
-    if not all([db_user, db_password, db_name]):
-        logger.warning(
-            "Database connection variables (AURITE_DB_USER, AURITE_DB_PASSWORD, AURITE_DB_NAME) are not fully set. Cannot construct URL."
-        )
+    Supports:
+    - sqlite (default): Local file-based database, zero configuration
+    - postgresql/postgres: Network database for production/multi-user scenarios
+    """
+    db_type = os.getenv("AURITE_DB_TYPE", "sqlite").lower()
+
+    if db_type == "sqlite":
+        # Default to .aurite_db directory in current working directory
+        db_path = os.getenv("AURITE_DB_PATH", ".aurite_db/aurite.db")
+
+        # Ensure directory exists (handle existing directory gracefully)
+        db_dir = Path(db_path).parent
+        try:
+            db_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            # Directory might already exist or have permission issues
+            if not db_dir.exists():
+                logger.error(f"Failed to create directory for SQLite database: {e}")
+                return None
+            # If directory exists, that's fine, continue
+
+        # Use absolute path for SQLite
+        abs_path = Path(db_path).absolute()
+        logger.info(f"Using SQLite database at: {abs_path}")
+        return f"sqlite:///{abs_path}"
+
+    elif db_type in ["postgresql", "postgres"]:
+        # PostgreSQL configuration
+        db_user = os.getenv("AURITE_DB_USER")
+        db_password = os.getenv("AURITE_DB_PASSWORD")
+        db_host = os.getenv("AURITE_DB_HOST", "localhost")  # Changed default from "postgres" to "localhost"
+        db_port = os.getenv("AURITE_DB_PORT", "5432")
+        db_name = os.getenv("AURITE_DB_NAME")
+
+        if not all([db_user, db_password, db_name]):
+            logger.warning(
+                "PostgreSQL connection variables (AURITE_DB_USER, AURITE_DB_PASSWORD, AURITE_DB_NAME) are not fully set. Cannot construct URL."
+            )
+            return None
+
+        # Using psycopg2 driver for PostgreSQL
+        logger.info(f"Using PostgreSQL database: {db_name} at {db_host}:{db_port}")
+        return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+    else:
+        logger.error(f"Unsupported database type: {db_type}. Supported types: sqlite, postgresql/postgres")
         return None
-
-    # Using psycopg2 driver for PostgreSQL
-    return f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
 
 # Renamed to indicate it's a factory creating a *new* engine instance
@@ -43,6 +78,10 @@ def create_db_engine() -> Optional[Engine]:
     """
     Creates and returns a new SQLAlchemy engine based on environment variables.
     Returns None if the database URL cannot be constructed or engine creation fails.
+
+    Applies appropriate settings based on database type:
+    - SQLite: Enables foreign keys, WAL mode for better concurrency
+    - PostgreSQL: Configurable connection pooling
     """
     db_url = get_database_url()
     if not db_url:
@@ -50,12 +89,38 @@ def create_db_engine() -> Optional[Engine]:
         return None
 
     try:
-        # TODO: Add pool configuration options if needed (pool_size, max_overflow)
-        engine = create_engine(db_url, echo=False)  # Set echo=True for debugging SQL
-        logger.info(f"SQLAlchemy engine created for {engine.url}.")
+        # Configure engine based on database type
+        if "sqlite" in db_url:
+            # SQLite-specific settings
+            engine = create_engine(
+                db_url,
+                echo=False,  # Set echo=True for debugging SQL
+                connect_args={
+                    "check_same_thread": False  # Allow multiple threads with SQLite
+                },
+            )
+
+            # Apply SQLite optimizations
+            with engine.connect() as conn:
+                conn.execute(text("PRAGMA foreign_keys=ON"))  # Enable foreign key constraints
+                conn.execute(text("PRAGMA journal_mode=WAL"))  # Write-Ahead Logging for better concurrency
+                conn.execute(text("PRAGMA synchronous=NORMAL"))  # Balance between safety and speed
+                conn.commit()
+
+            logger.info(f"SQLite engine created with optimizations for {engine.url}.")
+        else:
+            # PostgreSQL settings
+            # TODO: Add pool configuration options if needed (pool_size, max_overflow)
+            engine = create_engine(db_url, echo=False)  # Set echo=True for debugging SQL
+            logger.info(f"PostgreSQL engine created for {engine.url}.")
+
         return engine
     except Exception as e:
-        sanitized_url = db_url.replace(f":{os.getenv('AURITE_DB_PASSWORD')}@", ":***@") if db_url else "N/A"
+        # Sanitize URL for logging (hide password)
+        if db_url and "postgresql" in db_url:
+            sanitized_url = db_url.replace(f":{os.getenv('AURITE_DB_PASSWORD')}@", ":***@")
+        else:
+            sanitized_url = db_url
         logger.error(f"Failed to create SQLAlchemy engine for URL {sanitized_url}: {e}", exc_info=True)
         return None
 
