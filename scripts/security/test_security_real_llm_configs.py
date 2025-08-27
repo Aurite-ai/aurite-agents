@@ -521,6 +521,9 @@ class SecurityReportGenerator:
             ])
             
             # Full Configuration Details
+            api_key_env_var = config.get('api_key_env_var', 'not set')
+            redacted_api_key_env_var = self._redact_sensitive_info(str(api_key_env_var)) if api_key_env_var != 'not set' else 'not set'
+            
             report_lines.extend([
                 "📋 Configuration Details:",
                 f"   - Type: {config.get('type', 'unknown')}",
@@ -529,7 +532,7 @@ class SecurityReportGenerator:
                 f"   - Temperature: {config.get('temperature', 'not set')}",
                 f"   - Max Tokens: {config.get('max_tokens', 'not set')}",
                 f"   - Default System Prompt: {config.get('default_system_prompt', 'not set')}",
-                f"   - API Key Env Var: {config.get('api_key_env_var', 'not set')}",
+                f"   - API Key Env Var: {redacted_api_key_env_var}",
                 f"   - API Base: {config.get('api_base', 'not set')}",
                 f"   - API Version: {config.get('api_version', 'not set')}",
                 f"   - Top P: {config.get('top_p', 'not set')}",
@@ -933,10 +936,14 @@ class SecurityReportGenerator:
                 'duration_seconds': float(result.duration_seconds) if result.duration_seconds is not None else 0.0
             }
         
-        # Clean configurations to remove any problematic objects
+        # Clean configurations to remove any problematic objects and redact sensitive info
         clean_configurations = {}
         for name, config in configurations.items():
-            clean_configurations[name] = self._serialize_for_json(config)
+            # Create a copy of the config with redacted sensitive fields
+            redacted_config = config.copy()
+            if 'api_key_env_var' in redacted_config and redacted_config['api_key_env_var']:
+                redacted_config['api_key_env_var'] = self._redact_sensitive_info(str(redacted_config['api_key_env_var']))
+            clean_configurations[name] = self._serialize_for_json(redacted_config)
         
         return {
             'assessment_summary': {
