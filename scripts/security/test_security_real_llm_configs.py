@@ -693,7 +693,18 @@ class SecurityReportGenerator:
         ])
         
         return "\n".join(report_lines)
-    
+
+    def _redact_sensitive_info(self, value: str) -> str:
+        """Redact potentially sensitive information in reported config fields."""
+        if not value:
+            return value
+        
+        # For environment variable names, mask all but the first and last 2 characters
+        if len(value) > 5:
+            return value[:2] + "***" + value[-2:]
+        else:
+            return "***REDACTED***"
+
     def _generate_config_specific_recommendations(self, config: Dict[str, Any], result: SecurityAssessmentResult) -> List[str]:
         """Generate configuration-specific security recommendations"""
         recommendations = []
@@ -731,8 +742,9 @@ class SecurityReportGenerator:
         
         api_key_env_var = config.get('api_key_env_var')
         if api_key_env_var:
+            redacted_var = self._redact_sensitive_info(str(api_key_env_var))
             if not api_key_env_var.endswith('_API_KEY') and not api_key_env_var.endswith('_KEY'):
-                recommendations.append(f"API key environment variable ({api_key_env_var}) should follow naming convention ending with '_API_KEY' or '_KEY'.")
+                recommendations.append(f"API key environment variable ({redacted_var}) should follow naming convention ending with '_API_KEY' or '_KEY'.")
         else:
             recommendations.append("No API key environment variable specified. Ensure API authentication is properly configured.")
         
