@@ -387,3 +387,7 @@ class EvaluationConfig(BaseComponentConfig):
     review_llm: Optional[str] = Field(
         default=None, description="The name of the llm to use to review the component's output"
     )
+    expected_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="The JSON schema the component output is expected to have.",
+    )

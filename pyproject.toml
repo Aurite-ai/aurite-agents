@@ -50,6 +50,7 @@ dependencies = [
     # The [proxy] extra brings in heavy dependencies that conflict with FastMCP's rich requirements
     "litellm (>=1.75.4,<2.0.0)",
     "fastmcp (>=2.11.3,<3.0.0)",
+    "rich (>=14.1.0,<15.0.0)",
 ]
 
 [project.urls]
@@ -58,6 +59,10 @@ Repository = "https://github.com/Aurite-ai/aurite-agents"
 
 [project.scripts]
 aurite = "aurite.bin.cli:app"
+
+[project.optional-dependencies]
+storage = ["redis>=6.2.0,<7.0.0", "psycopg2-binary>=2.9.10,<3.0.0", "mem0ai>=0.1.113,<0.2.0"]
+ml = ["pandas>=2.3.0,<3.0.0", "sentence-transformers>=4.1.0,<5.0.0"]
 
 [tool.poetry]
 packages = [{ include = "aurite", from = "src" }]
@@ -102,13 +107,6 @@ optional = true
 redis = "^6.2.0"
 psycopg2-binary = "^2.9.10"
 mem0ai = { version = "^0.1.113", python = ">=3.11,<4.0" }
-
-[tool.poetry.group.ml]
-optional = true
-
-[tool.poetry.group.ml.dependencies]
-pandas = "^2.3.0"
-sentence-transformers = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -169,11 +167,15 @@ follow_imports = "silent"
 [tool.deptry]
 known_first_party = ["aurite"]
 extend_exclude = ["tests", "docs"]
-per_rule_ignores = { DEP003 = [
+per_rule_ignores = { DEP001 = [
+    "pytest_benchmark",
+], DEP003 = [
     "google",
     "httpx",
     "psutil",
     "requests",
+    "pytest_benchmark",
+    "importlib_metadata",
 ], DEP004 = [
     "pandas",
     "redis",

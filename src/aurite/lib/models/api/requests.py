@@ -20,7 +20,8 @@ __all__ = [
 class AgentRunRequest(BaseModel):
     """Request model for running an agent."""
 
-    user_message: str
+    user_message: Optional[str] = None
+    messages: Optional[list[dict[str, Any]]] = None
     system_prompt: Optional[str] = None
     session_id: Optional[str] = None
 
@@ -41,6 +42,10 @@ class EvaluationRequest(BaseModel):
     expected_output: str = Field(description="A semantic description of the expected output of the component")
     review_llm: Optional[str] = Field(
         default=None, description="The name of the llm to use to review the component's output"
+    )
+    expected_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="The JSON schema the component output is expected to have.",
     )
 
 

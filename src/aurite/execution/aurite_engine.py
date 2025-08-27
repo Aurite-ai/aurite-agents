@@ -109,7 +109,8 @@ class AuriteEngine:
     async def _prepare_agent_for_run(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
@@ -117,6 +118,9 @@ class AuriteEngine:
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+
+        if not user_message and not messages:
+            raise ValueError("Parameters user_message and messages cannot both be None")
 
         agent_config_for_run = AgentConfig(**agent_config_dict)
         dynamically_registered_servers: List[str] = []
@@ -173,9 +177,13 @@ class AuriteEngine:
             if history:
                 initial_messages.extend(history)
 
+        if messages:
+            initial_messages.extend(messages)
+
         # Add current user message
-        current_user_message = {"role": "user", "content": user_message}
-        initial_messages.append(current_user_message)
+        if user_message:
+            current_user_message = {"role": "user", "content": user_message}
+            initial_messages.append(current_user_message)
 
         # Immediately update the history with the current user message
         # so the agent can reference it as part of the conversation history
@@ -203,7 +211,8 @@ class AuriteEngine:
     async def stream_agent_run(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_logging: Optional[bool] = None,
@@ -230,7 +239,11 @@ class AuriteEngine:
         try:
             # Prepare the agent instance and dynamically register any required servers
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
+                agent_name=agent_name,
+                user_message=user_message,
+                messages=messages,
+                system_prompt_override=system_prompt,
+                session_id=session_id,
             )
             # Create trace if Langfuse is enabled
             agent_config_for_log_check = AgentConfig(**self._config_manager.get_config("agent", agent_name))
@@ -315,7 +328,8 @@ class AuriteEngine:
     async def run_agent(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
@@ -354,7 +368,11 @@ class AuriteEngine:
         servers_to_unregister: List[str] = []
         try:
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, final_session_id, force_include_history
+                agent_name=agent_name,
+                user_message=user_message,
+                messages=messages,
+                system_prompt_override=system_prompt,
+                session_id=session_id,
             )
 
             # Create trace if Langfuse is enabled
@@ -382,7 +400,7 @@ class AuriteEngine:
                 )
             )
             run_result = await agent_instance.run_conversation()
-            if trace:
+            if trace and run_result.final_response:
                 trace.update(output=run_result.final_response.content)
             logger.info(
                 colored(

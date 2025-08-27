@@ -24,7 +24,7 @@ def get_database_url() -> Optional[str]:
     """Constructs the database URL from environment variables."""
     db_user = os.getenv("AURITE_DB_USER")
     db_password = os.getenv("AURITE_DB_PASSWORD")
-    db_host = os.getenv("AURITE_DB_HOST", "localhost")
+    db_host = os.getenv("AURITE_DB_HOST", "postgres")
     db_port = os.getenv("AURITE_DB_PORT", "5432")
     db_name = os.getenv("AURITE_DB_NAME")
 

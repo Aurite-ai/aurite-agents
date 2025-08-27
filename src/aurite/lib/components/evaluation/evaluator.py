@@ -62,7 +62,7 @@ async def evaluate(
             )
 
         testing_config = generate_config(
-            input.eval_name, input.user_input, input.expected_output, input.eval_type, llm_config
+            input.eval_name, input.user_input, input.expected_output, input.eval_type, llm_config, input.expected_schema
         )
 
         results, full_agent_responses = await run_iterations(
