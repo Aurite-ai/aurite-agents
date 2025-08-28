@@ -9,6 +9,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     Index,
@@ -47,8 +48,51 @@ class ComponentDB(Base):
         return f"<ComponentDB(name='{self.name}', component_type='{self.component_type}')>"
 
 
+class SessionDB(Base):
+    """SQLAlchemy model for storing complete session data including execution results and metadata."""
+
+    __tablename__ = "sessions"
+
+    # Primary key
+    session_id = Column(String, primary_key=True, index=True)
+
+    # Base session ID for tracking workflow relationships
+    base_session_id = Column(String, index=True, nullable=True)
+
+    # Session metadata
+    name = Column(String, nullable=False)  # Agent or workflow name
+    result_type = Column(String, nullable=False)  # "agent" or "workflow"
+    is_workflow = Column(Boolean, default=False, nullable=False)
+    message_count = Column(Integer, default=0, nullable=False)
+
+    # Complete execution result stored as JSON
+    execution_result = Column(JSON, nullable=False)
+
+    # For workflows: mapping of child session_id -> agent_name
+    agents_involved = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("ix_session_base_id", "base_session_id"),
+        Index("ix_session_name_type", "name", "result_type"),
+        Index("ix_session_workflow", "is_workflow"),
+        Index("ix_session_timestamps", "created_at", "last_updated"),
+    )
+
+    def __repr__(self):
+        return f"<SessionDB(session_id='{self.session_id}', name='{self.name}', type='{self.result_type}')>"
+
+
+# Legacy model - kept for backward compatibility but deprecated
 class AgentHistoryDB(Base):
-    """SQLAlchemy model for storing individual agent conversation turns."""
+    """
+    DEPRECATED: Legacy model for storing individual agent conversation turns.
+    Kept for backward compatibility during migration.
+    New implementations should use SessionDB instead.
+    """
 
     __tablename__ = "agent_history"
 

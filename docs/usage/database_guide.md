@@ -32,6 +32,15 @@ AURITE_ENABLE_DB=true
 
 When this variable is set to `true`, the framework will connect to the database specified by the configuration variables below. If it is `false` or not set, the framework will fall back to the default file-based system.
 
+!!! warning "Important: Export Required"
+When database mode is enabled, configurations are read from the database, not from files. You **must** run `aurite export` to sync your file-based configurations to the database:
+
+    - After first enabling database mode
+    - After making changes to configuration files
+    - Whenever configurations appear to be missing or outdated
+
+    Without running `aurite export`, your agents and workflows will not be available when database mode is enabled.
+
 ## Database Type Selection
 
 Choose your database type with the `AURITE_DB_TYPE` environment variable:
@@ -178,7 +187,7 @@ When `include_history` is true:
 
 ## Exporting Configurations to the Database
 
-If you have existing file-based configurations that you want to load into the database, use the `aurite export` command:
+When database mode is enabled, you **must** export your file-based configurations to the database using the `aurite export` command:
 
 ```bash
 aurite export
@@ -190,6 +199,13 @@ This command will:
 2. Connect to the database (SQLite or PostgreSQL based on your configuration)
 3. Create the necessary tables if they don't exist
 4. Upload all your component configurations to the database
+
+**When to run `aurite export`:**
+
+- **Required:** After first enabling database mode with `AURITE_ENABLE_DB=true`
+- **Required:** After modifying any configuration files while database mode is enabled
+- **Required:** When configurations appear missing or outdated in the API/CLI
+- **Optional:** To refresh database configurations from files at any time
 
 Note: Existing conversation histories in `.aurite_cache/` are not automatically migrated. Use the migration tool if you need to preserve historical conversations.
 
@@ -353,6 +369,12 @@ volumes:
 **Error: No such table**
 
 - Solution: Run `aurite export` to create tables and populate initial data
+
+**Error: Configurations not loading when database enabled**
+
+- Solution: Run `aurite export` to sync file-based configurations to the database
+- This is required after enabling database mode or modifying configuration files
+- The database stores configurations separately from files and must be explicitly synced
 
 ### Common PostgreSQL Issues
 

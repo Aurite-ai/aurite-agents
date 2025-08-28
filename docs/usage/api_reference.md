@@ -123,6 +123,15 @@ The API is structured around four main routers.
 
     **Execution History**
 
+    !!! note "History Storage Requirements"
+        History storage depends on:
+
+        - **Configuration:** Agents/workflows must have `include_history: true` in their configuration
+        - **Storage Backend:** Set by `AURITE_ENABLE_DB` environment variable
+            - `false` (default): History stored in `.aurite_cache/` as JSON files
+            - `true`: History stored in database (SQLite or PostgreSQL)
+        - **Database Mode:** When using database storage, run `aurite export` after configuration changes
+
     | Method | Endpoint | Description |
     | --- | --- | --- |
     | `GET` | `/execution/history` | List all sessions (paginated). Filter with `agent_name` or `workflow_name` query params. |

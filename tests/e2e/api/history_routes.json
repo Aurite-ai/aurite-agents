@@ -644,6 +644,7 @@
 									"",
 									"pm.test(\"Workflow run with custom ID successful\", function () {",
 									"    var jsonData = pm.response.json();",
+									"    // Session IDs are prefixed with 'workflow-' for type identification",
 									"    pm.expect(jsonData.session_id).to.eql(\"workflow-my-custom-run\");",
 									"    pm.collectionVariables.set(\"custom_session_id_full\", jsonData.session_id);",
 									"});"
@@ -698,9 +699,8 @@
 									"",
 									"pm.test(\"Custom partial ID matching works\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    var expectedFullId = pm.collectionVariables.get(\"custom_session_id_full\");",
-									"    pm.expect(jsonData.metadata.session_id).to.eql(expectedFullId);",
-									"    pm.expect(expectedFullId).to.eql(\"workflow-my-custom-run\");",
+									"    // The partial ID 'my-custom-run' should match 'workflow-my-custom-run'",
+									"    pm.expect(jsonData.metadata.session_id).to.eql(\"workflow-my-custom-run\");",
 									"});"
 								],
 								"type": "text/javascript"
