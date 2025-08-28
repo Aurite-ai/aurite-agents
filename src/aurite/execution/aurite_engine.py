@@ -73,8 +73,12 @@ class AuriteEngine:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        # The engine now uses a SessionManager for history, which in turn uses the CacheManager.
-        self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
+        # The engine now uses a SessionManager for history, which supports both file and database storage
+        self._session_manager = (
+            SessionManager(cache_manager=cache_manager, storage_manager=storage_manager)
+            if (cache_manager or storage_manager)
+            else None
+        )
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         self.langfuse = langfuse
         logger.debug(f"AuriteEngine initialized (StorageManager {'present' if storage_manager else 'absent'}).")
@@ -413,6 +417,10 @@ class AuriteEngine:
             # Manually set the agent_name on the result, as the agent itself doesn't know its registered name.
             run_result.agent_name = agent_name
 
+            # Set the session_id on the result if history is enabled
+            if effective_include_history and final_session_id:
+                run_result.session_id = final_session_id
+
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
             if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
                 self._session_manager.save_agent_result(
@@ -471,14 +479,17 @@ class AuriteEngine:
 
             # --- Session ID Management ---
             final_session_id = session_id
-            base_session_id = session_id  # Capture the original ID
+            base_session_id = None  # Will be set based on whether ID was provided or generated
             if workflow_config.include_history:
                 if final_session_id:
+                    # User provided an ID - store the original as base
+                    base_session_id = final_session_id
                     if not final_session_id.startswith("workflow-"):
                         final_session_id = f"workflow-{final_session_id}"
                 else:
+                    # Auto-generate ID - the generated ID is both session and base
                     final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
-                    base_session_id = final_session_id  # The generated ID is the base
+                    base_session_id = final_session_id
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 
@@ -549,14 +560,17 @@ class AuriteEngine:
 
             # --- Session ID Management ---
             final_session_id = session_id
-            base_session_id = session_id  # Capture the original ID
+            base_session_id = None  # Will be set based on whether ID was provided or generated
             if workflow_config.include_history:
                 if final_session_id:
+                    # User provided an ID - store the original as base
+                    base_session_id = final_session_id
                     if not final_session_id.startswith("workflow-"):
                         final_session_id = f"workflow-{final_session_id}"
                 else:
+                    # Auto-generate ID - the generated ID is both session and base
                     final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
-                    base_session_id = final_session_id  # The generated ID is the base
+                    base_session_id = final_session_id
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 

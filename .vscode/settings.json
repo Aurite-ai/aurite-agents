@@ -16,6 +16,7 @@
     "**/.venv/**": true,
     "notebook-venv/**": true,
     "**/*.egg-info/**": true,
+    ".poetry": true,
     "**/py.typed": true,
     "**/.mypy_cache/**": true
   },

@@ -3189,11 +3189,9 @@ files = [
 name = "networkx"
 version = "3.5"
 description = "Python package for creating and manipulating graphs and networks"
-optional = true
+optional = false
 python-versions = ">=3.11"
 groups = ["main"]
-markers = "extra == \"ml\""
-
 files = [
     {file = "networkx-3.5-py3-none-any.whl", hash = "sha256:0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"},
     {file = "networkx-3.5.tar.gz", hash = "sha256:d4c6f9cf81f52d69230866796b82afbccdec3db7ae4fbd1b65ea750feed50037"},
@@ -7167,4 +7165,4 @@ storage = ["mem0ai", "psycopg2-binary", "redis"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0.0"
-content-hash = "a2e36a158e923ea62f90fb5b80f9bb6e00e3b190dcaa1d10e950b31bcf806e69"
+content-hash = "e40fb08f359c2cd6de886f40655969f6d216a6a0cc23b1fdc0e0dd0f745f55b9"
