@@ -1,13 +1,9 @@
 import asyncio
-import logging
 
 from termcolor import colored  # For colored print statements
 
 from aurite import Aurite
 from aurite.lib.models.config.components import AgentConfig, LLMConfig
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 async def main():
@@ -15,17 +11,16 @@ async def main():
     A simple example demonstrating how to initialize Aurite, run an agent,
     and print its response.
     """
-    # Initialize the main Aurite application object.
-    # This will load configurations based on `aurite_config.json` or environment variables.
     # Load environment variables from a .env file if it exists
     from dotenv import load_dotenv
 
     load_dotenv()
 
-    aurite = Aurite()
-
     try:
-        await aurite.initialize()
+        # Initialize the main Aurite application object.
+        # This will load aurite configurations from your json files (in the config/ folder if you ran aurite init)
+        # You can execute your components with the Aurite class, or register new configurations with in-line python (example below)!
+        aurite = Aurite()
 
         # --- Dynamic Registration Example ---
         # The following section demonstrates how to dynamically register components
@@ -37,9 +32,10 @@ async def main():
             name="openai_gpt4_turbo",
             provider="openai",
             model="gpt-4-turbo-preview",
+            api_key_env_var="OPENAI_API_KEY",  # Optional, this will default to the expected environment variable name for each provider, like OPENAI_API_KEY for OpenAI.
         )
 
-        await aurite.register_llm_config(llm_config)
+        await aurite.register_llm(llm_config)
 
         # # 2. Define and register an MCP server configuration
         # mcp_server_config = ClientConfig(
@@ -72,10 +68,10 @@ async def main():
 
         print(colored(f"Agent's response: {response_text}", "cyan", attrs=["bold"]))
 
+        await aurite.kernel.shutdown()
+
     except Exception as e:
-        logger.error(f"An error occurred during agent execution: {e}", exc_info=True)
-        await aurite.shutdown()
-        logger.info("Aurite shutdown complete.")
+        print(f"An error occurred during agent execution: {e}")
 
 
 if __name__ == "__main__":
