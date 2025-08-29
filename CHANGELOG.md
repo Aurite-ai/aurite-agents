@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Changed
+- Example project fix ([@blakerandle](https://github.com/blakerandle)) [#151](https://github.com/Aurite-ai/aurite-agents/pull/151)
 - Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
 - feat: added security module ([@jitenoswal](https://github.com/jitenoswal)) [#147](https://github.com/Aurite-ai/aurite-agents/pull/147)
 - Graph workflow ([@blakerandle](https://github.com/blakerandle)) [#120](https://github.com/Aurite-ai/aurite-agents/pull/120)
