@@ -36,8 +36,8 @@ class LiteLLMClient:
         self.config = config
         litellm.drop_params = True  # Automatically drops unsupported params rather than throwing an error
 
-        litellm_logger = logging.getLogger("LiteLLM")
-        litellm_logger.setLevel(logging.ERROR)
+        self.litellm_logger = logging.getLogger("LiteLLM")
+        self.litellm_logger.setLevel(logging.ERROR)
 
         # Handle provider-specific setup if necessary
         if self.config.provider == "gemini":
@@ -45,6 +45,25 @@ class LiteLLMClient:
                 os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_API_KEY"]
 
         logger.info(f"LiteLLMClient initialized for {self.config.provider}/{self.config.model}.")
+
+    def __del__(self):
+        """
+        Cleanup method called when the LiteLLMClient instance is being deleted.
+        Properly closes the litellm_logger.
+        """
+        try:
+            if hasattr(self, "litellm_logger") and self.litellm_logger:
+                # Remove all handlers from the logger
+                for handler in self.litellm_logger.handlers[:]:
+                    handler.close()
+                    self.litellm_logger.removeHandler(handler)
+
+                # Set logger level to CRITICAL to prevent further logging
+                self.litellm_logger.setLevel(logging.CRITICAL)
+
+                logger.debug("LiteLLM logger cleaned up successfully")
+        except Exception as e:
+            logger.error(f"Error during LiteLLMClient cleanup: {e}")
 
     def _convert_messages_to_openai_format(
         self, messages: List[Dict[str, Any]], system_prompt: Optional[str]

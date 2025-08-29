@@ -14,17 +14,24 @@ from termcolor import colored
 from ..lib.components.agent.agent import Agent
 from ..lib.components.llm.litellm_client import LiteLLMClient
 from ..lib.components.workflows.custom_workflow import CustomWorkflowExecutor
+from ..lib.components.workflows.graph_workflow import GraphWorkflowExecutor
 from ..lib.components.workflows.linear_workflow import LinearWorkflowExecutor
 
 # Import Config Manager
 from ..lib.config.config_manager import ConfigManager
 
 # Import Models
-from ..lib.models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, SessionMetadata
+from ..lib.models.api.responses import (
+    AgentRunResult,
+    GraphWorkflowExecutionResult,
+    LinearWorkflowExecutionResult,
+    SessionMetadata,
+)
 from ..lib.models.config.components import (
     AgentConfig,
     ClientConfig,
     CustomWorkflowConfig,
+    GraphWorkflowConfig,
     LLMConfig,
     WorkflowConfig,
 )
@@ -66,8 +73,12 @@ class AuriteEngine:
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
-        # The engine now uses a SessionManager for history, which in turn uses the CacheManager.
-        self._session_manager = SessionManager(cache_manager=cache_manager) if cache_manager else None
+        # The engine now uses a SessionManager for history, which supports both file and database storage
+        self._session_manager = (
+            SessionManager(cache_manager=cache_manager, storage_manager=storage_manager)
+            if (cache_manager or storage_manager)
+            else None
+        )
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         self.langfuse = langfuse
         logger.debug(f"AuriteEngine initialized (StorageManager {'present' if storage_manager else 'absent'}).")
@@ -102,7 +113,8 @@ class AuriteEngine:
     async def _prepare_agent_for_run(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt_override: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
@@ -110,6 +122,9 @@ class AuriteEngine:
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+
+        if not user_message and not messages:
+            raise ValueError("Parameters user_message and messages cannot both be None")
 
         agent_config_for_run = AgentConfig(**agent_config_dict)
         dynamically_registered_servers: List[str] = []
@@ -166,9 +181,13 @@ class AuriteEngine:
             if history:
                 initial_messages.extend(history)
 
+        if messages:
+            initial_messages.extend(messages)
+
         # Add current user message
-        current_user_message = {"role": "user", "content": user_message}
-        initial_messages.append(current_user_message)
+        if user_message:
+            current_user_message = {"role": "user", "content": user_message}
+            initial_messages.append(current_user_message)
 
         # Immediately update the history with the current user message
         # so the agent can reference it as part of the conversation history
@@ -196,7 +215,8 @@ class AuriteEngine:
     async def stream_agent_run(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_logging: Optional[bool] = None,
@@ -223,7 +243,11 @@ class AuriteEngine:
         try:
             # Prepare the agent instance and dynamically register any required servers
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, session_id
+                agent_name=agent_name,
+                user_message=user_message,
+                messages=messages,
+                system_prompt_override=system_prompt,
+                session_id=session_id,
             )
             # Create trace if Langfuse is enabled
             agent_config_for_log_check = AgentConfig(**self._config_manager.get_config("agent", agent_name))
@@ -308,7 +332,8 @@ class AuriteEngine:
     async def run_agent(
         self,
         agent_name: str,
-        user_message: str,
+        user_message: Optional[str] = None,
+        messages: Optional[list[dict[str, Any]]] = None,
         system_prompt: Optional[str] = None,
         session_id: Optional[str] = None,
         force_include_history: Optional[bool] = None,
@@ -347,7 +372,11 @@ class AuriteEngine:
         servers_to_unregister: List[str] = []
         try:
             agent_instance, servers_to_unregister = await self._prepare_agent_for_run(
-                agent_name, user_message, system_prompt, final_session_id, force_include_history
+                agent_name=agent_name,
+                user_message=user_message,
+                messages=messages,
+                system_prompt_override=system_prompt,
+                session_id=session_id,
             )
 
             # Create trace if Langfuse is enabled
@@ -375,7 +404,7 @@ class AuriteEngine:
                 )
             )
             run_result = await agent_instance.run_conversation()
-            if trace:
+            if trace and run_result.final_response:
                 trace.update(output=run_result.final_response.content)
             logger.info(
                 colored(
@@ -387,6 +416,10 @@ class AuriteEngine:
 
             # Manually set the agent_name on the result, as the agent itself doesn't know its registered name.
             run_result.agent_name = agent_name
+
+            # Set the session_id on the result if history is enabled
+            if effective_include_history and final_session_id:
+                run_result.session_id = final_session_id
 
             # Save complete execution result regardless of the outcome, as it's valuable for debugging.
             if agent_instance and agent_instance.config.include_history and final_session_id and self._session_manager:
@@ -446,14 +479,17 @@ class AuriteEngine:
 
             # --- Session ID Management ---
             final_session_id = session_id
-            base_session_id = session_id  # Capture the original ID
+            base_session_id = None  # Will be set based on whether ID was provided or generated
             if workflow_config.include_history:
                 if final_session_id:
+                    # User provided an ID - store the original as base
+                    base_session_id = final_session_id
                     if not final_session_id.startswith("workflow-"):
                         final_session_id = f"workflow-{final_session_id}"
                 else:
+                    # Auto-generate ID - the generated ID is both session and base
                     final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
-                    base_session_id = final_session_id  # The generated ID is the base
+                    base_session_id = final_session_id
                     logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
             # --- End Session ID Management ---
 
@@ -487,6 +523,87 @@ class AuriteEngine:
             raise e
         except Exception as e:
             error_msg = f"Unexpected error running Linear Workflow '{workflow_name}': {e}"
+            logger.error(f"Facade: {error_msg}", exc_info=True)
+            raise WorkflowExecutionError(error_msg) from e
+
+    async def run_graph_workflow(
+        self,
+        workflow_name: str,
+        initial_input: Any,
+        session_id: Optional[str] = None,
+        force_logging: Optional[bool] = None,
+    ) -> GraphWorkflowExecutionResult:
+        if os.getenv("AURITE_CONFIG_FORCE_REFRESH", "false").lower() == "true":
+            self._config_manager.refresh()
+        logger.info(f"Facade: Received request to run Graph Workflow '{workflow_name}' with session_id: {session_id}")
+        try:
+            workflow_config_dict = self._config_manager.get_config("graph_workflow", workflow_name)
+            if not workflow_config_dict:
+                raise ConfigurationError(f"Graph Workflow '{workflow_name}' not found.")
+
+            workflow_config = GraphWorkflowConfig(**workflow_config_dict)
+
+            # --- Logging Management ---
+            enable_logging = self._should_enable_logging(workflow_config, force_logging)
+            trace: Optional["StatefulTraceClient"] = None
+            if self.langfuse and workflow_config.include_logging:
+                trace = self.langfuse.trace(
+                    name=f"Workflow: {workflow_name} - Aurite Runtime",
+                    session_id=session_id,
+                    user_id=session_id or "anonymous",
+                    input=initial_input,
+                    metadata={
+                        "workflow_name": workflow_name,
+                        "source": "execution-engine",
+                    },
+                )
+
+            # --- Session ID Management ---
+            final_session_id = session_id
+            base_session_id = None  # Will be set based on whether ID was provided or generated
+            if workflow_config.include_history:
+                if final_session_id:
+                    # User provided an ID - store the original as base
+                    base_session_id = final_session_id
+                    if not final_session_id.startswith("workflow-"):
+                        final_session_id = f"workflow-{final_session_id}"
+                else:
+                    # Auto-generate ID - the generated ID is both session and base
+                    final_session_id = f"workflow-{uuid.uuid4().hex[:8]}"
+                    base_session_id = final_session_id
+                    logger.info(f"Auto-generated session_id for workflow '{workflow_name}': {final_session_id}")
+            # --- End Session ID Management ---
+
+            workflow_executor = GraphWorkflowExecutor(
+                config=workflow_config,
+                engine=self,
+            )
+
+            result = await workflow_executor.execute(
+                initial_input=initial_input,
+                session_id=final_session_id,
+                base_session_id=base_session_id,
+                force_logging=enable_logging if workflow_config.include_logging is not None else None,
+            )
+            if trace:
+                trace.update(output=result.final_output)
+            logger.info(f"Facade: Graph Workflow '{workflow_name}' execution finished.")
+
+            # Save the complete workflow execution result if it has a session_id
+            if result.session_id and self._session_manager:
+                self._session_manager.save_workflow_result(
+                    session_id=result.session_id, workflow_result=result, base_session_id=base_session_id
+                )
+                logger.info(
+                    f"Facade: Saved complete workflow execution result for '{workflow_name}', session '{result.session_id}'."
+                )
+
+            return result
+        except ConfigurationError as e:
+            # Re-raise configuration errors directly
+            raise e
+        except Exception as e:
+            error_msg = f"Unexpected error running Graph Workflow '{workflow_name}': {e}"
             logger.error(f"Facade: {error_msg}", exc_info=True)
             raise WorkflowExecutionError(error_msg) from e
 

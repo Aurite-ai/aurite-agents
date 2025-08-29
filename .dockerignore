@@ -1,5 +1,8 @@
-# Python artifacts
-__pycache__
+# Git
+.git
+
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
@@ -15,20 +18,13 @@ sdist/
 develop-eggs/
 .installed.cfg
 lib/
-postman/
 lib64/
-docs/
-venv/
+
+# Virtual environments
 .env
-.venv/
-frontend/
-k8s/
-.vscode/
-scripts/
-setup.sh
-justfile
-txtai/models/*
-txtai/
+.venv
+venv
+
 # Test artifacts
 .tox/
 .coverage
@@ -40,32 +36,15 @@ coverage.xml
 .pytest_cache/
 htmlcov/
 
-# Development files
-.git/
-.gitignore
-.idea/
-.vscode/
+# OS-specific
+.DS_Store
 *.swp
 *.swo
 *~
 
-# Documentation
-docs/
-*.md
+# IDE
+.vscode/
+.idea/
 
-# Local development
-.env.local
-.env.*.local
-*.log
-.DS_Store
-
-# Keep these files
-!pyproject.toml
-!src/
-!alembic.ini
-!alembic/
-
-.env*
-.flaskenv*
-!.env.project
-!.env.vault
+# Node
+node_modules/
