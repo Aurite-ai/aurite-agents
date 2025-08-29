@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Changed
+- fix: add git synchronization to release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#154](https://github.com/Aurite-ai/aurite-agents/pull/154)
 - test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#153](https://github.com/Aurite-ai/aurite-agents/pull/153)
 - Example project fix ([@blakerandle](https://github.com/blakerandle)) [#151](https://github.com/Aurite-ai/aurite-agents/pull/151)
 - Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
