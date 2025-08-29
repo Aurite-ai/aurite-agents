@@ -67,48 +67,6 @@ flowchart TD
     style Kahuna_Mgr fill:#00BCD4,stroke:#0097A7,stroke-width:2px,color:#fff
 ```
 
-## Component Dependency and Inheritance Flow
-
-```mermaid
-flowchart LR
-    subgraph Foundation[Foundation Components]
-        LLM[LLM<br/>No Dependencies]
-        MCP[MCP Server<br/>No Dependencies]
-    end
-
-    subgraph Integration[Integration Layer]
-        Agent[Agent<br/>Depends on LLM + MCP]
-    end
-
-    subgraph Business[Business Layer]
-        Workflow[Workflow<br/>Depends on Agents]
-    end
-
-    LLM -->|Inherits Tests| Agent
-    MCP -->|Inherits Tests| Agent
-    Agent -->|Inherits Tests| Workflow
-
-    subgraph Inheritance[Test Result Inheritance]
-        LLM_R[LLM Results<br/>• Prompt Injection: 0.96<br/>• Content Safety: 0.98<br/>• Quality: 0.94]
-        MCP_R[MCP Results<br/>• API Security: 0.99<br/>• Performance: 0.95<br/>• Availability: 0.99]
-        Agent_R[Agent Results<br/>• Inherited Security: 0.96<br/>• Tool Selection: 0.92<br/>• Goal Achievement: 0.89]
-        WF_R[Workflow Results<br/>• Overall Security: 0.89<br/>• Business Logic: 0.93<br/>• End-to-End: 0.91]
-    end
-
-    LLM_R --> Agent_R
-    MCP_R --> Agent_R
-    Agent_R --> WF_R
-
-    style LLM fill:#81C784,stroke:#4CAF50,stroke-width:2px
-    style MCP fill:#81C784,stroke:#4CAF50,stroke-width:2px
-    style Agent fill:#64B5F6,stroke:#2196F3,stroke-width:2px
-    style Workflow fill:#BA68C8,stroke:#9C27B0,stroke-width:2px
-    style LLM_R fill:#E8F5E9,stroke:#4CAF50,stroke-width:1px
-    style MCP_R fill:#E8F5E9,stroke:#4CAF50,stroke-width:1px
-    style Agent_R fill:#E3F2FD,stroke:#2196F3,stroke-width:1px
-    style WF_R fill:#F3E5F5,stroke:#9C27B0,stroke-width:1px
-```
-
 ## Test Execution Flow
 
 ```mermaid
@@ -289,45 +247,7 @@ flowchart TD
     style Dashboard fill:#E91E63,stroke:#C2185B,stroke-width:2px,color:#fff
 ```
 
-## Key Benefits Visualization
-
-```mermaid
-flowchart LR
-    subgraph Traditional[Traditional Testing]
-        T1[Test LLM: 5 min] --> T2[Test MCP: 3 min]
-        T2 --> T3[Test Agent: 5 min]
-        T3 --> T4[Test Workflow: 7 min]
-        T4 --> TTotal[Total: 20 min]
-    end
-
-    subgraph Compositional[Compositional Testing]
-        C1[Test LLM + MCP: 5 min<br/>Parallel] --> C2[Test Agent: 2 min<br/>Inherits Results]
-        C2 --> C3[Test Workflow: 2 min<br/>Inherits Results]
-        C3 --> CTotal[Total: 9 min]
-    end
-
-    TTotal -->|vs| Compare[55% Time Reduction]
-    CTotal -->|vs| Compare
-
-    style TTotal fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
-    style CTotal fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
-    style Compare fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
-```
-
 ## Tabular Representations
-
-### Testing Framework Structure
-
-| Level              | Category | Phase       | Components | Description                              |
-| ------------------ | -------- | ----------- | ---------- | ---------------------------------------- |
-| **1. Framework**   | Quality  | Development | All        | Comprehensive pre-deployment validation  |
-|                    | Quality  | Runtime     | All        | Continuous quality monitoring            |
-|                    | Security | Development | All        | Security vulnerability assessment        |
-|                    | Security | Runtime     | All        | Real-time threat detection               |
-| **2. Foundation**  | Both     | Both        | LLM        | Language model testing (no dependencies) |
-|                    | Both     | Both        | MCP Server | API/tool testing (no dependencies)       |
-| **3. Integration** | Both     | Both        | Agent      | Combines LLM + MCP (inherits results)    |
-| **4. Business**    | Both     | Both        | Workflow   | End-to-end testing (inherits all)        |
 
 ### Component Test Inheritance Matrix
 
@@ -357,20 +277,8 @@ flowchart LR
 | **Coverage**          | 100% - All test cases                          | 10-20% - Critical only                                         | Dev: 100%, Runtime: Sampling          |
 | **Execution Time**    | Minutes to hours                               | Milliseconds to seconds                                        | Dev: Thorough, Runtime: Fast          |
 | **Test Types**        | • Edge cases<br>• Stress tests<br>• Benchmarks | • Security filters<br>• Quality scoring<br>• Anomaly detection | Dev: Comprehensive, Runtime: Targeted |
-| **Frequency**         | Per deployment                                 | Per request/response                                           | Dev: Once, Runtime: Continuous        |
+| **Frequency**         | On-Demand, Per deployment                      | Per request/response                                           | Dev: Once, Runtime: Continuous        |
 | **Action on Failure** | Block deployment                               | Log, alert, or block                                           | Dev: Prevent, Runtime: Respond        |
-
-### Test Execution Timeline
-
-| Phase | Component               | Duration   | Parallel? | Dependencies        | Cumulative Time        |
-| ----- | ----------------------- | ---------- | --------- | ------------------- | ---------------------- |
-| **1** | LLM Testing             | 3 min      | Yes       | None                | 3 min                  |
-| **1** | MCP Testing             | 3 min      | Yes       | None                | 3 min (parallel)       |
-| **2** | Agent Testing           | 2 min      | Yes       | LLM + MCP complete  | 5 min                  |
-| **3** | Workflow Testing        | 2 min      | No        | All agents complete | 7 min                  |
-| **4** | Report Generation       | 1 min      | No        | All tests complete  | 8 min                  |
-|       | **Traditional Total**   | **20 min** | Limited   | Sequential          | **20 min**             |
-|       | **Compositional Total** | **8 min**  | Extensive | Smart ordering      | **8 min (60% faster)** |
 
 ### Test Categories by Component
 
@@ -389,7 +297,7 @@ flowchart LR
 | **Developer Mode** | Testing Executor      | • Test implementation<br>• Development testing<br>• Runtime monitoring | Executes all testing  |
 | **Executive Mode** | Metrics Consumer      | • Quality dashboards<br>• Security reports<br>• Business KPIs          | Receives test results |
 
-### Alert Severity and Response Matrix
+### Alert Severity and Response Matrix (Rough Draft - still a WIP)
 
 | Severity     | Quality Threshold | Security Threshold | Response Time | Action                      |
 | ------------ | ----------------- | ------------------ | ------------- | --------------------------- |
@@ -398,7 +306,7 @@ flowchart LR
 | **Medium**   | < 0.85            | Score < 0.9        | < 1 hour      | Log + Monitor               |
 | **Low**      | < 0.95            | Score < 0.95       | < 24 hours    | Log for analysis            |
 
-### Cache Strategy Parameters
+### Cache Strategy Parameters (Also a WIP)
 
 | Parameter            | Value     | Purpose                   | Impact                |
 | -------------------- | --------- | ------------------------- | --------------------- |
