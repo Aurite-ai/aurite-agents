@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eval schema ([@blakerandle](https://github.com/blakerandle)) [#143](https://github.com/Aurite-ai/aurite-agents/pull/143)
 - docs: add second test comment to validate changelog workflow ([@jitenoswal](https://github.com/jitenoswal)) [#141](https://github.com/Aurite-ai/aurite-agents/pull/141)
 ### Added
+- Added PyPI release automation workflow for quicker release ([@jwilcox17](https://github.com/jwilcox17)) [#145](https://github.com/Aurite-ai/aurite-agents/pull/145)
 - Add automated changelog management workflow ([@jwilcox17](https://github.com/jwilcox17)) [#139](https://github.com/Aurite-ai/aurite-agents/pull/139)
 ## [0.3.28] - 2025-08-20
 
