@@ -162,7 +162,7 @@ This guide walks you through installing the `aurite` Python package and setting 
     !!! info "System Requirements"
         Aurite Studio requires Node.js >= 18.0.0 and npm >= 8.0.0. The command will automatically check and try to install if these are missing.
 
-    For advanced options like fresh rebuilds, see the [CLI Reference](../../usage/cli_reference.md#aurite-studio).
+    For advanced options like fresh rebuilds, see the [CLI Reference](../../usage/cli_reference.md).
 
     #### Edit Configurations
     You can edit your component configurations using the `aurite edit` command, which opens a text editor for the specified component type. For example, to edit agents:
