@@ -1,0 +1,10 @@
+{
+  "name": "test_weather_good",
+  "type": "mcp_server",
+  "transport_type": "stdio",
+  "server_path": "tests/fixtures/test_mcp_servers/test_weather_good/server.py",
+  "capabilities": ["tools"],
+  "timeout": 10.0,
+  "registration_timeout": 30.0,
+  "description": "Well-implemented test weather server for framework-agnostic testing validation"
+}

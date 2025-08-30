@@ -1,0 +1,193 @@
+server_name: test_weather_good
+description: Expected behaviors for the well-implemented weather server
+
+expectations:
+  input_validation:
+    - test: empty_string
+      input: ""
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "City name is required"
+
+    - test: single_character
+      input: "A"
+      expected_behavior: success
+      response_contains:
+        location: "A"
+
+    - test: max_length
+      input: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      expected_behavior: success
+
+    - test: over_max_length
+      input: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "must not exceed 100 characters"
+
+    - test: unicode_beijing
+      input: "北京"
+      expected_behavior: success
+      response_contains:
+        location: "北京"
+        temperature: 70
+
+    - test: unicode_moscow
+      input: "Москва"
+      expected_behavior: success
+      response_contains:
+        location: "Москва"
+        temperature: 50
+
+    - test: unicode_cairo
+      input: "القاهرة"
+      expected_behavior: success
+      response_contains:
+        location: "القاهرة"
+        temperature: 95
+
+    - test: special_chars_invalid
+      input: "San Francisco!@#"
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "invalid characters"
+
+    - test: sql_injection_attempt
+      input: "'; DROP TABLE weather;--"
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "Invalid characters"
+      should_not_contain: ["DROP", "TABLE", "SQL", "weather"]
+
+    - test: xss_attempt
+      input: "<script>alert('xss')</script>"
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "Invalid characters"
+      should_not_contain: ["script", "alert", "xss"]
+
+    - test: path_traversal_attempt
+      input: "../../../etc/passwd"
+      expected_behavior: error
+      error_code: INVALID_INPUT
+      message_contains: "Invalid characters"
+      should_not_contain: ["etc", "passwd", "file"]
+
+    - test: valid_hyphen
+      input: "Saint-Denis"
+      expected_behavior: success
+      response_contains:
+        location: "Saint-Denis"
+
+    - test: valid_apostrophe
+      input: "O'Fallon"
+      expected_behavior: success
+      response_contains:
+        location: "O'Fallon"
+
+    - test: valid_spaces
+      input: "San Francisco"
+      expected_behavior: success
+      response_contains:
+        location: "San Francisco"
+        temperature: 72
+
+  response_format:
+    - test: consistent_schema
+      iterations: 10
+      input: "London"
+      expected_behavior: all_identical_schema
+      required_fields:
+        - location
+        - temperature
+        - conditions
+        - humidity
+        - wind_speed
+        - timestamp
+      field_types:
+        location: string
+        temperature: number
+        conditions: string
+        humidity: number
+        wind_speed: number
+        timestamp: string
+
+    - test: error_format_consistency
+      iterations: 5
+      inputs:
+        - ""
+        - "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        - "<script>"
+      expected_behavior: consistent_error_format
+      required_fields:
+        - error
+        - error_code
+        - message
+        - timestamp
+
+    - test: no_internal_exposure
+      input: "'; DROP TABLE weather;--"
+      expected_behavior: error
+      should_not_contain:
+        - traceback
+        - stack
+        - file
+        - line
+        - function
+        - module
+
+  performance:
+    - test: normal_response_time
+      input: "Tokyo"
+      max_response_ms: 500
+      expected_response_ms: 100
+      tolerance_ms: 50
+
+    - test: concurrent_requests
+      concurrent_count: 10
+      input: "New York"
+      all_should_succeed: true
+      max_total_time_ms: 2000
+
+    - test: consistent_timing
+      iterations: 5
+      input: "London"
+      max_variance_ms: 100
+
+  security:
+    - test: no_debug_info
+      input: "San Francisco"
+      response_should_not_contain:
+        - debug
+        - request_count
+        - memory_usage
+        - internal
+
+    - test: no_sensitive_logging
+      input: "password123"
+      expected_behavior: error
+      log_should_not_contain: "password123"
+
+  data_validity:
+    - test: humidity_range
+      input: "London"
+      field: humidity
+      min_value: 0
+      max_value: 100
+
+    - test: temperature_reasonable
+      input: "San Francisco"
+      field: temperature
+      min_value: -50
+      max_value: 150
+
+    - test: no_null_values
+      iterations: 10
+      input: "Tokyo"
+      no_null_fields: true
+
+expected_scores:
+  security: 0.95
+  quality: 0.95
+  performance: 0.95
+  reliability: 0.99

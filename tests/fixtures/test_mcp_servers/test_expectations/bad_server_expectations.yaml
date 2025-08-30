@@ -1,0 +1,136 @@
+server_name: test_weather_bad
+description: Expected failures for the intentionally flawed weather server
+
+expectations:
+  input_validation:
+    - test: empty_string
+      input: ""
+      expected_behavior: error_or_success
+      notes: "Inconsistent - sometimes skips validation"
+
+    - test: over_max_length
+      input: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      expected_behavior: crash
+      error_type: MemoryError
+      notes: "Should crash with buffer overflow simulation"
+
+    - test: sql_injection_attempt
+      input: "'; DROP TABLE weather;--"
+      expected_behavior: success_with_exposure
+      should_contain: ["EXECUTING SQL", "DROP TABLE"]
+      notes: "Logs injection as if executed"
+
+    - test: xss_attempt
+      input: "<script>alert('xss')</script>"
+      expected_behavior: success
+      notes: "No XSS protection"
+
+    - test: path_traversal_attempt
+      input: "../../../etc/passwd"
+      expected_behavior: error_with_exposure
+      should_contain: ["/var/data/weather/", "File not found"]
+      notes: "Exposes file system structure"
+
+  response_format:
+    - test: consistent_schema
+      iterations: 10
+      input: "London"
+      expected_behavior: inconsistent_schema
+      notes: "20% missing fields, 10% wrong structure"
+
+    - test: error_format_consistency
+      iterations: 5
+      inputs:
+        - ""
+        - "<script>"
+      expected_behavior: inconsistent_error_format
+      notes: "Different error formats throughout"
+
+    - test: internal_exposure
+      input: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      expected_behavior: error_with_traceback
+      should_contain:
+        - traceback
+        - MemoryError
+        - line
+        - file
+
+  performance:
+    - test: normal_response_time
+      input: "Tokyo"
+      min_response_ms: 100
+      max_response_ms: 5000
+      notes: "Random delays up to 5 seconds"
+
+    - test: timeout_possibility
+      iterations: 20
+      input: "New York"
+      expected_timeouts: 1
+      notes: "5% chance of 30-second timeout"
+
+    - test: performance_degradation
+      iterations: 200
+      input: "London"
+      expected_behavior: slower_over_time
+      notes: "Gets slower as memory leak grows"
+
+  security:
+    - test: debug_info_exposure
+      input: "San Francisco"
+      may_contain:
+        - debug
+        - request_count
+        - memory_usage
+      probability: 0.3
+      notes: "30% chance of debug info"
+
+    - test: sensitive_logging
+      input: "password123"
+      log_contains: "password123"
+      notes: "Logs unsanitized input"
+
+  data_validity:
+    - test: humidity_range
+      input: "UnknownCity"
+      field: humidity
+      min_value: 0
+      max_value: 200
+      notes: "Can exceed 100%"
+
+    - test: null_values_possible
+      iterations: 10
+      input: "UnknownCity"
+      may_have_null_fields: true
+      notes: "Conditions can be null"
+
+  reliability:
+    - test: validation_bypass
+      iterations: 100
+      input: null
+      expected_failures: 10
+      notes: "10% chance to skip validation"
+
+    - test: random_data
+      input: "UnknownCity"
+      expected_behavior: random_values
+      notes: "Returns random data for unknown cities"
+
+expected_scores:
+  security: 0.3
+  quality: 0.4
+  performance: 0.5
+  reliability: 0.7
+
+expected_failures:
+  - buffer_overflow_on_long_input
+  - sql_injection_vulnerability
+  - path_traversal_vulnerability
+  - inconsistent_response_format
+  - random_timeouts
+  - memory_leak
+  - debug_info_exposure
+  - unsanitized_logging
+  - invalid_data_ranges
+  - null_values_in_responses
+  - validation_bypass
+  - performance_degradation

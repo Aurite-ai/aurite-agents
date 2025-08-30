@@ -1,0 +1,10 @@
+{
+  "name": "test_weather_bad",
+  "type": "mcp_server",
+  "transport_type": "stdio",
+  "server_path": "tests/fixtures/test_mcp_servers/test_weather_bad/server.py",
+  "capabilities": ["tools"],
+  "timeout": 35.0,
+  "registration_timeout": 40.0,
+  "description": "Intentionally flawed test weather server for testing framework detection capabilities"
+}

@@ -142,6 +142,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
   - `test_inheritance.md` - Test inheritance patterns
   - `testing_architecture.md` - Overall testing architecture
   - `testing_hierarchy.md` - Test hierarchy and organization
+  - `framework_agnostic_testing.md` - Framework-Agnostic testing approach
 - `docs/testing/components/` - Component-specific testing and security
   - Additional component folders for MCP servers, agents, and workflows
 - `docs/testing/guides/` - Practical testing guides
