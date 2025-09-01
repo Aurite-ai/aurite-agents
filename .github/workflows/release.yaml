@@ -222,44 +222,6 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
-      - name: Generate AI release body
-        if: needs.detect-tags.outputs.environment == 'prod'
-        id: generate-release-body
-        run: |
-          set -e
-          
-          # Get recent changes since last version for context
-          PREVIOUS_VERSION=$(git tag --sort=-version:refname | head -n 1 | sed 's/^v//' || echo "0.0.0")
-          
-          if [ "$PREVIOUS_VERSION" != "0.0.0" ] && [ "$PREVIOUS_VERSION" != "v${{ needs.build.outputs.version }}" ]; then
-            CHANGES=$(git log --oneline v${PREVIOUS_VERSION}..HEAD --no-merges | head -15)
-          else
-            CHANGES=$(git log --oneline HEAD --no-merges | head -15)
-          fi
-          
-          # Try to extract relevant changelog section (basic approach)
-          CHANGELOG_SECTION=""
-          if [ -f "CHANGELOG.md" ]; then
-            CHANGELOG_SECTION=$(sed -n "/## \[Unreleased\]/,/## \[/p" CHANGELOG.md | head -20)
-          fi
-          
-          # Generate release body using AI script
-          RELEASE_BODY=$(python3 .github/workflows/scripts/ai_content_generator.py \
-            --mode release \
-            --version "${{ needs.build.outputs.version }}" \
-            --version-type "${{ needs.detect-tags.outputs.version-type }}" \
-            --environment "${{ needs.detect-tags.outputs.environment }}" \
-            --changes "$CHANGES" \
-            --changelog-section "$CHANGELOG_SECTION")
-          
-          # Store in multiline output
-          echo "release_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          echo "Generated AI release body"
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Create GitHub Release
         if: needs.detect-tags.outputs.environment == 'prod'
@@ -267,6 +229,6 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.version }}
           name: Release ${{ needs.build.outputs.version }}
-          body: ${{ steps.generate-release-body.outputs.release_body }}
+          body: "Release version ${{ needs.build.outputs.version }}"
           draft: false
           prerelease: false
