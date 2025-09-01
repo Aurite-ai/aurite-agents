@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Optional
 
 import typer
@@ -18,6 +19,7 @@ from ..studio import start_studio
 from ..tui.apps.edit import AuriteEditTUI
 from .commands.init import init_project, init_workspace, interactive_init
 from .commands.list import list_all, list_components_by_type, list_index, list_workflows
+from .commands.migrate import migrate_database, migrate_from_env
 from .commands.run import run_component
 from .commands.show import show_components
 
@@ -42,6 +44,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+
 # Add global --version option
 @app.callback()
 def main(
@@ -51,6 +54,7 @@ def main(
 ):
     """A framework for building, testing, and running AI agents."""
     pass
+
 
 list_app = typer.Typer(
     name="list",
@@ -98,6 +102,7 @@ def api():
     logger("[bold green]Starting Aurite API server...[/bold green]")
     # Lazy import - only load API module when actually starting the server
     from ..api.api import start as start_api_server
+
     start_api_server()
 
 
@@ -143,6 +148,35 @@ def show(
 
 
 @app.command()
+def migrate(
+    source_type: Optional[str] = typer.Option(None, "--source-type", help="Source database type (sqlite/postgresql)"),
+    target_type: Optional[str] = typer.Option(None, "--target-type", help="Target database type (sqlite/postgresql)"),
+    source_path: Optional[str] = typer.Option(None, "--source-path", help="Source SQLite database path"),
+    target_path: Optional[str] = typer.Option(None, "--target-path", help="Target SQLite database path"),
+    verify: bool = typer.Option(True, "--verify/--no-verify", help="Verify migration after completion"),
+    from_env: bool = typer.Option(False, "--from-env", help="Use current environment configuration as source"),
+):
+    """
+    Migrate data between SQLite and PostgreSQL databases.
+
+    Examples:
+        aurite migrate                    # Interactive mode
+        aurite migrate --from-env          # Migrate from current DB to opposite type
+        aurite migrate --source-type sqlite --target-type postgresql
+    """
+    if from_env:
+        migrate_from_env()
+    else:
+        migrate_database(
+            source_type=source_type,
+            target_type=target_type,
+            source_path=source_path,
+            target_path=target_path,
+            verify=verify,
+        )
+
+
+@app.command()
 def export():
     """
     Exports all configurations from the file system to the database.
@@ -150,26 +184,43 @@ def export():
     """
     logger("[bold green]Starting configuration export to database...[/bold green]")
     try:
-        # 1. Load configs from files
+        # 1. First, ensure database tables exist
+        logger("Initializing database...")
+        storage_manager = StorageManager()
+        storage_manager.init_db()  # Create tables if they don't exist
+
+        # 2. Temporarily disable DB mode to load from files
+        original_db_setting = os.getenv("AURITE_ENABLE_DB", "false")
+        os.environ["AURITE_ENABLE_DB"] = "false"
+
+        # 3. Load configs from files
         logger("Loading configurations from file system...")
         config_manager = ConfigManager()
         component_index = config_manager.get_all_configs()
+
+        # 4. Restore original DB setting
+        os.environ["AURITE_ENABLE_DB"] = original_db_setting
 
         if not component_index:
             logger("[bold yellow]No configurations found to export.[/bold yellow]")
             raise typer.Exit()
 
-        # 2. Initialize StorageManager and sync
-        logger("Connecting to database and syncing configurations...")
-        storage_manager = StorageManager()
-        storage_manager.init_db()  # Ensure tables are created
+        # 5. Sync to database
+        logger("Syncing configurations to database...")
         storage_manager.sync_index_to_db(component_index)
 
-        logger("\n[bold green]✅ Configuration export completed successfully.[/bold green]")
+        # 6. Display summary
+        total_count = sum(len(components) for components in component_index.values())
+        logger("\n[bold green]✅ Configuration export completed successfully![/bold green]")
+        logger(f"  Exported {total_count} components to database")
+
+        for comp_type, components in component_index.items():
+            if components:
+                logger(f"  • {len(components)} {comp_type}(s)")
 
     except Exception as e:
         logger(f"\n[bold red]Error during export:[/bold red] {e}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 # --- List Commands ---

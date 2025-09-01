@@ -117,7 +117,8 @@
       "History Test Agent A2"
     ],
     "description": "Base case: 2 agents both enabled for history",
-    "name": "History Test Workflow A"
+    "name": "History Test Workflow A",
+    "include_history": true
   },
   {
     "name": "History Test Workflow B",
@@ -136,7 +137,8 @@
       "History Test Agent C2"
     ],
     "description": "Base case duplicate: 2 agents both enabled for history",
-    "name": "History Test Workflow C"
+    "name": "History Test Workflow C",
+    "include_history": true
   },
   {
     "name": "History Test Workflow D",

@@ -48,7 +48,8 @@
       "weather_server"
     ],
     "name": "Weather Agent",
-    "type": "agent"
+    "type": "agent",
+    "include_history": true
   },
   {
     "name": "Weather Agent with Include History",
@@ -64,6 +65,7 @@
   {
     "name": "Weather Planning Workflow Step 2",
     "type": "agent",
+    "include_history": true,
     "mcp_servers": [
       "planning_server"
     ],
@@ -78,7 +80,8 @@
       "Weather Planning Workflow Step 2"
     ],
     "name": "Weather Planning Workflow",
-    "type": "linear_workflow"
+    "type": "linear_workflow",
+    "include_history": true
   },
   {
     "name": "ExampleCustomWorkflow",

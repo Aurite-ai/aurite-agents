@@ -1,21 +1,21 @@
 # src/storage/db_manager.py
 """
 Provides the StorageManager class to interact with the database
-for persisting configurations and agent history.
+for persisting configurations and session data.
 """
 
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import delete, func
+from sqlalchemy import func
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm.session import Session
 
 from .db_connection import create_db_engine, get_db_session
-from .db_models import AgentHistoryDB, ComponentDB
 from .db_models import Base as SQLAlchemyBase
+from .db_models import ComponentDB, SessionDB
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class StorageManager:
     """
     Manages database interactions for storing and retrieving configurations
-    and agent conversation history.
+    and session data (including agent conversation history).
     """
 
     def __init__(self, engine: Optional[Engine] = None):
@@ -198,98 +198,300 @@ class StorageManager:
         """
         return get_db_session(self._engine)
 
-    # --- History Methods ---
+    # --- Session Management Methods (NEW) ---
 
-    # NOTE: Making these synchronous for now as SQLAlchemy session operations
-    # within the context manager are typically synchronous. If async driver (e.g., asyncpg)
-    # and async sessions are used later, these would need `async def`.
-    def load_history(self, agent_name: str, session_id: Optional[str], limit: int = 50) -> List[Dict[str, Any]]:
+    def save_session(self, session_data: Dict[str, Any]) -> bool:
         """
-        Loads recent conversation history for a specific agent and session.
-        Returns history in the format expected by Anthropic API messages:
-        List[{'role': str, 'content': List[Dict[str, Any]]}]
+        Saves a complete session to the database.
+
+        Args:
+            session_data: Complete session data including execution_result and metadata
+
+        Returns:
+            True if saved successfully, False otherwise
         """
         if not self._engine:
-            return []
-        if not session_id:
-            logger.warning(
-                f"Attempted to load history for agent '{agent_name}' without a session_id. Returning empty list."
-            )
-            return []
+            logger.debug("Database not configured. Cannot save session.")
+            return False
 
-        logger.debug(f"Loading history for agent '{agent_name}', session '{session_id}' (limit: {limit})")
-        history_params: List[Dict[str, Any]] = []
-        # Pass the engine to get_db_session
+        session_id = session_data.get("session_id")
+        if not session_id:
+            logger.warning("Cannot save session without session_id")
+            return False
+
+        logger.debug(f"Saving session '{session_id}' to database")
+
         with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Query AgentHistoryDB, filter by agent_name AND session_id, order by timestamp ascending
-                    # Order ascending so the list is in chronological order for the LLM
-                    history_records = (
-                        db.query(AgentHistoryDB)
-                        .filter(
-                            AgentHistoryDB.agent_name == agent_name,
-                            AgentHistoryDB.session_id == session_id,  # Added session_id filter
+            if not db:
+                logger.error("Failed to get DB session for saving session")
+                return False
+
+            try:
+                # Check if session already exists
+                existing = db.get(SessionDB, session_id)
+
+                if existing:
+                    # Update existing session
+                    existing.base_session_id = session_data.get("base_session_id")
+                    existing.name = session_data.get("name", "Unknown")
+                    existing.result_type = session_data.get("result_type", "agent")
+                    existing.is_workflow = session_data.get("result_type") == "workflow"
+                    existing.message_count = session_data.get("message_count", 0)
+                    existing.execution_result = session_data.get("execution_result", {})
+                    existing.agents_involved = session_data.get("agents_involved")
+                    existing.last_updated = datetime.utcnow()
+                    logger.debug(f"Updated existing session '{session_id}' in database")
+                else:
+                    # Create new session
+                    new_session = SessionDB(
+                        session_id=session_id,
+                        base_session_id=session_data.get("base_session_id"),
+                        name=session_data.get("name", "Unknown"),
+                        result_type=session_data.get("result_type", "agent"),
+                        is_workflow=session_data.get("result_type") == "workflow",
+                        message_count=session_data.get("message_count", 0),
+                        execution_result=session_data.get("execution_result", {}),
+                        agents_involved=session_data.get("agents_involved"),
+                        created_at=datetime.fromisoformat(session_data["created_at"])
+                        if "created_at" in session_data and session_data["created_at"]
+                        else datetime.utcnow(),
+                        last_updated=datetime.fromisoformat(session_data["last_updated"])
+                        if "last_updated" in session_data and session_data["last_updated"]
+                        else datetime.utcnow(),
+                    )
+                    db.add(new_session)
+                    logger.debug(f"Created new session '{session_id}' in database")
+
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to save session '{session_id}': {e}", exc_info=True)
+                return False
+
+    def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a complete session from the database.
+
+        Args:
+            session_id: The session ID to retrieve
+
+        Returns:
+            Complete session data as a dictionary, or None if not found
+        """
+        if not self._engine:
+            return None
+
+        logger.debug(f"Loading session '{session_id}' from database")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for loading session")
+                return None
+
+            try:
+                session = db.get(SessionDB, session_id)
+                if session:
+                    return {
+                        "session_id": session.session_id,
+                        "base_session_id": session.base_session_id,
+                        "execution_result": session.execution_result,
+                        "result_type": session.result_type,
+                        "created_at": session.created_at.isoformat() if session.created_at else None,
+                        "last_updated": session.last_updated.isoformat() if session.last_updated else None,
+                        "name": session.name,
+                        "message_count": session.message_count,
+                        "agents_involved": session.agents_involved,
+                    }
+                return None
+
+            except Exception as e:
+                logger.error(f"Failed to load session '{session_id}': {e}", exc_info=True)
+                return None
+
+    def get_sessions_list(
+        self, agent_name: Optional[str] = None, workflow_name: Optional[str] = None, limit: int = 50, offset: int = 0
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Lists sessions with optional filtering.
+
+        Args:
+            agent_name: Filter by agent name
+            workflow_name: Filter by workflow name
+            limit: Maximum number of results
+            offset: Number of results to skip
+
+        Returns:
+            Tuple of (list of session metadata dictionaries, total count)
+        """
+        if not self._engine:
+            return [], 0
+
+        logger.debug(f"Listing sessions (agent={agent_name}, workflow={workflow_name}, limit={limit}, offset={offset})")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for listing sessions")
+                return [], 0
+
+            try:
+                # Build base query
+                query = db.query(SessionDB)
+
+                if workflow_name:
+                    query = query.filter(SessionDB.is_workflow is True, SessionDB.name == workflow_name)
+                elif agent_name:
+                    query = query.filter(SessionDB.is_workflow is False, SessionDB.name == agent_name)
+
+                # Get total count before pagination
+                total_count = query.count()
+
+                # Order by last_updated descending
+                query = query.order_by(SessionDB.last_updated.desc())
+
+                # Apply pagination
+                query = query.offset(offset).limit(limit)
+
+                sessions = []
+                for session in query.all():
+                    sessions.append(
+                        {
+                            "session_id": session.session_id,
+                            "base_session_id": session.base_session_id,
+                            "name": session.name,
+                            "result_type": session.result_type,
+                            "is_workflow": session.is_workflow,
+                            "message_count": session.message_count,
+                            "agents_involved": session.agents_involved,
+                            "created_at": session.created_at.isoformat() if session.created_at else None,
+                            "last_updated": session.last_updated.isoformat() if session.last_updated else None,
+                        }
+                    )
+
+                return sessions, total_count
+
+            except Exception as e:
+                logger.error(f"Failed to list sessions: {e}", exc_info=True)
+                return [], 0
+
+    def delete_session(self, session_id: str) -> bool:
+        """
+        Deletes a session from the database.
+
+        Args:
+            session_id: The session to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        if not self._engine:
+            return False
+
+        logger.debug(f"Deleting session '{session_id}' from database")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for deleting session")
+                return False
+
+            try:
+                session = db.get(SessionDB, session_id)
+                if session:
+                    # If it's a workflow, also delete child sessions
+                    if session.is_workflow and session.base_session_id:
+                        child_sessions = (
+                            db.query(SessionDB)
+                            .filter(
+                                SessionDB.base_session_id == session.base_session_id, SessionDB.session_id != session_id
+                            )
+                            .all()
                         )
-                        .order_by(AgentHistoryDB.timestamp.asc())
-                        # Consider if limit should be applied here or after fetching all?
-                        # Applying limit here is more efficient for large histories.
-                        # If we need the *most recent* N turns, order by desc() and limit().
-                        # Let's assume we want the start of the conversation up to N turns for now.
-                        # .limit(limit) # Revisit if we need *last* N turns
+                        for child in child_sessions:
+                            db.delete(child)
+                            logger.debug(f"Deleted child session '{child.session_id}'")
+
+                    db.delete(session)
+                    logger.info(f"Deleted session '{session_id}' from database")
+                    return True
+                else:
+                    logger.debug(f"Session '{session_id}' not found in database")
+                    return False
+
+            except Exception as e:
+                logger.error(f"Failed to delete session '{session_id}': {e}", exc_info=True)
+                return False
+
+    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
+        """
+        Clean up old sessions based on retention policy.
+
+        Args:
+            days: Delete sessions older than this many days
+            max_sessions: Maximum number of sessions to keep
+        """
+        if not self._engine:
+            return
+
+        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for cleanup")
+                return
+
+            try:
+                cutoff_date = datetime.utcnow() - timedelta(days=days)
+
+                # Delete old sessions
+                old_sessions = db.query(SessionDB).filter(SessionDB.last_updated < cutoff_date).all()
+
+                for session in old_sessions:
+                    db.delete(session)
+
+                if old_sessions:
+                    logger.info(f"Deleted {len(old_sessions)} sessions older than {days} days")
+
+                # Check if we have too many sessions
+                session_count = db.query(func.count(SessionDB.session_id)).scalar()
+
+                if session_count > max_sessions:
+                    # Get sessions to delete (oldest first)
+                    sessions_to_delete = (
+                        db.query(SessionDB)
+                        .order_by(SessionDB.last_updated.asc())
+                        .limit(session_count - max_sessions)
                         .all()
                     )
 
-                    # Convert results to the required format
-                    for record in history_records:
-                        # Ensure content is loaded correctly from the correct column
-                        content_data = record.content_json  # Read from content_json column
-                        parsed_content = None
-                        if isinstance(content_data, str):
-                            # Attempt to parse if stored as a JSON string
-                            try:
-                                parsed_content = json.loads(content_data)  # Parse string
-                            except json.JSONDecodeError:
-                                # If parsing fails, assume it was a raw string user input
-                                logger.warning(
-                                    f"Failed to parse content_json for history ID {record.id} as JSON. Assuming raw string content."
-                                )
-                                # Format the raw string into the expected structure
-                                parsed_content = [{"type": "text", "text": content_data}]
-                        elif content_data is None:
-                            logger.warning(f"History record ID {record.id} has null content_json.")
-                            parsed_content = [{"type": "text", "text": "[Missing content]"}]
-                        else:
-                            # If content_data is already a list/dict (from native JSON type), use it directly
-                            parsed_content = content_data
+                    for session in sessions_to_delete:
+                        db.delete(session)
 
-                        history_params.append(
-                            {
-                                "role": record.role,
-                                "content": parsed_content,  # Use the processed content
-                            }
+                    if sessions_to_delete:
+                        logger.info(
+                            f"Deleted {len(sessions_to_delete)} sessions to maintain {max_sessions} session limit"
                         )
 
-                    # If we wanted only the last N turns:
-                    if len(history_params) > limit > 0:
-                        history_params = history_params[-limit:]  # Slice to get the last N items
+            except Exception as e:
+                logger.error(f"Failed to cleanup old sessions: {e}", exc_info=True)
 
-                    logger.debug(
-                        f"Loaded {len(history_params)} history turns for agent '{agent_name}', session '{session_id}'."
-                    )
+    # --- Legacy History Methods (DEPRECATED) ---
+    # These methods are kept for backward compatibility but should not be used for new code
 
-                except Exception as e:
-                    logger.error(
-                        f"Failed to load history for agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
-                    # Return empty list on error
-                    return []
-            else:
-                logger.error("Failed to get DB session for loading history.")
-                return []  # Return empty list if session fails
+    def load_history(self, agent_name: str, session_id: Optional[str], limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        DEPRECATED: Use get_session() instead.
+        Loads recent conversation history for a specific agent and session.
+        """
+        logger.warning("load_history is deprecated. Use get_session() instead.")
+        if not session_id:
+            return []
 
-        return history_params
+        session_data = self.get_session(session_id)
+        if session_data and "execution_result" in session_data:
+            result = session_data["execution_result"]
+            if "conversation_history" in result:
+                history = result["conversation_history"]
+                return history[-limit:] if len(history) > limit else history
+        return []
 
     def save_full_history(
         self,
@@ -298,310 +500,37 @@ class StorageManager:
         conversation: List[Dict[str, Any]],
     ):
         """
+        DEPRECATED: Use save_session() instead.
         Saves the entire conversation history for a specific agent and session.
-        Clears previous history for that specific agent/session before saving the new one.
         """
-        if not self._engine:
-            return
+        logger.warning("save_full_history is deprecated. Use save_session() instead.")
         if not session_id:
-            logger.warning(f"Attempted to save history for agent '{agent_name}' without a session_id. Skipping save.")
             return
 
-        # Filter out any potential None values in conversation list defensively
-        valid_conversation = [turn for turn in conversation if turn is not None]
-        if not valid_conversation:
-            logger.warning(
-                f"Attempted to save empty or invalid history for agent '{agent_name}', session '{session_id}'. Skipping."
-            )
-            return
-
-        logger.debug(
-            f"Saving full history for agent '{agent_name}', session '{session_id}' ({len(valid_conversation)} turns)"
-        )
-        # Pass the engine to get_db_session
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Delete existing history for this agent and session first
-                    # Use functional delete
-                    delete_stmt = delete(AgentHistoryDB).where(
-                        AgentHistoryDB.agent_name == agent_name,
-                        AgentHistoryDB.session_id == session_id,
-                    )
-                    db.execute(delete_stmt)
-                    logger.debug(f"Cleared previous history for agent '{agent_name}', session '{session_id}'.")
-
-                    # Add new history turns
-                    new_history_records = []
-                    for turn in valid_conversation:
-                        # Ensure content is serializable (should be dict/list from Anthropic)
-                        content_to_save = turn.get("content")
-                        role = turn.get("role")
-
-                        if not role or content_to_save is None:
-                            logger.warning(
-                                f"Skipping history turn with missing role or content for agent '{agent_name}': {turn}"
-                            )
-                            continue
-
-                        new_history_records.append(
-                            AgentHistoryDB(
-                                agent_name=agent_name,
-                                session_id=session_id,  # Added session_id
-                                role=role,
-                                content_json=content_to_save,  # Correctly map to content_json column
-                            )
-                        )
-
-                    if new_history_records:
-                        db.add_all(new_history_records)
-                        logger.debug(
-                            f"Added {len(new_history_records)} new history turns for agent '{agent_name}', session '{session_id}'."
-                        )
-
-                    # Commit happens automatically via context manager
-                except Exception as e:
-                    logger.error(
-                        f"Failed to save history for agent '{agent_name}', session '{session_id}': {e}",
-                        exc_info=True,
-                    )
-                    # Rollback happens automatically via context manager
-            else:
-                logger.error("Failed to get DB session for saving history.")
+        # Convert to new session format
+        session_data = {
+            "session_id": session_id,
+            "name": agent_name,
+            "result_type": "agent",
+            "execution_result": {
+                "conversation_history": conversation,
+                "agent_name": agent_name,
+            },
+            "message_count": len(conversation),
+            "created_at": datetime.utcnow().isoformat(),
+            "last_updated": datetime.utcnow().isoformat(),
+        }
+        self.save_session(session_data)
 
     def get_session_history(self, session_id: str) -> Optional[List[Dict[str, Any]]]:
         """
+        DEPRECATED: Use get_session() instead.
         Get history for a specific session regardless of agent.
-        Returns history in the format expected by Anthropic API messages.
         """
-        if not self._engine:
-            return None
-
-        logger.debug(f"Getting history for session '{session_id}'")
-        history_params: List[Dict[str, Any]] = []
-
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Query by session_id only, ordered by timestamp
-                    history_records = (
-                        db.query(AgentHistoryDB)
-                        .filter(AgentHistoryDB.session_id == session_id)
-                        .order_by(AgentHistoryDB.timestamp.asc())
-                        .all()
-                    )
-
-                    # Convert to Anthropic format
-                    for record in history_records:
-                        content_data = record.content_json
-                        parsed_content = None
-
-                        if isinstance(content_data, str):
-                            try:
-                                parsed_content = json.loads(content_data)
-                            except json.JSONDecodeError:
-                                parsed_content = [{"type": "text", "text": content_data}]
-                        elif content_data is None:
-                            parsed_content = [{"type": "text", "text": "[Missing content]"}]
-                        else:
-                            parsed_content = content_data
-
-                        history_params.append(
-                            {
-                                "role": record.role,
-                                "content": parsed_content,
-                            }
-                        )
-
-                    return history_params if history_params else None
-
-                except Exception as e:
-                    logger.error(f"Failed to get session history for '{session_id}': {e}", exc_info=True)
-                    return None
-            else:
-                logger.error("Failed to get DB session for session history.")
-                return None
-
-    def get_sessions_by_agent(self, agent_name: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """
-        List all sessions for a specific agent with metadata.
-        Applies retention policy during retrieval.
-        """
-        if not self._engine:
-            return []
-
-        logger.debug(f"Getting sessions for agent '{agent_name}' (limit: {limit})")
-        sessions = []
-
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # First, apply retention policy
-                    self.cleanup_old_sessions()
-
-                    # Get distinct sessions with metadata
-                    session_data = (
-                        db.query(
-                            AgentHistoryDB.session_id,
-                            func.min(AgentHistoryDB.timestamp).label("created_at"),
-                            func.max(AgentHistoryDB.timestamp).label("last_updated"),
-                            func.count(AgentHistoryDB.id).label("message_count"),
-                        )
-                        .filter(AgentHistoryDB.agent_name == agent_name)
-                        .group_by(AgentHistoryDB.session_id)
-                        .order_by(func.max(AgentHistoryDB.timestamp).desc())
-                        .limit(limit)
-                        .all()
-                    )
-
-                    for row in session_data:
-                        sessions.append(
-                            {
-                                "session_id": row.session_id,
-                                "agent_name": agent_name,
-                                "created_at": row.created_at.isoformat() if row.created_at else None,
-                                "last_updated": row.last_updated.isoformat() if row.last_updated else None,
-                                "message_count": row.message_count,
-                            }
-                        )
-
-                    return sessions
-
-                except Exception as e:
-                    logger.error(f"Failed to get sessions for agent '{agent_name}': {e}", exc_info=True)
-                    return []
-            else:
-                logger.error("Failed to get DB session for agent sessions.")
-                return []
-
-    def delete_session(self, session_id: str) -> bool:
-        """
-        Delete a specific session's history.
-        Returns True if any records were deleted, False otherwise.
-        """
-        if not self._engine:
-            return False
-
-        logger.debug(f"Deleting session '{session_id}'")
-
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Delete all history records for this session
-                    delete_stmt = delete(AgentHistoryDB).where(AgentHistoryDB.session_id == session_id)
-                    result = db.execute(delete_stmt)
-                    deleted_count = result.rowcount
-
-                    if deleted_count > 0:
-                        logger.info(f"Deleted {deleted_count} history records for session '{session_id}'")
-                        return True
-                    else:
-                        logger.debug(f"No records found for session '{session_id}'")
-                        return False
-
-                except Exception as e:
-                    logger.error(f"Failed to delete session '{session_id}': {e}", exc_info=True)
-                    return False
-            else:
-                logger.error("Failed to get DB session for session deletion.")
-                return False
-
-    def get_session_metadata(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Get metadata about a session including timestamps and message count.
-        """
-        if not self._engine:
-            return None
-
-        logger.debug(f"Getting metadata for session '{session_id}'")
-
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    # Get session metadata
-                    metadata = (
-                        db.query(
-                            AgentHistoryDB.agent_name,
-                            func.min(AgentHistoryDB.timestamp).label("created_at"),
-                            func.max(AgentHistoryDB.timestamp).label("last_updated"),
-                            func.count(AgentHistoryDB.id).label("message_count"),
-                        )
-                        .filter(AgentHistoryDB.session_id == session_id)
-                        .group_by(AgentHistoryDB.agent_name)
-                        .first()
-                    )
-
-                    if metadata:
-                        return {
-                            "session_id": session_id,
-                            "agent_name": metadata.agent_name,
-                            "created_at": metadata.created_at.isoformat() if metadata.created_at else None,
-                            "last_updated": metadata.last_updated.isoformat() if metadata.last_updated else None,
-                            "message_count": metadata.message_count,
-                        }
-                    else:
-                        return None
-
-                except Exception as e:
-                    logger.error(f"Failed to get metadata for session '{session_id}': {e}", exc_info=True)
-                    return None
-            else:
-                logger.error("Failed to get DB session for session metadata.")
-                return None
-
-    def cleanup_old_sessions(self, days: int = 30, max_sessions: int = 50):
-        """
-        Clean up old sessions based on retention policy.
-        Deletes sessions older than specified days and keeps only the most recent max_sessions.
-        """
-        if not self._engine:
-            return
-
-        logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
-
-        with get_db_session(engine=self._engine) as db:
-            if db:
-                try:
-                    cutoff_date = datetime.utcnow() - timedelta(days=days)
-
-                    # First, delete sessions older than cutoff date
-                    old_sessions = (
-                        db.query(AgentHistoryDB.session_id)
-                        .filter(AgentHistoryDB.timestamp < cutoff_date)
-                        .distinct()
-                        .all()
-                    )
-
-                    for session in old_sessions:
-                        delete_stmt = delete(AgentHistoryDB).where(AgentHistoryDB.session_id == session.session_id)
-                        db.execute(delete_stmt)
-
-                    if old_sessions:
-                        logger.info(f"Deleted {len(old_sessions)} sessions older than {days} days")
-
-                    # Then, check if we have too many sessions
-                    session_count = db.query(func.count(func.distinct(AgentHistoryDB.session_id))).scalar()
-
-                    if session_count > max_sessions:
-                        # Get sessions to keep (most recent)
-                        sessions_to_keep = (
-                            db.query(
-                                AgentHistoryDB.session_id, func.max(AgentHistoryDB.timestamp).label("last_updated")
-                            )
-                            .group_by(AgentHistoryDB.session_id)
-                            .order_by(func.max(AgentHistoryDB.timestamp).desc())
-                            .limit(max_sessions)
-                            .subquery()
-                        )
-
-                        # Delete sessions not in the keep list
-                        delete_stmt = delete(AgentHistoryDB).where(
-                            ~AgentHistoryDB.session_id.in_(db.query(sessions_to_keep.c.session_id))
-                        )
-                        result = db.execute(delete_stmt)
-
-                        if result.rowcount > 0:
-                            logger.info(f"Deleted {result.rowcount} records to maintain {max_sessions} session limit")
-
-                except Exception as e:
-                    logger.error(f"Failed to cleanup old sessions: {e}", exc_info=True)
+        logger.warning("get_session_history is deprecated. Use get_session() instead.")
+        session_data = self.get_session(session_id)
+        if session_data and "execution_result" in session_data:
+            result = session_data["execution_result"]
+            if "conversation_history" in result:
+                return result["conversation_history"]
+        return None

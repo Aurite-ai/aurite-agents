@@ -16,6 +16,7 @@
     "**/.venv/**": true,
     "notebook-venv/**": true,
     "**/*.egg-info/**": true,
+    ".poetry": true,
     "**/py.typed": true,
     "**/.mypy_cache/**": true
   },
@@ -35,7 +36,7 @@
     "Dockerfile": "Dockerfile.dev, .dockerignore, docker-compose*",
     "pyproject.toml": "poetry.lock, justfile, setup.sh, setup.bat, .pre-commit-config.yaml, .flake8, .isort.cfg, .mypy.ini, .pylintrc, .bandit, .coveragerc, MANIFEST.in",
     ".env": ".env*",
-    "README.md": "usage_guide.md, openapi.yaml, LICENSE, SECURITY.md, CHANGELOG.md, README_packaged.md, claude.md, mkdocs.yml"
+    "README.md": "usage_guide.md, openapi.yaml, LICENSE, SECURITY.md, CHANGELOG.md, CONTRIBUTORS.md, README_packaged.md, claude.md, mkdocs.yml"
   },
   "files.associations": {
     "*.css": "ansi",

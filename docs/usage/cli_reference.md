@@ -117,7 +117,7 @@ The CLI is organized into several main commands.
 
     !!! info "Integrated Development Environment"
         The studio command automatically:
-        
+
         - Validates Node.js and npm dependencies
         - Installs frontend workspace dependencies if needed
         - Builds frontend packages when artifacts are missing
@@ -127,7 +127,7 @@ The CLI is organized into several main commands.
         - Handles graceful shutdown with Ctrl+C
 
     **System Requirements**
-    
+
     - Node.js >= 18.0.0
     - npm >= 8.0.0
 
@@ -142,16 +142,16 @@ The CLI is organized into several main commands.
     ```
 
     **Fresh Rebuild Process**
-    
+
     When using `--rebuild-fresh`, the command performs:
-    
+
     1. **Clean Build Artifacts**: Runs `npm run clean` to remove all build outputs
     2. **Clear npm Cache**: Removes `node_modules/.cache` directory
     3. **Rebuild Packages**: Runs `npm run build` to rebuild all workspace packages
     4. **Start Servers**: Proceeds with normal server startup
 
     **Ports Used**
-    
+
     - API Server: Configured port (default 8000)
     - Studio UI: http://localhost:3000
 
@@ -175,6 +175,66 @@ The CLI is organized into several main commands.
     # Open the "Weather Agent" configuration directly in the editor
     aurite edit "Weather Agent"
     ```
+
+=== ":material-database-arrow-right: `aurite migrate`"
+
+    Migrates data between SQLite and PostgreSQL databases. This is useful when transitioning between development and production environments or creating backups.
+
+    | Option | Type | Description |
+    | --- | --- | --- |
+    | `--source-type` | `string` | Source database type (`sqlite` or `postgresql`) |
+    | `--target-type` | `string` | Target database type (`sqlite` or `postgresql`) |
+    | `--source-path` | `string` | Path to source SQLite database (if source is SQLite) |
+    | `--target-path` | `string` | Path to target SQLite database (if target is SQLite) |
+    | `--from-env` | `flag` | Use current environment configuration as source |
+    | `--verify/--no-verify` | `flag` | Verify migration after completion (default: verify) |
+
+    !!! info "Interactive Mode"
+        Running `aurite migrate` without options starts an interactive wizard that guides you through the migration process, using environment variables as defaults where available.
+
+    **Examples**
+
+    ```bash
+    # Interactive migration wizard
+    aurite migrate
+
+    # Migrate from current database to opposite type
+    aurite migrate --from-env
+
+    # Migrate from SQLite to PostgreSQL (uses env vars for PostgreSQL)
+    aurite migrate --source-type sqlite --target-type postgresql
+
+    # Create a backup of production PostgreSQL to local SQLite
+    aurite migrate \
+      --source-type postgresql \
+      --target-type sqlite \
+      --target-path backups/aurite_backup.db
+    ```
+
+    !!! tip "Environment Variables"
+        The migration command automatically uses your configured environment variables for database connections, making it easy to migrate between your configured databases.
+
+=== ":material-database-export: `aurite export`"
+
+    Exports all configurations from the file system to the database. This command reads from local config files and uploads them to your configured database (SQLite or PostgreSQL).
+
+    **Examples**
+
+    ```bash
+    # Export all local configurations to the database
+    aurite export
+    ```
+
+    !!! warning "Database Mode Required"
+        This command requires `AURITE_ENABLE_DB=true` in your environment configuration. The database type and connection details are determined by your environment variables.
+
+    **What Gets Exported**
+
+    - All agent configurations
+    - All LLM configurations
+    - All MCP server configurations
+    - All workflow configurations (linear and custom)
+    - Any other component configurations in your workspace
 
 ---
 

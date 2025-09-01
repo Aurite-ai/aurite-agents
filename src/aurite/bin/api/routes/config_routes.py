@@ -34,9 +34,18 @@ PLURAL_TO_SINGULAR = {
     "linear_workflows": "linear_workflow",
     "custom_workflows": "custom_workflow",
     "evaluations": "evaluation",
+    "graph_workflows": "graph_workflow",
 }
 
-VALID_COMPONENT_TYPES = ["agent", "llm", "mcp_server", "linear_workflow", "custom_workflow", "evaluation"]
+VALID_COMPONENT_TYPES = [
+    "agent",
+    "llm",
+    "mcp_server",
+    "linear_workflow",
+    "custom_workflow",
+    "evaluation",
+    "graph_workflow",
+]
 
 
 # Helper function to refresh config if needed
@@ -268,7 +277,10 @@ async def delete_component(
     return {"message": f"Component '{component_id}' deleted successfully."}
 
 
-@router.post("/components/{component_type}/{component_id}/validate", response_model=Dict[str, Any])
+@router.post(
+    "/components/{component_type}/{component_id}/validate",
+    response_model=Dict[str, Any],
+)
 async def validate_component(
     component_type: str,
     component_id: str,

@@ -107,6 +107,7 @@ The API is structured around four main routers.
     | `POST` | `/execution/agents/{agent_name}/run` | Execute an agent and wait for the result. |
     | `POST` | `/execution/agents/{agent_name}/stream` | Execute an agent and stream the response. |
     | `POST` | `/execution/workflows/linear/{workflow_name}/run` | Execute a linear workflow. |
+    | `POST` | `/execution/workflows/graph/{workflow_name}/run` | Execute a graph workflow. |
     | `POST` | `/execution/workflows/custom/{workflow_name}/run` | Execute a custom workflow. |
 
     **Testing & Validation**
@@ -121,6 +122,15 @@ The API is structured around four main routers.
     | `POST` | `/execution/evaluate/{evaluation_config_id}` | Run evaluation on a component, using an evaluation config. |
 
     **Execution History**
+
+    !!! note "History Storage Requirements"
+        History storage depends on:
+
+        - **Configuration:** Agents/workflows must have `include_history: true` in their configuration
+        - **Storage Backend:** Set by `AURITE_ENABLE_DB` environment variable
+            - `false` (default): History stored in `.aurite_cache/` as JSON files
+            - `true`: History stored in database (SQLite or PostgreSQL)
+        - **Database Mode:** When using database storage, run `aurite export` after configuration changes
 
     | Method | Endpoint | Description |
     | --- | --- | --- |

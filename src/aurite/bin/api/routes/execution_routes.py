@@ -68,9 +68,13 @@ async def run_agent(
     Execute an agent by name.
     """
     try:
+        if request.messages is None and request.user_message is None:
+            raise ValueError("Parameters user_message and messages cannot both be None")
+
         result = await engine.run_agent(
             agent_name=agent_name,
             user_message=request.user_message,
+            messages=request.messages,
             system_prompt=request.system_prompt,
             session_id=request.session_id,
         )
@@ -95,6 +99,9 @@ async def run_agent(
             status_code = 404
         elif type(e).__name__ == "AuthenticationError":
             status_code = 401
+        elif type(e) is ValueError or type(e) is TypeError or type(e).__name__ == "BadRequestError":
+            status_code = 400
+
         logger.error(f"Error running agent '{agent_name}': {e}")
 
         error_response = {
@@ -104,6 +111,7 @@ async def run_agent(
                 "details": {
                     "agent_name": agent_name,
                     "user_message": request.user_message,
+                    "messages": request.messages,
                     "system_prompt": request.system_prompt,
                     "session_id": request.session_id,
                 },
@@ -284,15 +292,19 @@ async def stream_agent(
     Execute an agent by name and stream the response.
     """
     try:
+        if request.messages is None and request.user_message is None:
+            raise ValueError("Parameters user_message and messages cannot both be None")
+
         # first, validate the agent
         _validate_agent(agent_name, config_manager)
 
-        logger.info(f"Starting stream for agent '{agent_name}' - User message length: {len(request.user_message)}")
+        logger.info(f"Starting stream for agent '{agent_name}")
 
         async def event_generator():
             async for event in engine.stream_agent_run(
                 agent_name=agent_name,
                 user_message=request.user_message,
+                messages=request.messages,
                 system_prompt=request.system_prompt,
                 session_id=request.session_id,
             ):
@@ -313,6 +325,8 @@ async def stream_agent(
             status_code = 404
         elif type(e).__name__ == "AuthenticationError":
             status_code = 401
+        elif type(e) is ValueError or type(e) is TypeError or type(e).__name__ == "BadRequestError":
+            status_code = 400
 
         logger.error(f"Error streaming agent '{agent_name}': {e}")
 
@@ -323,6 +337,7 @@ async def stream_agent(
                 "details": {
                     "agent_name": agent_name,
                     "user_message": request.user_message,
+                    "messages": request.messages,
                     "system_prompt": request.system_prompt,
                     "session_id": request.session_id,
                 },
@@ -378,6 +393,34 @@ async def test_linear_workflow(
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/workflows/graph/{workflow_name}/run")
+async def run_graph_workflow(
+    workflow_name: str,
+    request: WorkflowRunRequest,
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+):
+    """
+    Execute a linear workflow by name.
+    """
+    try:
+        result = await engine.run_graph_workflow(
+            workflow_name=workflow_name,
+            initial_input=request.initial_input,
+            session_id=request.session_id,
+        )
+        return result.model_dump()
+    except ConfigurationError as e:
+        logger.error(f"Configuration error for workflow '{workflow_name}': {e}")
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except WorkflowExecutionError as e:
+        logger.error(f"Workflow execution error for '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {clean_error_message(e)}") from e
+    except Exception as e:
+        logger.error(f"Unexpected error running graph workflow '{workflow_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during workflow execution") from e
 
 
 @router.post("/workflows/custom/{workflow_name}/run")
