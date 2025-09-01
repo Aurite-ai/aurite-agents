@@ -46,15 +46,29 @@ jobs:
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           echo "pr_labels=$LABELS" >> $GITHUB_OUTPUT
 
-      - name: Determine change type from labels
+      - name: Determine change type from labels and PR title
         id: change-type
         run: |
           LABELS="${{ steps.pr-info.outputs.pr_labels }}"
+          PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
           
           # Default values
           SECTION="Changed"
           
-          # Check labels to categorize the change
+          # First check PR title for conventional commit prefixes
+          case "$PR_TITLE" in
+            "feat:"*|"feature:"*) SECTION="Added" ;;
+            "fix:"*|"bugfix:"*) SECTION="Fixed" ;;
+            "docs:"*|"doc:"*) SECTION="Documentation" ;;
+            "perf:"*|"performance:"*) SECTION="Performance" ;;
+            "breaking:"*|"BREAKING:"*) SECTION="Breaking Changes" ;;
+            "security:"*|"sec:"*) SECTION="Security" ;;
+            "deprecate:"*|"deprecated:"*) SECTION="Deprecated" ;;
+            "remove:"*|"removed:"*) SECTION="Removed" ;;
+            "refactor:"*|"test:"*|"tests:"*|"chore:"*|"style:"*|"ci:"*|"build:"*|"revert:"*) SECTION="Changed" ;;
+          esac
+          
+          # Then check labels to categorize the change (labels override PR title)
           case "$LABELS" in
             *"breaking"*) SECTION="Breaking Changes" ;;
             *"security"*) SECTION="Security" ;;
@@ -67,7 +81,7 @@ jobs:
           esac
           
           echo "section=$SECTION" >> $GITHUB_OUTPUT
-          echo "Change type: $SECTION"
+          echo "Change type: $SECTION (from title: '$PR_TITLE', labels: '$LABELS')"
 
       - name: Update changelog for PR
         run: |
@@ -114,6 +128,9 @@ jobs:
             exit 0
           fi
 
+          # Pull latest changes to avoid conflicts
+          git pull --rebase origin main
+
           # Add files
           git add CHANGELOG.md
 
@@ -122,7 +139,7 @@ jobs:
 
           # Commit and push
           git commit -m "$COMMIT_MSG"
-          git push origin ${{ github.ref_name }}
+          git push origin main
 
       - name: Summary
         run: |
@@ -189,10 +206,11 @@ jobs:
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           echo "pr_labels=$LABELS" >> $GITHUB_OUTPUT
 
-      - name: Determine change type and release type from labels
+      - name: Determine change type and release type from labels and PR title
         id: change-type
         run: |
           LABELS="${{ steps.pr-info.outputs.pr_labels }}"
+          PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
           
           # Default values
           SECTION="Changed"
@@ -205,7 +223,20 @@ jobs:
             *"patch"*) RELEASE_TYPE="patch" ;;
           esac
           
-          # Check labels to categorize the change
+          # First check PR title for conventional commit prefixes
+          case "$PR_TITLE" in
+            "feat:"*|"feature:"*) SECTION="Added" ;;
+            "fix:"*|"bugfix:"*) SECTION="Fixed" ;;
+            "docs:"*|"doc:"*) SECTION="Documentation" ;;
+            "perf:"*|"performance:"*) SECTION="Performance" ;;
+            "breaking:"*|"BREAKING:"*) SECTION="Breaking Changes" ;;
+            "security:"*|"sec:"*) SECTION="Security" ;;
+            "deprecate:"*|"deprecated:"*) SECTION="Deprecated" ;;
+            "remove:"*|"removed:"*) SECTION="Removed" ;;
+            "refactor:"*|"test:"*|"tests:"*|"chore:"*|"style:"*|"ci:"*|"build:"*|"revert:"*) SECTION="Changed" ;;
+          esac
+          
+          # Then check labels to categorize the change (labels override PR title)
           case "$LABELS" in
             *"breaking"*) SECTION="Breaking Changes" ;;
             *"security"*) SECTION="Security" ;;
@@ -219,7 +250,7 @@ jobs:
           
           echo "section=$SECTION" >> $GITHUB_OUTPUT
           echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
-          echo "Change type: $SECTION"
+          echo "Change type: $SECTION (from title: '$PR_TITLE', labels: '$LABELS')"
           echo "Release type: $RELEASE_TYPE"
 
       - name: Get current version from pyproject.toml
@@ -263,6 +294,36 @@ jobs:
           echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
           echo "Previous version from git tags: $PREVIOUS_VERSION"
 
+      - name: Generate AI summary for major releases
+        id: ai-summary
+        if: contains(github.event.pull_request.labels.*.name, 'major')
+        run: |
+          set -e
+          
+          # Get git diff since last release for context
+          PREVIOUS_VERSION="${{ steps.get-previous-version.outputs.previous_version }}"
+          
+          # Get commit messages and file changes since last version
+          if [ "$PREVIOUS_VERSION" != "0.0.0" ]; then
+            CHANGES=$(git log --oneline v${PREVIOUS_VERSION}..HEAD --no-merges | head -20)
+            FILES=$(git diff --name-only v${PREVIOUS_VERSION}..HEAD | head -20)
+          else
+            CHANGES=$(git log --oneline HEAD --no-merges | head -20)
+            FILES=$(git diff --name-only HEAD~10..HEAD | head -20)
+          fi
+          
+          # Generate summary using AI script
+          SUMMARY=$(python3 .github/workflows/scripts/ai_content_generator.py \
+            --mode summary \
+            --changes "$CHANGES" \
+            --files "$FILES")
+          
+          # Store summary for use in next step
+          echo "ai_summary=$SUMMARY" >> $GITHUB_OUTPUT
+          echo "Generated AI summary: $SUMMARY"
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
       - name: Release version in changelog
         id: release-version
         run: |
@@ -271,6 +332,7 @@ jobs:
           CURRENT_VERSION="${{ steps.get-version.outputs.current_version }}"
           PREVIOUS_VERSION="${{ steps.get-previous-version.outputs.previous_version }}"
           DATE=$(date '+%Y-%m-%d')
+          AI_SUMMARY="${{ steps.ai-summary.outputs.ai_summary }}"
 
           # Use the current version from pyproject.toml as the release version
           NEW_VERSION="$CURRENT_VERSION"
@@ -279,12 +341,22 @@ jobs:
           echo "Releasing version: $NEW_VERSION (previous: $PREVIOUS_VERSION)"
 
           # Update changelog to release current unreleased changes
-          python3 .github/workflows/scripts/changelog_updater.py \
-            --action release \
-            --new-version "$NEW_VERSION" \
-            --current-version "$PREVIOUS_VERSION" \
-            --date "$DATE" \
-            --repo "${{ github.repository }}"
+          if [ -n "$AI_SUMMARY" ]; then
+            python3 .github/workflows/scripts/changelog_updater.py \
+              --action release \
+              --new-version "$NEW_VERSION" \
+              --current-version "$PREVIOUS_VERSION" \
+              --date "$DATE" \
+              --repo "${{ github.repository }}" \
+              --summary "$AI_SUMMARY"
+          else
+            python3 .github/workflows/scripts/changelog_updater.py \
+              --action release \
+              --new-version "$NEW_VERSION" \
+              --current-version "$PREVIOUS_VERSION" \
+              --date "$DATE" \
+              --repo "${{ github.repository }}"
+          fi
           
           if [ $? -ne 0 ]; then
             echo "::error::Failed to release changelog"
@@ -321,6 +393,9 @@ jobs:
             exit 0
           fi
 
+          # Pull latest changes to avoid conflicts
+          git pull --rebase origin main
+
           # Add files
           git add CHANGELOG.md
 
@@ -329,7 +404,7 @@ jobs:
 
           # Commit and push
           git commit -m "$COMMIT_MSG"
-          git push origin ${{ github.ref_name }}
+          git push origin main
 
       - name: Summary
         run: |
