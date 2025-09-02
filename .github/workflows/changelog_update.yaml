@@ -46,15 +46,38 @@ jobs:
           echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
           echo "pr_labels=$LABELS" >> $GITHUB_OUTPUT
 
-      - name: Determine change type from labels
+      - name: Determine change type and release type from labels and PR title
         id: change-type
         run: |
           LABELS="${{ steps.pr-info.outputs.pr_labels }}"
+          PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
           
           # Default values
           SECTION="Changed"
+          RELEASE_TYPE=""
+          IS_RELEASE="false"
           
-          # Check labels to categorize the change
+          # Check for version labels to determine if this is a release
+          case "$LABELS" in
+            *"major"*) RELEASE_TYPE="major"; IS_RELEASE="true" ;;
+            *"minor"*) RELEASE_TYPE="minor"; IS_RELEASE="true" ;;
+            *"patch"*) RELEASE_TYPE="patch"; IS_RELEASE="true" ;;
+          esac
+          
+          # First check PR title for conventional commit prefixes
+          case "$PR_TITLE" in
+            "feat:"*|"feature:"*) SECTION="Added" ;;
+            "fix:"*|"bugfix:"*) SECTION="Fixed" ;;
+            "docs:"*|"doc:"*) SECTION="Documentation" ;;
+            "perf:"*|"performance:"*) SECTION="Performance" ;;
+            "breaking:"*|"BREAKING:"*) SECTION="Breaking Changes" ;;
+            "security:"*|"sec:"*) SECTION="Security" ;;
+            "deprecate:"*|"deprecated:"*) SECTION="Deprecated" ;;
+            "remove:"*|"removed:"*) SECTION="Removed" ;;
+            "refactor:"*|"test:"*|"tests:"*|"chore:"*|"style:"*|"ci:"*|"build:"*|"revert:"*) SECTION="Changed" ;;
+          esac
+          
+          # Then check labels to categorize the change (labels override PR title)
           case "$LABELS" in
             *"breaking"*) SECTION="Breaking Changes" ;;
             *"security"*) SECTION="Security" ;;
@@ -67,7 +90,43 @@ jobs:
           esac
           
           echo "section=$SECTION" >> $GITHUB_OUTPUT
-          echo "Change type: $SECTION"
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+          echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
+          echo "Change type: $SECTION (from title: '$PR_TITLE', labels: '$LABELS')"
+          echo "Release type: $RELEASE_TYPE"
+          echo "Is release: $IS_RELEASE"
+
+      - name: Get current version from pyproject.toml
+        if: steps.change-type.outputs.is_release == 'true'
+        id: get-version
+        run: |
+          if [ -f "pyproject.toml" ]; then
+            CURRENT_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+            if [ -z "$CURRENT_VERSION" ]; then
+              echo "::error::Could not extract version from pyproject.toml"
+              exit 1
+            fi
+          else
+            echo "::error::pyproject.toml not found"
+            exit 1
+          fi
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version from pyproject.toml: $CURRENT_VERSION"
+
+      - name: Get previous version from git tags
+        if: steps.change-type.outputs.is_release == 'true'
+        id: get-previous-version
+        run: |
+          # Get the latest git tag (previous version)
+          PREVIOUS_VERSION=$(git tag --sort=-version:refname | head -n 1 | sed 's/^v//' || echo "0.0.0")
+          
+          # If no tags exist, use 0.0.0
+          if [ -z "$PREVIOUS_VERSION" ]; then
+            PREVIOUS_VERSION="0.0.0"
+          fi
+          
+          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version from git tags: $PREVIOUS_VERSION"
 
       - name: Update changelog for PR
         run: |
@@ -84,186 +143,8 @@ jobs:
             exit 1
           fi
 
-      - name: Validate changes before commit
-        run: |
-          # Check if changelog exists and is valid
-          if [ ! -f "CHANGELOG.md" ]; then
-            echo "::error::CHANGELOG.md not found"
-            exit 1
-          fi
-          
-          # Basic validation of changelog format
-          if ! grep -q "## \[Unreleased\]" CHANGELOG.md; then
-            echo "::error::Invalid changelog format - missing [Unreleased] section"
-            exit 1
-          fi
-          
-          echo "Changelog validation passed"
-
-      - name: Commit and push changes
-        run: |
-          set -e
-          
-          # Configure git
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-          # Check if there are changes to commit
-          if git diff --quiet CHANGELOG.md; then
-            echo "No changes to commit"
-            exit 0
-          fi
-
-          # Add files
-          git add CHANGELOG.md
-
-          # Create commit message
-          COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
-
-          # Commit and push
-          git commit -m "$COMMIT_MSG"
-          git push origin ${{ github.ref_name }}
-
-      - name: Summary
-        run: |
-          echo "## Changelog Update Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Updated changelog for PR #${{ steps.pr-info.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Added to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Changelog updated successfully" >> $GITHUB_STEP_SUMMARY
-
-  release-version:
-    if: github.event.pull_request.merged == true && (contains(github.event.pull_request.labels.*.name, 'major') || contains(github.event.pull_request.labels.*.name, 'minor') || contains(github.event.pull_request.labels.*.name, 'patch'))
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Cache Poetry dependencies
-        uses: actions/cache@v4
-        with:
-          path: .venv
-          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock', '**/pyproject.toml') }}
-          restore-keys: |
-            poetry-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-ansi --no-root
-
-      - name: Extract and validate PR info
-        id: pr-info
-        run: |
-          # Extract PR information with validation
-          PR_NUM="${{ github.event.pull_request.number }}"
-          PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g')
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          PR_URL="${{ github.event.pull_request.html_url }}"
-          LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
-          
-          # Validate required fields
-          if [ -z "$PR_NUM" ] || [ -z "$PR_TITLE" ] || [ -z "$PR_AUTHOR" ] || [ -z "$PR_URL" ]; then
-            echo "::error::Missing required PR information"
-            exit 1
-          fi
-          
-          echo "pr_num=$PR_NUM" >> $GITHUB_OUTPUT
-          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
-          echo "pr_author=$PR_AUTHOR" >> $GITHUB_OUTPUT
-          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-          echo "pr_labels=$LABELS" >> $GITHUB_OUTPUT
-
-      - name: Determine change type and release type from labels
-        id: change-type
-        run: |
-          LABELS="${{ steps.pr-info.outputs.pr_labels }}"
-          
-          # Default values
-          SECTION="Changed"
-          RELEASE_TYPE=""
-          
-          # Check for version labels first
-          case "$LABELS" in
-            *"major"*) RELEASE_TYPE="major" ;;
-            *"minor"*) RELEASE_TYPE="minor" ;;
-            *"patch"*) RELEASE_TYPE="patch" ;;
-          esac
-          
-          # Check labels to categorize the change
-          case "$LABELS" in
-            *"breaking"*) SECTION="Breaking Changes" ;;
-            *"security"*) SECTION="Security" ;;
-            *"feature"*|*"enhancement"*) SECTION="Added" ;;
-            *"bug"*|*"fix"*) SECTION="Fixed" ;;
-            *"deprecated"*) SECTION="Deprecated" ;;
-            *"removed"*) SECTION="Removed" ;;
-            *"performance"*) SECTION="Performance" ;;
-            *"documentation"*|*"docs"*) SECTION="Documentation" ;;
-          esac
-          
-          echo "section=$SECTION" >> $GITHUB_OUTPUT
-          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
-          echo "Change type: $SECTION"
-          echo "Release type: $RELEASE_TYPE"
-
-      - name: Get current version from pyproject.toml
-        id: get-version
-        run: |
-          if [ -f "pyproject.toml" ]; then
-            CURRENT_VERSION=$(poetry version -s 2>/dev/null || echo "0.0.0")
-          else
-            echo "::error::pyproject.toml not found"
-            exit 1
-          fi
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "Current version from pyproject.toml: $CURRENT_VERSION"
-
-      - name: Add PR entry to changelog first
-        run: |
-          python3 .github/workflows/scripts/changelog_updater.py \
-            --action add \
-            --section "${{ steps.change-type.outputs.section }}" \
-            --pr-title "${{ steps.pr-info.outputs.pr_title }}" \
-            --pr-author "${{ steps.pr-info.outputs.pr_author }}" \
-            --pr-num "${{ steps.pr-info.outputs.pr_num }}" \
-            --pr-url "${{ steps.pr-info.outputs.pr_url }}"
-          
-          if [ $? -ne 0 ]; then
-            echo "::error::Failed to add PR to changelog"
-            exit 1
-          fi
-
-      - name: Get previous version from git tags
-        id: get-previous-version
-        run: |
-          # Get the latest git tag (previous version)
-          PREVIOUS_VERSION=$(git tag --sort=-version:refname | head -n 1 | sed 's/^v//' || echo "0.0.0")
-          
-          # If no tags exist, use 0.0.0
-          if [ -z "$PREVIOUS_VERSION" ]; then
-            PREVIOUS_VERSION="0.0.0"
-          fi
-          
-          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
-          echo "Previous version from git tags: $PREVIOUS_VERSION"
-
       - name: Release version in changelog
+        if: steps.change-type.outputs.is_release == 'true'
         id: release-version
         run: |
           set -e
@@ -321,20 +202,34 @@ jobs:
             exit 0
           fi
 
-          # Add files
+          # Add files first before pulling
           git add CHANGELOG.md
 
-          # Create commit message
-          COMMIT_MSG="docs: Release changelog for version ${{ steps.release-version.outputs.new_version }} (PR #${{ steps.pr-info.outputs.pr_num }})"
+          # Create commit message based on whether this is a release
+          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
+            COMMIT_MSG="docs: Release changelog for version ${{ steps.release-version.outputs.new_version }} (PR #${{ steps.pr-info.outputs.pr_num }})"
+          else
+            COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
+          fi
 
-          # Commit and push
+          # Commit changes first
           git commit -m "$COMMIT_MSG"
-          git push origin ${{ github.ref_name }}
+
+          # Pull latest changes with rebase and push
+          git pull --rebase origin main
+          git push origin main
 
       - name: Summary
         run: |
-          echo "## Version Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Added PR #${{ steps.pr-info.outputs.pr_num }} to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Release type detected: ${{ steps.change-type.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
+            echo "## Version Release Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Added PR #${{ steps.pr-info.outputs.pr_num }} to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Release type detected: ${{ steps.change-type.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## Changelog Update Summary" >> $GITHUB_STEP_SUMMARY
+            echo "- Updated changelog for PR #${{ steps.pr-info.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Added to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Changelog updated successfully" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -222,17 +222,13 @@ jobs:
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
+
       - name: Create GitHub Release
         if: needs.detect-tags.outputs.environment == 'prod'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.build.outputs.version }}
           name: Release ${{ needs.build.outputs.version }}
-          body: |
-            Released version ${{ needs.build.outputs.version }} to ${{ needs.detect-tags.outputs.environment == 'prod' && 'PyPI' || 'TestPyPI' }}
-            
-            Environment: ${{ needs.detect-tags.outputs.environment }}
-            Version Type: ${{ needs.detect-tags.outputs.version-type }}
-            Package: aurite-agents==${{ needs.build.outputs.version }}
+          body: "Release version ${{ needs.build.outputs.version }}"
           draft: false
           prerelease: false
