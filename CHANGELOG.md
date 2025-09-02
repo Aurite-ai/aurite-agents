@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [0.3.28] - 2025-09-02
+### Changed
+- test: Merge changelog and release automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#159](https://github.com/Aurite-ai/aurite-agents/pull/159)
+
+## [0.3.28] - 2025-09-02
 ### Fixed
 - fix: github handling in git automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#156](https://github.com/Aurite-ai/aurite-agents/pull/156)
 ### Changed
