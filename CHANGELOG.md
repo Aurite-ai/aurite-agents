@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+
+### Fixed
+- fix: test releases now trigger timestamp ([@jwilcox17](https://github.com/jwilcox17)) [#163](https://github.com/Aurite-ai/aurite-agents/pull/163)
 ## [0.3.28] - 2025-09-02
 ### Changed
 - test: add fixed version validation test for release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#162](https://github.com/Aurite-ai/aurite-agents/pull/162)
