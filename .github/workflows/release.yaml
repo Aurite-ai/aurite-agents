@@ -201,8 +201,16 @@ jobs:
             TIMESTAMP=$(date +"%Y%m%d%H%M%S")
             TEST_VERSION="${CURRENT_VERSION}rc${TIMESTAMP}"
             
+            echo "🧪 Test run - setting pre-release version: $TEST_VERSION"
+            
+            # Update pyproject.toml with test version for building
+            poetry version "$TEST_VERSION"
+            
+            # Verify the version was set correctly
+            ACTUAL_VERSION=$(poetry version -s)
+            echo "Verified version in pyproject.toml: $ACTUAL_VERSION"
+            
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
-            echo "🧪 Test run - using pre-release version: $TEST_VERSION"
           fi
 
       - name: Build final package
