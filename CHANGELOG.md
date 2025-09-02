@@ -8,9 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.3.28] - 2025-09-02
 ### Fixed
 - fix: github handling in git automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#156](https://github.com/Aurite-ai/aurite-agents/pull/156)
 ### Changed
+- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#158](https://github.com/Aurite-ai/aurite-agents/pull/158)
 - test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#155](https://github.com/Aurite-ai/aurite-agents/pull/155)
 - fix: add git synchronization to release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#154](https://github.com/Aurite-ai/aurite-agents/pull/154)
 - test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#153](https://github.com/Aurite-ai/aurite-agents/pull/153)
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added PyPI release automation workflow for quicker release ([@jwilcox17](https://github.com/jwilcox17)) [#145](https://github.com/Aurite-ai/aurite-agents/pull/145)
 - Add automated changelog management workflow ([@jwilcox17](https://github.com/jwilcox17)) [#139](https://github.com/Aurite-ai/aurite-agents/pull/139)
+
 ## [0.3.28] - 2025-08-20
 
 ### 🚀 Major Release: Framework Enhancements & Aurite Studio Launch!
@@ -75,5 +78,5 @@ This release represents over a month of intensive development, transforming Auri
 - Logging improved: Removed unnecessary logging and colored the most important log statements (different color for each framework layer).
 - Agent final response improved: Now handled through a Pydantic model, replacing a simple Python dict. This simplifies retrieving the agent's response (e.g., `response_text = agent_result.primary_text`) and includes built-in error handling.
 
-[Unreleased]: https://github.com/aurite-agents/aurite-agents/compare/v0.3.28...HEAD
+[Unreleased]: https://github.com/Aurite-ai/aurite-agents/compare/v0.3.28...HEAD
 [0.3.28]: https://github.com/aurite-agents/aurite-agents/compare/v0.2.17...v0.3.28
