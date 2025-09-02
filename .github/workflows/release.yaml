@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Update Changelog"]
     types: [completed]
-    branches: [main]
+    branches: [none]
 
 permissions:
   contents: write

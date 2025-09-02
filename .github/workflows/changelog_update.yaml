@@ -56,6 +56,8 @@ jobs:
           SECTION="Changed"
           RELEASE_TYPE=""
           IS_RELEASE="false"
+          ENVIRONMENT=""
+          SHOULD_RELEASE="false"
           
           # Check for version labels to determine if this is a release
           case "$LABELS" in
@@ -63,6 +65,17 @@ jobs:
             *"minor"*) RELEASE_TYPE="minor"; IS_RELEASE="true" ;;
             *"patch"*) RELEASE_TYPE="patch"; IS_RELEASE="true" ;;
           esac
+          
+          # Check for environment labels for PyPI release
+          if [[ "$IS_RELEASE" == "true" ]]; then
+            if echo "$LABELS" | grep -q "prod"; then
+              ENVIRONMENT="prod"
+              SHOULD_RELEASE="true"
+            elif echo "$LABELS" | grep -q "test"; then
+              ENVIRONMENT="test"
+              SHOULD_RELEASE="true"
+            fi
+          fi
           
           # First check PR title for conventional commit prefixes
           case "$PR_TITLE" in
@@ -92,9 +105,13 @@ jobs:
           echo "section=$SECTION" >> $GITHUB_OUTPUT
           echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
           echo "is_release=$IS_RELEASE" >> $GITHUB_OUTPUT
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "should_release=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
           echo "Change type: $SECTION (from title: '$PR_TITLE', labels: '$LABELS')"
           echo "Release type: $RELEASE_TYPE"
           echo "Is release: $IS_RELEASE"
+          echo "Environment: $ENVIRONMENT"
+          echo "Should release to PyPI: $SHOULD_RELEASE"
 
       - name: Get current version from pyproject.toml
         if: steps.change-type.outputs.is_release == 'true'
@@ -219,6 +236,129 @@ jobs:
           git pull --rebase origin main
           git push origin main
 
+      # ============ PYPI RELEASE SECTION ============
+
+      - name: Install Poetry
+        if: steps.change-type.outputs.should_release == 'true'
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        if: steps.change-type.outputs.should_release == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: poetry-${{ runner.os }}-${{ hashFiles('**/poetry.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            poetry-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.change-type.outputs.should_release == 'true'
+        run: poetry install --no-interaction --no-ansi
+
+      - name: Test build package
+        if: steps.change-type.outputs.should_release == 'true'
+        run: |
+          # Clean any existing dist directory first
+          rm -rf dist/
+          poetry build
+
+      - name: Verify build artifacts
+        if: steps.change-type.outputs.should_release == 'true'
+        run: |
+          # Ensure build artifacts exist and are valid
+          if [ ! -d "dist/" ] || [ -z "$(ls -A dist/)" ]; then
+            echo "::error::Build artifacts not found in dist/"
+            exit 1
+          fi
+          
+          # List build artifacts
+          echo "Build artifacts created:"
+          ls -la dist/
+          
+          # Verify wheel file exists
+          if ! ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "::error::No .whl file found in dist/"
+            exit 1
+          fi
+          
+          echo "Wheel file successfully created"
+
+      - name: Get version for test or bump version for production
+        if: steps.change-type.outputs.should_release == 'true'
+        id: version-bump
+        run: |
+          set -e
+          
+          if [[ "${{ steps.change-type.outputs.environment }}" == "prod" ]]; then
+            # Production run - bump version and tag
+            # Configure git
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # Sync with remote to get latest changes from changelog workflow
+            echo "Fetching latest changes from remote..."
+            git fetch origin
+            git pull origin main --rebase
+            
+            # Clean dist directory from test build
+            rm -rf dist/
+            
+            # Bump version using Poetry
+            poetry version ${{ steps.change-type.outputs.release_type }}
+            NEW_VERSION=$(poetry version -s)
+            
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "New version: $NEW_VERSION"
+            
+            # Commit version bump
+            git add pyproject.toml
+            git commit -m "chore: bump version to $NEW_VERSION"
+            git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+            
+            # Push changes and tag
+            git push origin main
+            git push origin "v$NEW_VERSION"
+          else
+            # Test run - use current version with pre-release suffix
+            CURRENT_VERSION=$(poetry version -s)
+            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            TEST_VERSION="${CURRENT_VERSION}rc${TIMESTAMP}"
+            
+            echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
+            echo "🧪 Test run - using pre-release version: $TEST_VERSION"
+          fi
+
+      - name: Build final package
+        if: steps.change-type.outputs.should_release == 'true'
+        run: poetry build
+
+      - name: Publish to TestPyPI
+        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'test'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          
+      - name: Publish to PyPI
+        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Create GitHub Release
+        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version-bump.outputs.version }}
+          name: Release ${{ steps.version-bump.outputs.version }}
+          body: "Release version ${{ steps.version-bump.outputs.version }}"
+          draft: false
+          prerelease: false
+
       - name: Summary
         run: |
           if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
@@ -226,6 +366,21 @@ jobs:
             echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
             echo "- Added PR #${{ steps.pr-info.outputs.pr_num }} to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
             echo "- Release type detected: ${{ steps.change-type.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Environment: ${{ steps.change-type.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "${{ steps.change-type.outputs.should_release }}" == "true" ]; then
+              echo "- 🚀 **PyPI Release Triggered!**" >> $GITHUB_STEP_SUMMARY
+              echo "- Published to: ${{ steps.change-type.outputs.environment == 'prod' && 'Production PyPI' || 'Test PyPI' }}" >> $GITHUB_STEP_SUMMARY
+              if [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
+                echo "- Version bumped to: ${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+                echo "- GitHub release created: v${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- Test version: ${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "- PyPI Release skipped (no environment label)" >> $GITHUB_STEP_SUMMARY
+            fi
+            
             echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
           else
             echo "## Changelog Update Summary" >> $GITHUB_STEP_SUMMARY
