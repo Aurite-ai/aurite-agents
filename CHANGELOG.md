@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.28] - 2025-09-02
 ### Changed
+- test: add fixed version validation test for release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#162](https://github.com/Aurite-ai/aurite-agents/pull/162)
+
+## [0.3.28] - 2025-09-02
+### Changed
 - test: add workflow validation test file for release automation ([@jitenoswal](https://github.com/jitenoswal)) [#161](https://github.com/Aurite-ai/aurite-agents/pull/161)
 ### Fixed
 - fix: improve release workflow PR info extraction from commit messages ([@jitenoswal](https://github.com/jitenoswal)) [#160](https://github.com/Aurite-ai/aurite-agents/pull/160)
