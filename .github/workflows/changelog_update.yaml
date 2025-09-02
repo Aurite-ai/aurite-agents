@@ -114,7 +114,7 @@ jobs:
           echo "Should release to PyPI: $SHOULD_RELEASE"
 
       - name: Get current version from pyproject.toml
-        if: steps.change-type.outputs.is_release == 'true'
+        if: steps.change-type.outputs.should_release == 'true'
         id: get-version
         run: |
           if [ -f "pyproject.toml" ]; then
@@ -131,7 +131,7 @@ jobs:
           echo "Current version from pyproject.toml: $CURRENT_VERSION"
 
       - name: Get previous version from git tags
-        if: steps.change-type.outputs.is_release == 'true'
+        if: steps.change-type.outputs.is_release == 'true' && steps.change-type.outputs.environment == 'prod'
         id: get-previous-version
         run: |
           # Get the latest git tag (previous version)
@@ -161,7 +161,7 @@ jobs:
           fi
 
       - name: Release version in changelog
-        if: steps.change-type.outputs.is_release == 'true'
+        if: steps.change-type.outputs.is_release == 'true' && steps.change-type.outputs.environment == 'prod'
         id: release-version
         run: |
           set -e
@@ -222,8 +222,8 @@ jobs:
           # Add files first before pulling
           git add CHANGELOG.md
 
-          # Create commit message based on whether this is a release
-          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
+          # Create commit message based on whether this is a production release
+          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ] && [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
             COMMIT_MSG="docs: Release changelog for version ${{ steps.release-version.outputs.new_version }} (PR #${{ steps.pr-info.outputs.pr_num }})"
           else
             COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
@@ -323,13 +323,16 @@ jobs:
             git push origin main
             git push origin "v$NEW_VERSION"
           else
-            # Test run - use current version with pre-release suffix
+            # Test run - use current version with pre-release suffix (no actual version bump)
             CURRENT_VERSION=$(poetry version -s)
-            TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+            TIMESTAMP=$(date +"%m%d%H%M")
             TEST_VERSION="${CURRENT_VERSION}rc${TIMESTAMP}"
             
+            # Temporarily update pyproject.toml for the build only
+            poetry version "$TEST_VERSION"
+            
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
-            echo "🧪 Test run - using pre-release version: $TEST_VERSION"
+            echo "🧪 Test run - using pre-release version: $TEST_VERSION (temporary, not committed)"
           fi
 
       - name: Build final package
@@ -363,10 +366,16 @@ jobs:
         run: |
           if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
             echo "## Version Release Summary" >> $GITHUB_STEP_SUMMARY
-            echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
             echo "- Added PR #${{ steps.pr-info.outputs.pr_num }} to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
             echo "- Release type detected: ${{ steps.change-type.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
             echo "- Environment: ${{ steps.change-type.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+            
+            if [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
+              echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+              echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- Test release - changelog NOT updated (no version bump)" >> $GITHUB_STEP_SUMMARY
+            fi
             
             if [ "${{ steps.change-type.outputs.should_release }}" == "true" ]; then
               echo "- 🚀 **PyPI Release Triggered!**" >> $GITHUB_STEP_SUMMARY
@@ -375,13 +384,11 @@ jobs:
                 echo "- Version bumped to: ${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
                 echo "- GitHub release created: v${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
               else
-                echo "- Test version: ${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+                echo "- Test version: ${{ steps.version-bump.outputs.version }} (temporary)" >> $GITHUB_STEP_SUMMARY
               fi
             else
               echo "- PyPI Release skipped (no environment label)" >> $GITHUB_STEP_SUMMARY
             fi
-            
-            echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
           else
             echo "## Changelog Update Summary" >> $GITHUB_STEP_SUMMARY
             echo "- Updated changelog for PR #${{ steps.pr-info.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
