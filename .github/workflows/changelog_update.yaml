@@ -259,15 +259,15 @@ jobs:
         if: steps.change-type.outputs.should_release == 'true'
         run: poetry install --no-interaction --no-ansi
 
-      - name: Test build package
-        if: steps.change-type.outputs.should_release == 'true'
+      - name: Test build package (production only)
+        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
         run: |
           # Clean any existing dist directory first
           rm -rf dist/
           poetry build
 
-      - name: Verify build artifacts
-        if: steps.change-type.outputs.should_release == 'true'
+      - name: Verify build artifacts (production only)
+        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
         run: |
           # Ensure build artifacts exist and are valid
           if [ ! -d "dist/" ] || [ -z "$(ls -A dist/)" ]; then
@@ -337,7 +337,10 @@ jobs:
 
       - name: Build final package
         if: steps.change-type.outputs.should_release == 'true'
-        run: poetry build
+        run: |
+          # Clean dist directory to ensure only correct version is built
+          rm -rf dist/
+          poetry build
 
       - name: Publish to TestPyPI
         if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'test'
