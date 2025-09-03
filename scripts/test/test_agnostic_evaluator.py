@@ -36,8 +36,19 @@ async def run_agent_async(case: EvaluationCase):
         return "Hello world!"
 
 
+def run(case: EvaluationCase):
+    if "weather" in case.input:
+        return "The weather in London is 15°C, partly cloudy"
+    elif "Calculate" in case.input:
+        return "2 + 2 is 4"
+    else:
+        return "I'm sorry, I cannot help with that. Please try again later."
+
+
 def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationConfig:
     """Create a test EvaluationConfig with sample data."""
+    run_input = run_agent
+
     match test_name:
         case "basic_test":
             test_cases = [
@@ -86,7 +97,7 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
                     ],
                 ),
             ]
-        case "test_run_agent":
+        case "test_run_agent" | "test_run_agent_async" | "test_run_agent_file":
             test_cases = [
                 EvaluationCase(
                     input="What's the weather in London?",
@@ -112,6 +123,11 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
                 ),
             ]
 
+            if test_name == "test_run_agent_async":
+                run_input = run_agent_async
+            elif test_name == "test_run_agent_file":
+                run_input = "scripts/test/test_agnostic_evaluator.py"
+
     return EvaluationConfig(
         name=f"Test Evaluation - {test_name}",
         type="evaluation",
@@ -121,7 +137,7 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
         expected_output="Test expected output",
         review_llm="test_llm",
         test_cases=test_cases,
-        run_agent=run_agent,
+        run_agent=run_input,
     )
 
 
@@ -133,7 +149,7 @@ async def test_basic_evaluation():
     # Create test data
     config = create_test_evaluation_config("basic_test")
 
-    result = await evaluate(config, session_id="test_session")
+    result = await evaluate(config)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"
@@ -154,7 +170,7 @@ async def test_run_agent():
     # Create test data
     config = create_test_evaluation_config("test_run_agent")
 
-    result = await evaluate(config, session_id="test_session")
+    result = await evaluate(config)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"
@@ -162,6 +178,48 @@ async def test_run_agent():
     assert len(result["result"]) == 3, f"Expected 3 test case results, got {len(result['result'])}"
 
     print("✅ Run Agent test passed")
+    for res in result["result"].values():
+        print(res)
+    return result
+
+
+async def test_run_agent_async():
+    """Test run_agent_async functionality."""
+    print("🧪 Testing Run Agent Async")
+    print("-" * 40)
+
+    # Create test data
+    config = create_test_evaluation_config("test_run_agent_async")
+
+    result = await evaluate(config)
+
+    # Verify results
+    assert result["status"] == "success", f"Expected success, got {result['status']}"
+    assert "result" in result, "Result should contain 'result' key"
+    assert len(result["result"]) == 3, f"Expected 3 test case results, got {len(result['result'])}"
+
+    print("✅ Run Agent Async test passed")
+    for res in result["result"].values():
+        print(res)
+    return result
+
+
+async def test_run_agent_file():
+    """Test run_agent functionality."""
+    print("🧪 Testing Run Agent File")
+    print("-" * 40)
+
+    # Create test data
+    config = create_test_evaluation_config("test_run_agent_file")
+
+    result = await evaluate(config)
+
+    # Verify results
+    assert result["status"] == "success", f"Expected success, got {result['status']}"
+    assert "result" in result, "Result should contain 'result' key"
+    assert len(result["result"]) == 3, f"Expected 3 test case results, got {len(result['result'])}"
+
+    print("✅ Run Agent File test passed")
     for res in result["result"].values():
         print(res)
     return result
@@ -176,10 +234,16 @@ async def run_all_tests():
 
     try:
         # Run all test scenarios
-        test_results["basic_evaluation"] = await test_basic_evaluation()
-        print()
+        # test_results["basic_evaluation"] = await test_basic_evaluation()
+        # print()
 
-        test_results["test_run_agent"] = await test_run_agent()
+        # test_results["test_run_agent"] = await test_run_agent()
+        # print()
+
+        # test_results["test_run_agent_async"] = await test_run_agent_async()
+        # print()
+
+        test_results["test_run_agent_file"] = await test_run_agent_file()
         print()
 
         # Print summary

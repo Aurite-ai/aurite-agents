@@ -19,7 +19,6 @@ from typing import (  # Added Dict and Literal
     List,
     Literal,
     Optional,
-    Union,
 )
 from uuid import UUID, uuid4
 
@@ -414,7 +413,8 @@ class EvaluationConfig(BaseComponentConfig):
         description="The JSON schema the component output is expected to have.",
     )
     test_cases: list[EvaluationCase] = Field(description="A list of evaluation test cases")
-    run_agent: Optional[Union[Callable[[EvaluationCase], Any], Callable[[EvaluationCase], Awaitable[Any]]]] = Field(
+    run_agent: Optional[Callable[[EvaluationCase], Any] | Callable[[EvaluationCase], Awaitable[Any]] | str] = Field(
         default=None,
-        description="A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output",
+        description="""A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output.
+        If str, it will be treated as the filepath to a python file with the function named 'run'""",
     )

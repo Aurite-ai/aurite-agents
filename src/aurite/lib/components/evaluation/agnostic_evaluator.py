@@ -11,6 +11,7 @@ from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.models.config.components import LLMConfig
 
 from ...models.config.components import EvaluationCase, EvaluationConfig
+from .agent_runner import AgentRunner
 
 # Need to adjust import path based on how tests are run relative to src
 # Assuming tests run from project root, this should work:
@@ -25,7 +26,6 @@ logger = logging.getLogger(__name__)
 async def evaluate(
     input: EvaluationConfig,
     executor: Optional["AuriteEngine"] = None,
-    session_id: Optional[str] = None,
 ) -> Any:
     """
     Evaluates one or more evaluation test cases
@@ -51,11 +51,12 @@ async def evaluate(
 
             llm_config = LLMConfig(**llm_config)
         else:
-            # default to hardcoded openai llm config
+            # default to hardcoded anthropic llm config
             llm_config = LLMConfig(
                 name="Default Eval",
                 type="llm",
                 model="claude-sonnet-4-20250514",
+                # model="claude-3-5-haiku-latest",
                 provider="anthropic",
                 temperature=0.1,
             )
@@ -91,7 +92,10 @@ async def _evaluate_case(
     output = case.output
     if not output:
         if run_agent:
-            if inspect.iscoroutinefunction(run_agent):
+            if type(run_agent) is str:
+                runner = AgentRunner(run_agent)
+                output = await runner.execute(case)
+            elif inspect.iscoroutinefunction(run_agent):
                 output = await run_agent(case)
             else:
                 output = run_agent(case)
