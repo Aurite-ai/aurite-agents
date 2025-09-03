@@ -1,10 +1,11 @@
 # tests/fixtures/custom_workflows/example_workflow.py
 import asyncio
+import inspect
 import json
 import logging
 
 # from aurite.lib.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional, Union
 
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.models.config.components import LLMConfig
@@ -60,7 +61,9 @@ async def evaluate(
             )
 
         llm_client = LiteLLMClient(llm_config)
-        tasks = [_evaluate_case(case=case, llm_client=llm_client) for case in input.test_cases]
+        tasks = [
+            _evaluate_case(case=case, llm_client=llm_client, run_agent=input.run_agent) for case in input.test_cases
+        ]
 
         results = await asyncio.gather(*tasks)
 
@@ -83,22 +86,33 @@ async def evaluate(
 async def _evaluate_case(
     case: EvaluationCase,
     llm_client: LiteLLMClient,
+    run_agent: Optional[Union[Callable[[EvaluationCase], Any], Callable[[EvaluationCase], Awaitable[Any]]]],
 ) -> dict:
+    output = case.output
+    if not output:
+        if run_agent:
+            if inspect.iscoroutinefunction(run_agent):
+                output = await run_agent(case)
+            else:
+                output = run_agent(case)
+        else:
+            raise ValueError(f"Case output and run_agent both undefined for case {case.id}")
+
     expectations_str = "\n".join(case.expectations)
     analysis_output = await llm_client.create_message(
         messages=[
             {
                 "role": "user",
-                "content": f"Expectations:\n{expectations_str}\n\nInput:{case.input}\n\nOutput:{case.output}",
+                "content": f"Expectations:\n{expectations_str}\n\nInput:{case.input}\n\nOutput:{output}",
             }
         ],
         tools=None,
-        system_prompt_override="""You are an expert Quality Assurance Engineer, your job is to review the output from an agent and make sure it meets a list of expectations.
-You final output should be your analysis of its performance, and a list of which expectations were broken (if any). These strings should be identical to the original expectation strings.
+        system_prompt_override="""You are an expert Quality Assurance Engineer. Your job is to review the output from an agent and make sure it meets a list of expectations.
+Your output should be your analysis of its performance, and a list of which expectations were broken (if any). These strings should be identical to the original expectation strings.
 
 Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do NOT format it as a code block (```). Here is a template: {{
 "analysis": "<your analysis here>",
-"expectations_broken": ["broken expectation 1", "broken expectation 2", "etc"]
+"expectations_broken": ["<broken expectation 1>", "<broken expectation 2>", "etc"]
 }}""",
     )
 

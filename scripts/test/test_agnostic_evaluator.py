@@ -18,55 +18,99 @@ from aurite.lib.components.evaluation.agnostic_evaluator import evaluate
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
 
 
+def run_agent(case: EvaluationCase):
+    if "weather" in case.input:
+        return "The weather in London is 15°C, partly cloudy"
+    elif "Calculate" in case.input:
+        return "2 + 2 is 4"
+    else:
+        return "Hello world!"
+
+
+async def run_agent_async(case: EvaluationCase):
+    if "weather" in case.input:
+        return "The weather in London is 15°C, partly cloudy"
+    elif "Calculate" in case.input:
+        return "2 + 2 is 4"
+    else:
+        return "Hello world!"
+
+
 def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationConfig:
     """Create a test EvaluationConfig with sample data."""
-
-    test_cases = [
-        EvaluationCase(
-            input="What's the weather in London?",
-            output="The weather in London is 15°C, partly cloudy",
-            expectations=[
-                "The output contains temperature information in celcius",
-                "The output mentions the city name",
-                "The output provides weather conditions",
-            ],
-        ),
-        EvaluationCase(
-            input="What's the weather in London?",
-            output="The weather is 15°C, partly cloudy",
-            expectations=[
-                "The output contains temperature information in celcius",
-                "The output mentions the city name",
-                "The output provides weather conditions",
-            ],
-        ),
-        EvaluationCase(
-            input="What's the weather in London?",
-            output="The weather in London is 62°F, partly cloudy",
-            expectations=[
-                "The output contains temperature information in celcius",
-                "The output mentions the city name",
-                "The output provides weather conditions",
-            ],
-        ),
-        EvaluationCase(
-            input="What's the weather in London?",
-            output="The weather in London is 15°C",
-            expectations=[
-                "The output contains temperature information in celcius",
-                "The output mentions the city name",
-                "The output provides weather conditions",
-            ],
-        ),
-        EvaluationCase(
-            input="Calculate 2 + 2",
-            output="2 + 2 = 4",
-            expectations=[
-                "The output provides the correct mathematical result",
-                "The output shows the calculation",
-            ],
-        ),
-    ]
+    match test_name:
+        case "basic_test":
+            test_cases = [
+                EvaluationCase(
+                    input="What's the weather in London?",
+                    output="The weather in London is 15°C, partly cloudy",
+                    expectations=[
+                        "The output contains temperature information in celcius",
+                        "The output mentions the city name",
+                        "The output provides weather conditions",
+                    ],
+                ),
+                EvaluationCase(
+                    input="What's the weather in London?",
+                    output="The weather is 15°C, partly cloudy",
+                    expectations=[
+                        "The output contains temperature information in celcius",
+                        "The output mentions the city name",
+                        "The output provides weather conditions",
+                    ],
+                ),
+                EvaluationCase(
+                    input="What's the weather in London?",
+                    output="The weather in London is 62°F, partly cloudy",
+                    expectations=[
+                        "The output contains temperature information in celcius",
+                        "The output mentions the city name",
+                        "The output provides weather conditions",
+                    ],
+                ),
+                EvaluationCase(
+                    input="What's the weather in London?",
+                    output="The weather in London is 15°C",
+                    expectations=[
+                        "The output contains temperature information in celcius",
+                        "The output mentions the city name",
+                        "The output provides weather conditions",
+                    ],
+                ),
+                EvaluationCase(
+                    input="Calculate 2 + 2",
+                    output="2 + 2 = 4",
+                    expectations=[
+                        "The output provides the correct mathematical result",
+                        "The output shows the calculation",
+                    ],
+                ),
+            ]
+        case "test_run_agent":
+            test_cases = [
+                EvaluationCase(
+                    input="What's the weather in London?",
+                    expectations=[
+                        "The output contains temperature information in celcius",
+                        "The output mentions the city name",
+                        "The output provides weather conditions",
+                    ],
+                ),
+                EvaluationCase(
+                    input="Calculate 2 + 2",
+                    expectations=[
+                        "The output provides the correct mathematical result",
+                        "The output shows the calculation",
+                    ],
+                ),
+                EvaluationCase(
+                    input="What is 2 + 2?",
+                    expectations=[
+                        "The output provides the correct mathematical result",
+                        "The output shows the calculation",
+                    ],
+                ),
+            ]
 
     return EvaluationConfig(
         name=f"Test Evaluation - {test_name}",
@@ -77,6 +121,7 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
         expected_output="Test expected output",
         review_llm="test_llm",
         test_cases=test_cases,
+        run_agent=run_agent,
     )
 
 
@@ -101,6 +146,27 @@ async def test_basic_evaluation():
     return result
 
 
+async def test_run_agent():
+    """Test run_agent functionality."""
+    print("🧪 Testing Run Agent")
+    print("-" * 40)
+
+    # Create test data
+    config = create_test_evaluation_config("test_run_agent")
+
+    result = await evaluate(config, session_id="test_session")
+
+    # Verify results
+    assert result["status"] == "success", f"Expected success, got {result['status']}"
+    assert "result" in result, "Result should contain 'result' key"
+    assert len(result["result"]) == 3, f"Expected 3 test case results, got {len(result['result'])}"
+
+    print("✅ Run Agent test passed")
+    for res in result["result"].values():
+        print(res)
+    return result
+
+
 async def run_all_tests():
     """Run all test scenarios."""
     print("🚀 Starting Agnostic Evaluator Tests")
@@ -111,6 +177,9 @@ async def run_all_tests():
     try:
         # Run all test scenarios
         test_results["basic_evaluation"] = await test_basic_evaluation()
+        print()
+
+        test_results["test_run_agent"] = await test_run_agent()
         print()
 
         # Print summary
