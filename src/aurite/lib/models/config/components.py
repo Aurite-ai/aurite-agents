@@ -10,7 +10,17 @@ This module provides:
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional  # Added Dict and Literal
+from typing import (  # Added Dict and Literal
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Union,
+)
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
@@ -380,9 +390,9 @@ class BaseCustomWorkflow:
 
 
 class EvaluationCase(BaseModel):
-    id: UUID = Field(description="A unique id for this evaluation test case", default_factory=uuid4)
+    id: UUID = Field(default_factory=uuid4, description="A unique id for this evaluation test case")
     input: str = Field(description="The user input supplied in this case")
-    output: Any = Field(description="The response from the component")
+    output: Optional[Any] = Field(default=None, description="The response from the component")
     expectations: list[str] = Field(
         description='A list of expectations about the output, like "The output contains the temperature in Celcius" or "The get_weather tool was called once".'
     )
@@ -404,3 +414,7 @@ class EvaluationConfig(BaseComponentConfig):
         description="The JSON schema the component output is expected to have.",
     )
     test_cases: list[EvaluationCase] = Field(description="A list of evaluation test cases")
+    run_agent: Optional[Union[Callable[[EvaluationCase], Any], Callable[[EvaluationCase], Awaitable[Any]]]] = Field(
+        default=None,
+        description="A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output",
+    )
