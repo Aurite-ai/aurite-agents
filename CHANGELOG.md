@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+### Documentation
+- docs: test for release pypi workflow ([@jitenoswal](https://github.com/jitenoswal)) [#165](https://github.com/Aurite-ai/aurite-agents/pull/165)
 ### Fixed
 - fix: test/prod release triggers ([@jwilcox17](https://github.com/jwilcox17)) [#164](https://github.com/Aurite-ai/aurite-agents/pull/164)
 - fix: test releases now trigger timestamp ([@jwilcox17](https://github.com/jwilcox17)) [#163](https://github.com/Aurite-ai/aurite-agents/pull/163)
