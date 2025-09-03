@@ -77,10 +77,21 @@ class AuriteKernel:
         # Initialize CacheManager with project-specific cache directory
         if self.project_root:
             cache_dir = self.project_root / ".aurite_cache"
-            self.cache_manager = CacheManager(cache_dir=cache_dir)
+            try:
+                # Test if we can create the cache directory
+                cache_dir.mkdir(exist_ok=True)
+                self.cache_manager = CacheManager(cache_dir=cache_dir)
+            except PermissionError:
+                # Fallback to container cache directory if permission denied
+                fallback_cache_dir = Path(os.getenv("CACHE_DIR", "/tmp/aurite_cache"))
+                logger.warning(
+                    f"Permission denied for project cache directory {cache_dir}, using fallback: {fallback_cache_dir}"
+                )
+                self.cache_manager = CacheManager(cache_dir=fallback_cache_dir)
         else:
-            # Fallback to current directory if no project root
-            self.cache_manager = CacheManager(cache_dir=Path(".aurite_cache"))
+            # Fallback to container cache directory if no project root
+            fallback_cache_dir = Path(os.getenv("CACHE_DIR", "/tmp/aurite_cache"))
+            self.cache_manager = CacheManager(cache_dir=fallback_cache_dir)
         self._db_engine = None
         self._is_shut_down = False
 

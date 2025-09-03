@@ -43,12 +43,6 @@
     "test:integration": "echo 'No integration tests for aurite-studio yet'",
     "eject": "react-scripts eject"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": {
     "production": [
       ">0.2%",

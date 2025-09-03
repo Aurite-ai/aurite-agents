@@ -17,21 +17,32 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.public
     container_name: aurite_backend
     ports:
       - "${PORT:-8000}:8000"
     volumes:
-      # Mount the entire project directory to /app in the container.
-      # This makes .aurite and all user configurations available to the application.
-      - .:/app
+      # Mount the project directory to /app/project (where Dockerfile.public expects it)
+      - .:/app/project
     env_file:
       - .env # Load environment variables from .env file
     environment:
-      # This ensures the backend container can connect to the postgres container
-      # using the service name 'postgres' as the host.
-      # Your .env file should set AURITE_DB_HOST=postgres
-      - DOCKER_ENV=true
+      # Use file-based mode for testing (default for most users)
+      AURITE_ENABLE_DB: "false"
+      # Database configuration (available if user wants to enable it)
+      AURITE_DB_TYPE: postgres
+      AURITE_DB_HOST: postgres  # Use the postgres service name
+      AURITE_DB_USER: ${AURITE_DB_USER:-postgres_user}
+      AURITE_DB_PASSWORD: ${AURITE_DB_PASSWORD:-postgres_password}
+      AURITE_DB_NAME: ${AURITE_DB_NAME:-aurite_storage}
+      # API configuration
+      API_KEY: ${API_KEY}
+      # Docker environment flag
+      DOCKER_ENV: "true"
+      # Override the default production ENV from Dockerfile.public for development
+      ENV: ${ENV:-development}
+      # Cache directory (using container's cache, not project)
+      CACHE_DIR: /app/cache
     depends_on:
       - postgres
     networks:
