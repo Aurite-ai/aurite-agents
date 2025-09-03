@@ -1,5 +1,6 @@
 # Git
 .git
+.gitignore
 
 # Python
 __pycache__/
@@ -48,3 +49,49 @@ htmlcov/
 
 # Node
 node_modules/
+
+# Documentation (not needed in runtime container)
+docs/
+*.md
+!README.md
+mkdocs.yml
+
+# Development and testing files
+tests/
+scripts/
+*.ipynb
+.github/
+.pre-commit-config.yaml
+
+# Frontend source files (keep built assets if any)
+frontend/packages/*/src/
+frontend/packages/*/tests/
+frontend/packages/*/node_modules/
+frontend/.commitlintrc.json
+frontend/.prettierignore
+frontend/.prettierrc.json
+frontend/eslint.config.js
+
+# Build artifacts and development files
+*.whl
+poetry.lock
+
+# Local development files
+docker-compose.yml
+docker-compose.example.yml
+*.log
+*.pid
+
+# Temporary and cache directories
+tmp/
+temp/
+.cache/
+
+# Security and development configs
+SECURITY.md
+CONTRIBUTORS.md
+CHANGELOG.md
+claude.md
+
+# OpenAPI spec (generated at runtime)
+openapi.yaml
