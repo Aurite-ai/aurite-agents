@@ -1,4 +1,4 @@
-name: Update Changelog
+name: Update Changelog and Release Version
 
 on:
   pull_request:
@@ -6,12 +6,24 @@ on:
     branches: [main]
 
 jobs:
-  update-changelog:
+  setup-and-changelog:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: read
+    outputs:
+      pr_num: ${{ steps.pr-info.outputs.pr_num }}
+      pr_title: ${{ steps.pr-info.outputs.pr_title }}
+      pr_author: ${{ steps.pr-info.outputs.pr_author }}
+      pr_url: ${{ steps.pr-info.outputs.pr_url }}
+      pr_labels: ${{ steps.pr-info.outputs.pr_labels }}
+      section: ${{ steps.change-type.outputs.section }}
+      release_type: ${{ steps.change-type.outputs.release_type }}
+      is_release: ${{ steps.change-type.outputs.is_release }}
+      environment: ${{ steps.change-type.outputs.environment }}
+      should_release: ${{ steps.change-type.outputs.should_release }}
+      current_version: ${{ steps.get-version.outputs.current_version }}
 
     steps:
       - name: Checkout repository
@@ -130,21 +142,6 @@ jobs:
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Current version from pyproject.toml: $CURRENT_VERSION"
 
-      - name: Get previous version from git tags
-        if: steps.change-type.outputs.is_release == 'true' && steps.change-type.outputs.environment == 'prod'
-        id: get-previous-version
-        run: |
-          # Get the latest git tag (previous version)
-          PREVIOUS_VERSION=$(git tag --sort=-version:refname | head -n 1 | sed 's/^v//' || echo "0.0.0")
-          
-          # If no tags exist, use 0.0.0
-          if [ -z "$PREVIOUS_VERSION" ]; then
-            PREVIOUS_VERSION="0.0.0"
-          fi
-          
-          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
-          echo "Previous version from git tags: $PREVIOUS_VERSION"
-
       - name: Update changelog for PR
         run: |
           python3 .github/workflows/scripts/changelog_updater.py \
@@ -157,35 +154,6 @@ jobs:
           
           if [ $? -ne 0 ]; then
             echo "::error::Failed to update changelog"
-            exit 1
-          fi
-
-      - name: Release version in changelog
-        if: steps.change-type.outputs.is_release == 'true' && steps.change-type.outputs.environment == 'prod'
-        id: release-version
-        run: |
-          set -e
-          
-          CURRENT_VERSION="${{ steps.get-version.outputs.current_version }}"
-          PREVIOUS_VERSION="${{ steps.get-previous-version.outputs.previous_version }}"
-          DATE=$(date '+%Y-%m-%d')
-
-          # Use the current version from pyproject.toml as the release version
-          NEW_VERSION="$CURRENT_VERSION"
-          
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Releasing version: $NEW_VERSION (previous: $PREVIOUS_VERSION)"
-
-          # Update changelog to release current unreleased changes
-          python3 .github/workflows/scripts/changelog_updater.py \
-            --action release \
-            --new-version "$NEW_VERSION" \
-            --current-version "$PREVIOUS_VERSION" \
-            --date "$DATE" \
-            --repo "${{ github.repository }}"
-          
-          if [ $? -ne 0 ]; then
-            echo "::error::Failed to release changelog"
             exit 1
           fi
 
@@ -222,12 +190,8 @@ jobs:
           # Add files first before pulling
           git add CHANGELOG.md
 
-          # Create commit message based on whether this is a production release
-          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ] && [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
-            COMMIT_MSG="docs: Release changelog for version ${{ steps.release-version.outputs.new_version }} (PR #${{ steps.pr-info.outputs.pr_num }})"
-          else
-            COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
-          fi
+          # Create commit message for changelog update
+          COMMIT_MSG="docs: Update changelog for PR #${{ steps.pr-info.outputs.pr_num }}"
 
           # Commit changes first
           git commit -m "$COMMIT_MSG"
@@ -236,10 +200,30 @@ jobs:
           git pull --rebase origin main
           git push origin main
 
-      # ============ PYPI RELEASE SECTION ============
+  build-and-publish:
+    needs: setup-and-changelog
+    if: needs.setup-and-changelog.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.setup-and-changelog.outputs.environment == 'prod' && 'pypi' || 'testpypi' }}
+      url: ${{ needs.setup-and-changelog.outputs.environment == 'prod' && 'https://pypi.org/p/aurite-agents' || 'https://test.pypi.org/p/aurite-agents' }}
+    permissions:
+      id-token: write
+    outputs:
+      build_version: ${{ steps.prepare-version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Install Poetry
-        if: steps.change-type.outputs.should_release == 'true'
         uses: snok/install-poetry@v1
         with:
           version: latest
@@ -247,7 +231,6 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Cache Poetry dependencies
-        if: steps.change-type.outputs.should_release == 'true'
         uses: actions/cache@v4
         with:
           path: .venv
@@ -256,18 +239,17 @@ jobs:
             poetry-${{ runner.os }}-
 
       - name: Install dependencies
-        if: steps.change-type.outputs.should_release == 'true'
         run: poetry install --no-interaction --no-ansi
 
       - name: Test build package (production only)
-        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
+        if: needs.setup-and-changelog.outputs.environment == 'prod'
         run: |
           # Clean any existing dist directory first
           rm -rf dist/
           poetry build
 
       - name: Verify build artifacts (production only)
-        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
+        if: needs.setup-and-changelog.outputs.environment == 'prod'
         run: |
           # Ensure build artifacts exist and are valid
           if [ ! -d "dist/" ] || [ -z "$(ls -A dist/)" ]; then
@@ -287,42 +269,12 @@ jobs:
           
           echo "Wheel file successfully created"
 
-      - name: Get version for test or bump version for production
-        if: steps.change-type.outputs.should_release == 'true'
-        id: version-bump
+      - name: Prepare version for build
+        id: prepare-version
         run: |
           set -e
           
-          if [[ "${{ steps.change-type.outputs.environment }}" == "prod" ]]; then
-            # Production run - bump version and tag
-            # Configure git
-            git config --local user.email "action@github.com"
-            git config --local user.name "GitHub Action"
-            
-            # Sync with remote to get latest changes from changelog workflow
-            echo "Fetching latest changes from remote..."
-            git fetch origin
-            git pull origin main --rebase
-            
-            # Clean dist directory from test build
-            rm -rf dist/
-            
-            # Bump version using Poetry
-            poetry version ${{ steps.change-type.outputs.release_type }}
-            NEW_VERSION=$(poetry version -s)
-            
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "New version: $NEW_VERSION"
-            
-            # Commit version bump
-            git add pyproject.toml
-            git commit -m "chore: bump version to $NEW_VERSION"
-            git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
-            
-            # Push changes and tag
-            git push origin main
-            git push origin "v$NEW_VERSION"
-          else
+          if [[ "${{ needs.setup-and-changelog.outputs.environment }}" == "test" ]]; then
             # Test run - use current version with pre-release suffix (no actual version bump)
             CURRENT_VERSION=$(poetry version -s)
             TIMESTAMP=$(date +"%m%d%H%M")
@@ -332,31 +284,145 @@ jobs:
             poetry version "$TEST_VERSION"
             
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
-            echo "🧪 Test run - using pre-release version: $TEST_VERSION (temporary, not committed)"
+            echo "Test run - using pre-release version: $TEST_VERSION (temporary, not committed)"
+          else
+            # Production - use current version
+            CURRENT_VERSION=$(poetry version -s)
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            echo "Production build - using current version: $CURRENT_VERSION"
           fi
 
-      - name: Build final package
-        if: steps.change-type.outputs.should_release == 'true'
+      - name: Build package
         run: |
           # Clean dist directory to ensure only correct version is built
           rm -rf dist/
           poetry build
 
       - name: Publish to TestPyPI
-        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'test'
+        if: needs.setup-and-changelog.outputs.environment == 'test'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           
       - name: Publish to PyPI
-        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
+        if: needs.setup-and-changelog.outputs.environment == 'prod'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
+  finalize-release:
+    needs: [setup-and-changelog, build-and-publish]
+    if: needs.setup-and-changelog.outputs.should_release == 'true' && needs.setup-and-changelog.outputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python and Poetry
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Get previous version from git tags
+        id: get-previous-version
+        run: |
+          # Get the latest git tag (previous version)
+          PREVIOUS_VERSION=$(git tag --sort=-version:refname | head -n 1 | sed 's/^v//' || echo "0.0.0")
+          
+          # If no tags exist, use 0.0.0
+          if [ -z "$PREVIOUS_VERSION" ]; then
+            PREVIOUS_VERSION="0.0.0"
+          fi
+          
+          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+          echo "Previous version from git tags: $PREVIOUS_VERSION"
+
+      - name: Bump version and create tag
+        id: version-bump
+        run: |
+          set -e
+          
+          # Configure git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Sync with remote to get latest changes from changelog workflow
+          echo "Fetching latest changes from remote..."
+          git fetch origin
+          git pull origin main --rebase
+          
+          # Bump version using Poetry
+          poetry version ${{ needs.setup-and-changelog.outputs.release_type }}
+          NEW_VERSION=$(poetry version -s)
+          
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+          
+          # Commit version bump
+          git add pyproject.toml
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          
+          # Push changes and tag
+          git push origin main
+          git push origin "v$NEW_VERSION"
+
+      - name: Release version in changelog
+        id: release-version
+        run: |
+          set -e
+          
+          CURRENT_VERSION="${{ needs.setup-and-changelog.outputs.current_version }}"
+          PREVIOUS_VERSION="${{ steps.get-previous-version.outputs.previous_version }}"
+          NEW_VERSION="${{ steps.version-bump.outputs.version }}"
+          DATE=$(date '+%Y-%m-%d')
+          
+          echo "Releasing changelog version: $NEW_VERSION (previous: $PREVIOUS_VERSION)"
+
+          # Update changelog to release current unreleased changes
+          python3 .github/workflows/scripts/changelog_updater.py \
+            --action release \
+            --new-version "$NEW_VERSION" \
+            --current-version "$PREVIOUS_VERSION" \
+            --date "$DATE" \
+            --repo "${{ github.repository }}"
+          
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to release changelog"
+            exit 1
+          fi
+
+      - name: Commit changelog release
+        run: |
+          set -e
+          
+          # Check if there are changes to commit
+          if git diff --quiet CHANGELOG.md; then
+            echo "No changelog changes to commit"
+            exit 0
+          fi
+
+          # Add and commit changelog changes
+          git add CHANGELOG.md
+          git commit -m "docs: Release changelog for version ${{ steps.version-bump.outputs.version }}"
+          
+          # Push changelog release
+          git push origin main
+
       - name: Create GitHub Release
-        if: steps.change-type.outputs.should_release == 'true' && steps.change-type.outputs.environment == 'prod'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version-bump.outputs.version }}
@@ -365,36 +431,40 @@ jobs:
           draft: false
           prerelease: false
 
+  summary:
+    needs: [setup-and-changelog, build-and-publish]
+    if: always() && needs.setup-and-changelog.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Summary
         run: |
-          if [ "${{ steps.change-type.outputs.is_release }}" == "true" ]; then
+          if [ "${{ needs.setup-and-changelog.outputs.is_release }}" == "true" ]; then
             echo "## Version Release Summary" >> $GITHUB_STEP_SUMMARY
-            echo "- Added PR #${{ steps.pr-info.outputs.pr_num }} to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Release type detected: ${{ steps.change-type.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Environment: ${{ steps.change-type.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Added PR #${{ needs.setup-and-changelog.outputs.pr_num }} to section: ${{ needs.setup-and-changelog.outputs.section }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Release type detected: ${{ needs.setup-and-changelog.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Environment: ${{ needs.setup-and-changelog.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
             
-            if [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
-              echo "- Released changelog for version: ${{ steps.release-version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
-              echo "- Changelog released successfully" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "- Test release - changelog NOT updated (no version bump)" >> $GITHUB_STEP_SUMMARY
-            fi
-            
-            if [ "${{ steps.change-type.outputs.should_release }}" == "true" ]; then
-              echo "- 🚀 **PyPI Release Triggered!**" >> $GITHUB_STEP_SUMMARY
-              echo "- Published to: ${{ steps.change-type.outputs.environment == 'prod' && 'Production PyPI' || 'Test PyPI' }}" >> $GITHUB_STEP_SUMMARY
-              if [ "${{ steps.change-type.outputs.environment }}" == "prod" ]; then
-                echo "- Version bumped to: ${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-                echo "- GitHub release created: v${{ steps.version-bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ needs.setup-and-changelog.outputs.environment }}" == "prod" ]; then
+              if [ "${{ needs.build-and-publish.result }}" == "success" ]; then
+                echo "- **PyPI Release Successful!**" >> $GITHUB_STEP_SUMMARY
+                echo "- Published to: Production PyPI" >> $GITHUB_STEP_SUMMARY
+                echo "- Version will be bumped after successful PyPI upload" >> $GITHUB_STEP_SUMMARY
               else
-                echo "- Test version: ${{ steps.version-bump.outputs.version }} (temporary)" >> $GITHUB_STEP_SUMMARY
+                echo "- PyPI Release Failed" >> $GITHUB_STEP_SUMMARY
               fi
             else
-              echo "- PyPI Release skipped (no environment label)" >> $GITHUB_STEP_SUMMARY
+              if [ "${{ needs.build-and-publish.result }}" == "success" ]; then
+                echo "- **Test PyPI Release Successful!**" >> $GITHUB_STEP_SUMMARY
+                echo "- Published to: Test PyPI" >> $GITHUB_STEP_SUMMARY
+                echo "- Test version: ${{ needs.build-and-publish.outputs.build_version }} (temporary)" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "- Test PyPI Release Failed" >> $GITHUB_STEP_SUMMARY
+              fi
             fi
           else
             echo "## Changelog Update Summary" >> $GITHUB_STEP_SUMMARY
-            echo "- Updated changelog for PR #${{ steps.pr-info.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
-            echo "- Added to section: ${{ steps.change-type.outputs.section }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Updated changelog for PR #${{ needs.setup-and-changelog.outputs.pr_num }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Added to section: ${{ needs.setup-and-changelog.outputs.section }}" >> $GITHUB_STEP_SUMMARY
             echo "- Changelog updated successfully" >> $GITHUB_STEP_SUMMARY
           fi
