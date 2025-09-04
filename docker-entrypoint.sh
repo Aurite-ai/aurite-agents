@@ -77,7 +77,7 @@ init_aurite_project() {
 
     # Create a default workspace in the current directory
     log_info "Creating workspace 'default_workspace'..."
-    if python -m aurite.bin.cli init --workspace default_workspace; then
+    if python -m aurite.bin.cli.main init --workspace default_workspace; then
         log_info "Workspace created successfully"
     else
         log_error "Failed to create workspace"
@@ -86,7 +86,7 @@ init_aurite_project() {
 
     # Create a default project within the workspace
     log_info "Creating project 'default'..."
-    if python -m aurite.bin.cli init --project default; then
+    if python -m aurite.bin.cli.main init --project default; then
         log_info "Project created successfully"
     else
         log_error "Failed to create project"
