@@ -125,6 +125,11 @@ async def _evaluate_case(
         else:
             raise ValueError(f"Case output and run_agent both undefined for case {case.id}")
 
+    result = {
+        "input": case.input,
+        "output": output,
+    }
+
     if request.expected_schema:
         try:
             if isinstance(output, str):
@@ -140,13 +145,26 @@ async def _evaluate_case(
             return {
                 "analysis": "Schema Validation Failed: Component did not output valid JSON",
                 "grade": "FAIL",
+                **result,
             }
         except jsonschema.ValidationError as e:
-            return {"analysis": f"Schema Validation Failed: {e.message}", "grade": "FAIL"}
+            return {
+                "analysis": f"Schema Validation Failed: {e.message}",
+                "grade": "FAIL",
+                **result,
+            }
         except jsonschema.SchemaError as e:
-            return {"analysis": f"Schema Validation Failed: Invalid schema: {e.message}", "grade": "FAIL"}
+            return {
+                "analysis": f"Schema Validation Failed: Invalid schema: {e.message}",
+                "grade": "FAIL",
+                **result,
+            }
         except TypeError as e:
-            return {"analysis": f"Schema Validation Failed: {e}", "grade": "FAIL"}
+            return {
+                "analysis": f"Schema Validation Failed: {e}",
+                "grade": "FAIL",
+                **result,
+            }
 
     expectations_str = "\n".join(case.expectations)
     analysis_output = await llm_client.create_message(
@@ -177,7 +195,7 @@ Format your output as JSON. IMPORTANT: Do not include any other text before or a
     if "expectations_broken" not in analysis_json or len(analysis_json["expectations_broken"]) > 1:
         analysis_json["grade"] = "FAIL"
 
-    return analysis_json
+    return {**result, **analysis_json}
 
 
 def _clean_thinking_output(output: str) -> str:
