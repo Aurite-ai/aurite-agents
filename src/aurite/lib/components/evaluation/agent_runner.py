@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from ...models.config.components import EvaluationCase
+from ...models.api.requests import EvaluationCase
 
 logger = logging.getLogger(__name__)
 

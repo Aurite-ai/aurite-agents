@@ -14,7 +14,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from aurite.lib.components.evaluation.agnostic_evaluator import evaluate
+from aurite.lib.components.evaluation.evaluator import evaluate
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
 
 

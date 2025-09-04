@@ -13,16 +13,15 @@ from pathlib import Path
 from typing import (  # Added Dict and Literal
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
     Dict,
     List,
     Literal,
     Optional,
 )
-from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
+
+from aurite.lib.models.api.requests import EvaluationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -388,33 +387,5 @@ class BaseCustomWorkflow:
 # --- Evaluation Config ---
 
 
-class EvaluationCase(BaseModel):
-    id: UUID = Field(default_factory=uuid4, description="A unique id for this evaluation test case")
-    input: str = Field(description="The user input supplied in this case")
-    output: Optional[Any] = Field(default=None, description="The response from the component")
-    expectations: list[str] = Field(
-        description='A list of expectations about the output, like "The output contains the temperature in Celcius" or "The get_weather tool was called once".'
-    )
-
-
-class EvaluationConfig(BaseComponentConfig):
+class EvaluationConfig(BaseComponentConfig, EvaluationRequest):
     type: Literal["evaluation"] = "evaluation"
-    eval_name: str = Field(description="The name of the component being evaluated")
-    eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
-        description="The type of component being evaluated"
-    )
-    user_input: str = Field(description="The user input to be fed to the component")
-    expected_output: str = Field(description="A description of the expected output of the component")
-    review_llm: Optional[str] = Field(
-        default=None, description="The name of the llm to use to review the component's output"
-    )
-    expected_schema: Optional[dict[str, Any]] = Field(
-        default=None,
-        description="The JSON schema the component output is expected to have.",
-    )
-    test_cases: list[EvaluationCase] = Field(description="A list of evaluation test cases")
-    run_agent: Optional[Callable[[EvaluationCase], Any] | Callable[[EvaluationCase], Awaitable[Any]] | str] = Field(
-        default=None,
-        description="""A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output.
-        If str, it will be treated as the filepath to a python file with the function named 'run'""",
-    )

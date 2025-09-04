@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 
@@ -33,13 +34,29 @@ class WorkflowRunRequest(BaseModel):
     session_id: Optional[str] = None
 
 
-class EvaluationRequest(BaseModel):
-    eval_name: str = Field(description="The name of the component being evaluated")
-    eval_type: Literal["agent", "linear_workflow", "custom_workflow"] = Field(
-        description="The type of component being evaluated"
+class EvaluationCase(BaseModel):
+    id: UUID = Field(default_factory=uuid4, description="A unique id for this evaluation test case")
+    input: str = Field(description="The user input supplied in this case")
+    output: Optional[Any] = Field(default=None, description="The response from the component")
+    expectations: list[str] = Field(
+        description='A list of expectations about the output, like "The output contains the temperature in Celcius" or "The get_weather tool was called once".'
     )
-    user_input: str = Field(description="The user input to be fed to the component")
-    expected_output: str = Field(description="A semantic description of the expected output of the component")
+
+
+class EvaluationRequest(BaseModel):
+    test_cases: list[EvaluationCase] = Field(description="A list of evaluation test cases")
+    run_agent: Optional[Callable[[EvaluationCase], Any] | Callable[[EvaluationCase], Awaitable[Any]] | str] = Field(
+        default=None,
+        description="""A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output.
+        If str, it will be treated as the filepath to a python file with the function named 'run'""",
+    )
+    eval_name: Optional[str] = Field(
+        default=None,
+        description="The name of the component being evaluated, if testing an Aurite component. Will be automatically ran if no run_agent is supplied",
+    )
+    eval_type: Optional[Literal["agent", "linear_workflow", "custom_workflow"]] = Field(
+        default=None, description="The type of component being evaluated, if testing an Aurite component."
+    )
     review_llm: Optional[str] = Field(
         default=None, description="The name of the llm to use to review the component's output"
     )
