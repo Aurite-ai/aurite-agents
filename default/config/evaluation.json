@@ -1,0 +1,77 @@
+[
+    {
+        "type": "evaluation",
+        "name": "Eval Weather Agent",
+        "eval_name": "Weather Agent",
+        "eval_type": "agent",
+        "user_input": "london",
+        "expected_output": "The result should include information about the weather, including the temperature in celcius"
+    },
+    {
+        "type": "evaluation",
+        "name": "Eval Weather Agent Structured",
+        "description": "For testing expected_schema. This will fail, as weather_summary is renamed to weather_summary_asdf",
+        "eval_name": "Structured Output Weather Agent",
+        "eval_type": "agent",
+        "user_input": "london",
+        "expected_output": "The result should include information about the weather, including the temperature in celcius",
+        "review_llm": "anthropic_claude_3_haiku",
+        "expected_schema": {
+            "type": "object",
+            "properties": {
+                "weather_summary_asdf": {
+                    "type": "string",
+                    "description": "A brief summary of the weather conditions."
+                },
+                "temperature": {
+                    "type": "object",
+                    "properties": {
+                        "value": {
+                        "type": "number"
+                        },
+                        "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"]
+                        }
+                    },
+                    "required": ["value", "unit"]
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Recommendations based on the weather."
+                }
+            },
+            "required": ["weather_summary_asdf", "temperature", "recommendations"]
+        }
+    },
+    {
+        "type": "evaluation",
+        "name": "Eval CustomWorkflow Structured",
+        "description": "For testing expected_schema. This should succeed.",
+        "eval_name": "ExampleCustomWorkflow",
+        "eval_type": "custom_workflow",
+        "user_input": "london",
+        "expected_output": "The result should include information about the weather, including the temperature in celcius",
+        "review_llm": "anthropic_claude_3_haiku",
+        "expected_schema": {  
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["ok", "failed"]
+                },
+                "response": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            },
+            "required": ["status"],
+            "additionalProperties": false
+        }
+    }
+]

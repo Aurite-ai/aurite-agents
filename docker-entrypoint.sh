@@ -72,54 +72,29 @@ init_aurite_project() {
         exit 1
     fi
 
-    # Set up minimal environment for init
+    # Set up Python path for aurite CLI
     export PYTHONPATH="/app/src:$PYTHONPATH"
 
-    # Test if aurite CLI is available
-    log_debug "Testing aurite CLI availability..."
-    if ! aurite --help >/dev/null 2>&1; then
-        log_warn "Aurite CLI not available, creating basic project structure manually..."
+    # Create a default workspace in the current directory
+    log_info "Creating workspace 'default_workspace'..."
+    if python -m aurite.bin.cli init --workspace default_workspace; then
+        log_info "Workspace created successfully"
     else
-        # Try to run aurite init
-        log_info "Running 'aurite init' to create project structure..."
-        if aurite init --non-interactive 2>/dev/null || aurite init 2>/dev/null; then
-            log_info "Aurite init completed successfully"
-            return 0
-        else
-            log_warn "Aurite init failed, falling back to manual initialization..."
-        fi
+        log_error "Failed to create workspace"
+        return 1
     fi
 
-    # Manual initialization fallback
-    log_info "Creating basic project structure manually..."
+    # Create a default project within the workspace
+    log_info "Creating project 'default'..."
+    if python -m aurite.bin.cli init --project default; then
+        log_info "Project created successfully"
+    else
+        log_error "Failed to create project"
+        return 1
+    fi
 
-    # Create a basic .aurite file
-    log_info "Creating .aurite configuration file..."
-    cat > .aurite << EOF
-[aurite]
-type = "project"
-include_configs = ["configs"]
-description = "Auto-initialized Aurite project"
-EOF
-
-    # Create basic directory structure
-    mkdir -p configs
-
-    # Create a sample configuration file
-    log_info "Creating sample configuration file..."
-    cat > configs/sample.json << 'EOF'
-[
-  {
-    "type": "llm",
-    "name": "gpt-4o-mini",
-    "model": "gpt-4o-mini",
-    "provider": "openai",
-    "description": "OpenAI GPT-4o Mini model - requires OPENAI_API_KEY environment variable"
-  }
-]
-EOF
-
-    log_info "Project initialization complete!"
+    log_info "Aurite initialization complete!"
+    return 0
 }
 
 # Function to validate required environment variables
