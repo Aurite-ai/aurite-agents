@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+### Changed
+- Changelog automation ([@jwilcox17](https://github.com/jwilcox17)) [#167](https://github.com/Aurite-ai/aurite-agents/pull/167)
 ### Documentation
 - docs: test for release pypi workflow ([@jitenoswal](https://github.com/jitenoswal)) [#165](https://github.com/Aurite-ai/aurite-agents/pull/165)
 ### Fixed
