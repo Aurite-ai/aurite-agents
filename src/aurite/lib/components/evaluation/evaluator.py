@@ -97,11 +97,11 @@ async def _evaluate_case(
         if request.run_agent:
             if type(request.run_agent) is str:
                 runner = AgentRunner(request.run_agent)
-                output = await runner.execute(case)
+                output = await runner.execute(case.input, **request.run_agent_kwargs)
             elif inspect.iscoroutinefunction(request.run_agent):
-                output = await request.run_agent(case)
+                output = await request.run_agent(case.input, **request.run_agent_kwargs)
             else:
-                output = request.run_agent(case)
+                output = request.run_agent(case.input, **request.run_agent_kwargs)
         elif request.eval_type and request.eval_name and executor:
             match request.eval_type:
                 case "agent":

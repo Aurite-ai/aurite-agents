@@ -45,10 +45,14 @@ class EvaluationCase(BaseModel):
 
 class EvaluationRequest(BaseModel):
     test_cases: list[EvaluationCase] = Field(description="A list of evaluation test cases")
-    run_agent: Optional[Callable[[EvaluationCase], Any] | Callable[[EvaluationCase], Awaitable[Any]] | str] = Field(
+    run_agent: Optional[Callable[..., Any] | Callable[..., Awaitable[Any]] | str] = Field(
         default=None,
-        description="""A function that takes an EvaluationCase and returns the result of calling the agent. This will be used for cases that do not have an output.
-        If str, it will be treated as the filepath to a python file with the function named 'run'""",
+        description="""A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.
+        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'""",
+    )
+    run_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
     )
     eval_name: Optional[str] = Field(
         default=None,
