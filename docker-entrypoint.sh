@@ -94,6 +94,11 @@ init_aurite_project() {
     fi
 
     log_info "Aurite initialization complete!"
+
+    # Change to the project directory so the API server can find the .aurite file
+    log_info "Changing to project directory: default"
+    cd default
+
     return 0
 }
 
