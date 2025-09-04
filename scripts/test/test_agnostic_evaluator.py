@@ -234,14 +234,14 @@ async def run_all_tests():
 
     try:
         # Run all test scenarios
-        # test_results["basic_evaluation"] = await test_basic_evaluation()
-        # print()
+        test_results["basic_evaluation"] = await test_basic_evaluation()
+        print()
 
-        # test_results["test_run_agent"] = await test_run_agent()
-        # print()
+        test_results["test_run_agent"] = await test_run_agent()
+        print()
 
-        # test_results["test_run_agent_async"] = await test_run_agent_async()
-        # print()
+        test_results["test_run_agent_async"] = await test_run_agent_async()
+        print()
 
         test_results["test_run_agent_file"] = await test_run_agent_file()
         print()
