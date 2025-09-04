@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
 
 ### Changed
+- Testing-prep ([@wilcoxr](https://github.com/wilcoxr)) [#157](https://github.com/Aurite-ai/aurite-agents/pull/157)
 - test: add patch release workflow validation test ([@jitenoswal](https://github.com/jitenoswal)) [#169](https://github.com/Aurite-ai/aurite-agents/pull/169)
 - Graph workflow ([@blakerandle](https://github.com/blakerandle)) [#120](https://github.com/Aurite-ai/aurite-agents/pull/120)
 - docs: add second test comment to validate changelog workflow ([@jitenoswal](https://github.com/jitenoswal)) [#141](https://github.com/Aurite-ai/aurite-agents/pull/141)
