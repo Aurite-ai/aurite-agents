@@ -7,50 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-
+### Added
+- Add automated changelog management workflow ([@jwilcox17](https://github.com/jwilcox17)) [#139](https://github.com/Aurite-ai/aurite-agents/pull/139)
+- added storage optional dep ([@wilcoxr](https://github.com/wilcoxr)) [#142](https://github.com/Aurite-ai/aurite-agents/pull/142)
+- Added PyPI release automation workflow for quicker release ([@jwilcox17](https://github.com/jwilcox17)) [#145](https://github.com/Aurite-ai/aurite-agents/pull/145)
+- Add messages parameter to agent endpoints ([@blakerandle](https://github.com/blakerandle)) [#146](https://github.com/Aurite-ai/aurite-agents/pull/146)
+- feat: added security module ([@jitenoswal](https://github.com/jitenoswal)) [#147](https://github.com/Aurite-ai/aurite-agents/pull/147)
+- Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
 
 ### Changed
+- Graph workflow ([@blakerandle](https://github.com/blakerandle)) [#120](https://github.com/Aurite-ai/aurite-agents/pull/120)
+- docs: add second test comment to validate changelog workflow ([@jitenoswal](https://github.com/jitenoswal)) [#141](https://github.com/Aurite-ai/aurite-agents/pull/141)
+- Eval schema ([@blakerandle](https://github.com/blakerandle)) [#143](https://github.com/Aurite-ai/aurite-agents/pull/143)
+- database guide ([@wilcoxr](https://github.com/wilcoxr)) [#148](https://github.com/Aurite-ai/aurite-agents/pull/148)
+- Container-updates-clean ([@wilcoxr](https://github.com/wilcoxr)) [#150](https://github.com/Aurite-ai/aurite-agents/pull/150)
+- Example project fix ([@blakerandle](https://github.com/blakerandle)) [#151](https://github.com/Aurite-ai/aurite-agents/pull/151)
+- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#153](https://github.com/Aurite-ai/aurite-agents/pull/153)
+- fix: add git synchronization to release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#154](https://github.com/Aurite-ai/aurite-agents/pull/154)
+- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#155](https://github.com/Aurite-ai/aurite-agents/pull/155)
+- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#158](https://github.com/Aurite-ai/aurite-agents/pull/158)
+- test: Merge changelog and release automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#159](https://github.com/Aurite-ai/aurite-agents/pull/159)
+- test: add workflow validation test file for release automation ([@jitenoswal](https://github.com/jitenoswal)) [#161](https://github.com/Aurite-ai/aurite-agents/pull/161)
+- test: add fixed version validation test for release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#162](https://github.com/Aurite-ai/aurite-agents/pull/162)
+- fix: test releases now trigger timestamp ([@jwilcox17](https://github.com/jwilcox17)) [#163](https://github.com/Aurite-ai/aurite-agents/pull/163)
+- fix: test/prod release triggers ([@jwilcox17](https://github.com/jwilcox17)) [#164](https://github.com/Aurite-ai/aurite-agents/pull/164)
 - Changelog automation ([@jwilcox17](https://github.com/jwilcox17)) [#167](https://github.com/Aurite-ai/aurite-agents/pull/167)
+
 ### Documentation
 - docs: test for release pypi workflow ([@jitenoswal](https://github.com/jitenoswal)) [#165](https://github.com/Aurite-ai/aurite-agents/pull/165)
-### Fixed
-- fix: test/prod release triggers ([@jwilcox17](https://github.com/jwilcox17)) [#164](https://github.com/Aurite-ai/aurite-agents/pull/164)
-- fix: test releases now trigger timestamp ([@jwilcox17](https://github.com/jwilcox17)) [#163](https://github.com/Aurite-ai/aurite-agents/pull/163)
-## [0.3.28] - 2025-09-02
-### Changed
-- test: add fixed version validation test for release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#162](https://github.com/Aurite-ai/aurite-agents/pull/162)
 
-## [0.3.28] - 2025-09-02
-### Changed
-- test: add workflow validation test file for release automation ([@jitenoswal](https://github.com/jitenoswal)) [#161](https://github.com/Aurite-ai/aurite-agents/pull/161)
-### Fixed
-- fix: improve release workflow PR info extraction from commit messages ([@jitenoswal](https://github.com/jitenoswal)) [#160](https://github.com/Aurite-ai/aurite-agents/pull/160)
-
-## [0.3.28] - 2025-09-02
-### Changed
-- test: Merge changelog and release automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#159](https://github.com/Aurite-ai/aurite-agents/pull/159)
-
-## [0.3.28] - 2025-09-02
 ### Fixed
 - fix: github handling in git automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#156](https://github.com/Aurite-ai/aurite-agents/pull/156)
-### Changed
-- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#158](https://github.com/Aurite-ai/aurite-agents/pull/158)
-- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#155](https://github.com/Aurite-ai/aurite-agents/pull/155)
-- fix: add git synchronization to release workflow ([@jitenoswal](https://github.com/jitenoswal)) [#154](https://github.com/Aurite-ai/aurite-agents/pull/154)
-- test: add test file for release workflow validation ([@jitenoswal](https://github.com/jitenoswal)) [#153](https://github.com/Aurite-ai/aurite-agents/pull/153)
-- Example project fix ([@blakerandle](https://github.com/blakerandle)) [#151](https://github.com/Aurite-ai/aurite-agents/pull/151)
-- Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
-- feat: added security module ([@jitenoswal](https://github.com/jitenoswal)) [#147](https://github.com/Aurite-ai/aurite-agents/pull/147)
-- Graph workflow ([@blakerandle](https://github.com/blakerandle)) [#120](https://github.com/Aurite-ai/aurite-agents/pull/120)
-- Container-updates-clean ([@wilcoxr](https://github.com/wilcoxr)) [#150](https://github.com/Aurite-ai/aurite-agents/pull/150)
-- added storage optional dep ([@wilcoxr](https://github.com/wilcoxr)) [#142](https://github.com/Aurite-ai/aurite-agents/pull/142)
-- database guide ([@wilcoxr](https://github.com/wilcoxr)) [#148](https://github.com/Aurite-ai/aurite-agents/pull/148)
-- Add messages parameter to agent endpoints ([@blakerandle](https://github.com/blakerandle)) [#146](https://github.com/Aurite-ai/aurite-agents/pull/146)
-- Eval schema ([@blakerandle](https://github.com/blakerandle)) [#143](https://github.com/Aurite-ai/aurite-agents/pull/143)
-- docs: add second test comment to validate changelog workflow ([@jitenoswal](https://github.com/jitenoswal)) [#141](https://github.com/Aurite-ai/aurite-agents/pull/141)
-### Added
-- Added PyPI release automation workflow for quicker release ([@jwilcox17](https://github.com/jwilcox17)) [#145](https://github.com/Aurite-ai/aurite-agents/pull/145)
-- Add automated changelog management workflow ([@jwilcox17](https://github.com/jwilcox17)) [#139](https://github.com/Aurite-ai/aurite-agents/pull/139)
+- fix: improve release workflow PR info extraction from commit messages ([@jitenoswal](https://github.com/jitenoswal)) [#160](https://github.com/Aurite-ai/aurite-agents/pull/160)
 
 ## [0.3.28] - 2025-08-20
 
