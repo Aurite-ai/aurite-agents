@@ -7,6 +7,8 @@ import logging
 # from aurite.lib.config import PROJECT_ROOT_DIR  # Import project root - REMOVED
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional, Union
 
+import jsonschema
+
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.models.config.components import LLMConfig
 
@@ -31,9 +33,8 @@ async def evaluate(
     Evaluates one or more evaluation test cases
 
     Args:
-        input: A list of EvaluationCases
+        input: The EvaluationConfig object
         executor: The AuriteEngine instance to run agents
-        session_id: An optional session_id for the component run
 
     Returns:
         A dictionary containing the result or an error.
@@ -63,7 +64,10 @@ async def evaluate(
 
         llm_client = LiteLLMClient(llm_config)
         tasks = [
-            _evaluate_case(case=case, llm_client=llm_client, run_agent=input.run_agent) for case in input.test_cases
+            _evaluate_case(
+                case=case, llm_client=llm_client, run_agent=input.run_agent, expected_schema=input.expected_schema
+            )
+            for case in input.test_cases
         ]
 
         results = await asyncio.gather(*tasks)
@@ -88,6 +92,7 @@ async def _evaluate_case(
     case: EvaluationCase,
     llm_client: LiteLLMClient,
     run_agent: Optional[Union[Callable[[EvaluationCase], Any], Callable[[EvaluationCase], Awaitable[Any]]]],
+    expected_schema: Optional[dict[str, Any]],
 ) -> dict:
     output = case.output
     if not output:
@@ -101,6 +106,29 @@ async def _evaluate_case(
                 output = run_agent(case)
         else:
             raise ValueError(f"Case output and run_agent both undefined for case {case.id}")
+
+    if expected_schema:
+        try:
+            if isinstance(output, str):
+                data_to_validate = json.loads(output)
+            elif isinstance(output, dict):
+                data_to_validate = output
+            else:
+                raise TypeError("Component output not str/dict")
+
+            jsonschema.validate(instance=data_to_validate, schema=expected_schema)
+
+        except json.JSONDecodeError as e:
+            return {
+                "analysis": "Schema Validation Failed: Component did not output valid JSON",
+                "grade": "FAIL",
+            }
+        except jsonschema.ValidationError as e:
+            return {"analysis": f"Schema Validation Failed: {e.message}", "grade": "FAIL"}
+        except jsonschema.SchemaError as e:
+            return {"analysis": f"Schema Validation Failed: Invalid schema: {e.message}", "grade": "FAIL"}
+        except TypeError as e:
+            return {"analysis": f"Schema Validation Failed: {e}", "grade": "FAIL"}
 
     expectations_str = "\n".join(case.expectations)
     analysis_output = await llm_client.create_message(
@@ -126,6 +154,10 @@ Format your output as JSON. IMPORTANT: Do not include any other text before or a
         analysis_json = json.loads(_clean_thinking_output(analysis_text_output))
     except Exception as e:
         raise ValueError(f"Error converting evaluation agent output to json: {e}") from e
+
+    analysis_json["grade"] = "PASS"
+    if "expectations_broken" not in analysis_json or len(analysis_json["expectations_broken"]) > 1:
+        analysis_json["grade"] = "FAIL"
 
     return analysis_json
 
