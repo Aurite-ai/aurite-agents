@@ -15,38 +15,44 @@ src_path = Path(__file__).parent.parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
 from aurite.lib.components.evaluation.evaluator import evaluate
-from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
+from aurite.lib.models.api.requests import EvaluationCase, EvaluationRequest
 
 
-def run_agent(case: EvaluationCase):
-    if "weather" in case.input:
+def run_agent(input: str, additional_param: bool):
+    if not additional_param:
+        return "ERROR: additional_param not set"
+    if "weather" in input:
         return "The weather in London is 15°C, partly cloudy"
-    elif "Calculate" in case.input:
-        return "2 + 2 is 4"
-    else:
-        return "Hello world!"
-
-
-async def run_agent_async(case: EvaluationCase):
-    if "weather" in case.input:
-        return "The weather in London is 15°C, partly cloudy"
-    elif "Calculate" in case.input:
-        return "2 + 2 is 4"
-    else:
-        return "Hello world!"
-
-
-def run(case: EvaluationCase):
-    if "weather" in case.input:
-        return "The weather in London is 15°C, partly cloudy"
-    elif "Calculate" in case.input:
+    elif "Calculate" in input:
         return "2 + 2 is 4"
     else:
         return "I'm sorry, I cannot help with that. Please try again later."
 
 
-def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationConfig:
-    """Create a test EvaluationConfig with sample data."""
+async def run_agent_async(input: str, additional_param: bool):
+    if not additional_param:
+        return "ERROR: additional_param not set"
+    if "weather" in input:
+        return "The weather in London is 15°C, partly cloudy"
+    elif "Calculate" in input:
+        return "2 + 2 is 4"
+    else:
+        return "I'm sorry, I cannot help with that. Please try again later."
+
+
+def run(input: str, additional_param: bool):
+    if not additional_param:
+        return "ERROR: additional_param not set"
+    if "weather" in input:
+        return "The weather in London is 15°C, partly cloudy"
+    elif "Calculate" in input:
+        return "2 + 2 is 4"
+    else:
+        return "I'm sorry, I cannot help with that. Please try again later."
+
+
+def create_test_evaluation_request(test_name: str = "basic_test") -> EvaluationRequest:
+    """Create a test EvaluationRequest with sample data."""
     run_input = run_agent
 
     match test_name:
@@ -128,9 +134,7 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
             elif test_name == "test_run_agent_file":
                 run_input = "scripts/test/test_agnostic_evaluator.py"
 
-    return EvaluationConfig(
-        name=f"Test Evaluation - {test_name}",
-        type="evaluation",
+    return EvaluationRequest(
         eval_name="test_agent",
         eval_type="agent",
         user_input="Test input",
@@ -138,6 +142,7 @@ def create_test_evaluation_config(test_name: str = "basic_test") -> EvaluationCo
         review_llm="test_llm",
         test_cases=test_cases,
         run_agent=run_input,
+        run_agent_kwargs={"additional_param": True},
     )
 
 
@@ -147,9 +152,9 @@ async def test_basic_evaluation():
     print("-" * 40)
 
     # Create test data
-    config = create_test_evaluation_config("basic_test")
+    request = create_test_evaluation_request("basic_test")
 
-    result = await evaluate(config)
+    result = await evaluate(request)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"
@@ -168,9 +173,9 @@ async def test_run_agent():
     print("-" * 40)
 
     # Create test data
-    config = create_test_evaluation_config("test_run_agent")
+    request = create_test_evaluation_request("test_run_agent")
 
-    result = await evaluate(config)
+    result = await evaluate(request)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"
@@ -189,9 +194,9 @@ async def test_run_agent_async():
     print("-" * 40)
 
     # Create test data
-    config = create_test_evaluation_config("test_run_agent_async")
+    request = create_test_evaluation_request("test_run_agent_async")
 
-    result = await evaluate(config)
+    result = await evaluate(request)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"
@@ -210,9 +215,9 @@ async def test_run_agent_file():
     print("-" * 40)
 
     # Create test data
-    config = create_test_evaluation_config("test_run_agent_file")
+    request = create_test_evaluation_request("test_run_agent_file")
 
-    result = await evaluate(config)
+    result = await evaluate(request)
 
     # Verify results
     assert result["status"] == "success", f"Expected success, got {result['status']}"

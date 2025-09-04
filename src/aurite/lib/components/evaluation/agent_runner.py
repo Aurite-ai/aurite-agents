@@ -8,8 +8,6 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from ...models.api.requests import EvaluationCase
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,13 +37,15 @@ class AgentRunner:
 
     async def execute(
         self,
-        case: EvaluationCase,
+        input: str,
+        **kwargs,
     ) -> Any:
         """
         Executes the loaded 'run' function with the provided input.
 
         Args:
-            case: The EvaluationCase data to pass to the run function.
+            input: The string input to pass to the run function
+            kwargs: Additional arguments to pass to the run function
 
         Returns:
             The result returned by the run function.
@@ -60,9 +60,9 @@ class AgentRunner:
             logger.debug(f"Executing run function from {self.filepath}")
 
             if inspect.iscoroutinefunction(self.run_function):
-                result = await self.run_function(case)
+                result = await self.run_function(input, **kwargs)
             else:
-                result = self.run_function(case)
+                result = self.run_function(input, **kwargs)
 
             logger.info(f"AgentRunner execution finished successfully for {self.filepath}")
             return result
