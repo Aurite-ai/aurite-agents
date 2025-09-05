@@ -275,16 +275,28 @@ jobs:
           set -e
           
           if [[ "${{ needs.setup-and-changelog.outputs.environment }}" == "test" ]]; then
-            # Test run - use current version with pre-release suffix (no actual version bump)
+            # Test run - calculate next version but don't commit it
             CURRENT_VERSION=$(poetry version -s)
-            TIMESTAMP=$(date +"%m%d%H%M")
-            TEST_VERSION="${CURRENT_VERSION}rc${TIMESTAMP}"
+            
+            # Calculate what the next version would be based on release type
+            RELEASE_TYPE="${{ needs.setup-and-changelog.outputs.release_type }}"
+            
+            # Use poetry to calculate next version (temporarily)
+            poetry version "$RELEASE_TYPE"
+            NEXT_VERSION=$(poetry version -s)
+            
+            # Reset to original version (don't commit the bump)
+            poetry version "$CURRENT_VERSION"
+            
+            # Create test version with timestamp in PST
+            TIMESTAMP=$(TZ='America/Los_Angeles' date +"%m%d%H%M")
+            TEST_VERSION="${NEXT_VERSION}rc${TIMESTAMP}"
             
             # Temporarily update pyproject.toml for the build only
             poetry version "$TEST_VERSION"
             
             echo "version=$TEST_VERSION" >> $GITHUB_OUTPUT
-            echo "Test run - using pre-release version: $TEST_VERSION (temporary, not committed)"
+            echo "Test run - using pre-release version: $TEST_VERSION (would be $NEXT_VERSION in prod, temporary build only)"
           else
             # Production - use current version
             CURRENT_VERSION=$(poetry version -s)
