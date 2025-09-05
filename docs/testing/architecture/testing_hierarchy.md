@@ -2,7 +2,15 @@
 
 ## Overview
 
-This document visualizes the complete testing hierarchy and flow for the Kahuna Testing & Security Framework, showing how components build upon each other and how test results flow through the system.
+This document visualizes the complete testing hierarchy and flow for the Kahuna Testing & Security Framework, showing how components build upon each other and how test results flow through the system across multiple agent frameworks.
+
+The testing hierarchy now operates in three dimensions:
+
+1. **Testing Categories** (Quality vs Security)
+2. **Testing Phases** (Development vs Runtime)
+3. **Framework Scope** (Framework-Agnostic vs Framework-Specific)
+
+This three-dimensional approach enables testing of AI components independent of specific agent frameworks while also supporting framework-specific validation.
 
 ## Complete Testing Hierarchy
 
@@ -23,90 +31,104 @@ flowchart TD
     SPhase -->|Development| SDev[Development-Time Security]
     SPhase -->|Runtime| SRun[Runtime Security Monitoring]
 
-    %% Component Testing Hierarchy
-    QDev --> CompQ[Component Quality Tests]
-    QRun --> CompQM[Component Quality Monitors]
-    SDev --> CompS[Component Security Tests]
-    SRun --> CompSM[Component Security Monitors]
+    %% Framework Scope Split
+    QDev --> QScope{Framework Scope}
+    QRun --> QRScope{Framework Scope}
+    SDev --> SScope{Framework Scope}
+    SRun --> SRScope{Framework Scope}
 
-    %% Foundation Layer
-    CompQ --> LLM_Q[LLM Quality Tests]
-    CompQ --> MCP_Q[MCP Server Quality Tests]
-    CompS --> LLM_S[LLM Security Tests]
-    CompS --> MCP_S[MCP Server Security Tests]
+    %% Framework-Agnostic Path
+    QScope -->|Agnostic| QAgnostic[Universal Quality Tests]
+    QScope -->|Specific| QSpecific[Framework Quality Tests]
+    SScope -->|Agnostic| SAgnostic[Universal Security Tests]
+    SScope -->|Specific| SSpecific[Framework Security Tests]
 
-    %% Integration Layer
-    LLM_Q --> Agent_Q[Agent Quality Tests]
+    %% Component Testing Hierarchy - Agnostic
+    QAgnostic --> LLM_Q[LLM Quality Tests<br/>100% Agnostic]
+    QAgnostic --> MCP_Q[MCP Server Quality Tests<br/>100% Agnostic]
+    SAgnostic --> LLM_S[LLM Security Tests<br/>100% Agnostic]
+    SAgnostic --> MCP_S[MCP Server Security Tests<br/>100% Agnostic]
+
+    %% Component Testing - Mixed
+    LLM_Q --> Agent_Q[Agent Quality Tests<br/>60% Agnostic]
     MCP_Q --> Agent_Q
-    LLM_S --> Agent_S[Agent Security Tests]
+    LLM_S --> Agent_S[Agent Security Tests<br/>60% Agnostic]
     MCP_S --> Agent_S
+    QSpecific --> Agent_Q
+    SSpecific --> Agent_S
 
     %% Business Layer
-    Agent_Q --> WF_Q[Workflow Quality Tests]
-    Agent_S --> WF_S[Workflow Security Tests]
+    Agent_Q --> WF_Q[Workflow Quality Tests<br/>20% Agnostic]
+    Agent_S --> WF_S[Workflow Security Tests<br/>20% Agnostic]
 
     %% Results Flow
     WF_Q --> Results[Test Results]
     WF_S --> Results
-    CompQM --> Metrics[Runtime Metrics]
-    CompSM --> Metrics
+    QRScope --> Metrics[Runtime Metrics]
+    SRScope --> Metrics
 
     Results --> Kahuna_Exec[Kahuna Executive Mode]
     Metrics --> Kahuna_Exec
 
     %% Input from Manager Mode
-    Kahuna_Mgr[Kahuna Manager Mode] --> Requirements[Business Requirements]
+    Kahuna_Mgr[Kahuna Manager Mode] --> Requirements[Business Requirements<br/>+ Target Frameworks]
     Requirements --> Start
 
     style Start fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style QA fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
     style SEC fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+    style QAgnostic fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style SAgnostic fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
     style Results fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
     style Metrics fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
     style Kahuna_Exec fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
     style Kahuna_Mgr fill:#00BCD4,stroke:#0097A7,stroke-width:2px,color:#fff
 ```
 
-## Component Dependency and Inheritance Flow
+## Framework-Agnostic Testing Flow
 
 ```mermaid
-flowchart LR
-    subgraph Foundation[Foundation Components]
-        LLM[LLM<br/>No Dependencies]
-        MCP[MCP Server<br/>No Dependencies]
-    end
+flowchart TD
+    Start[Test Request] --> Detect{Detect Framework}
 
-    subgraph Integration[Integration Layer]
-        Agent[Agent<br/>Depends on LLM + MCP]
-    end
+    Detect -->|Aurite| Native[Native Execution]
+    Detect -->|LangChain| LC_Adapter[LangChain Adapter]
+    Detect -->|AutoGen| AG_Adapter[AutoGen Adapter]
+    Detect -->|Other| Generic_Adapter[Generic Adapter]
 
-    subgraph Business[Business Layer]
-        Workflow[Workflow<br/>Depends on Agents]
-    end
+    LC_Adapter --> Translate[Translate to Aurite Format]
+    AG_Adapter --> Translate
+    Generic_Adapter --> Translate
+    Native --> Categorize{Categorize Component}
 
-    LLM -->|Inherits Tests| Agent
-    MCP -->|Inherits Tests| Agent
-    Agent -->|Inherits Tests| Workflow
+    Translate --> Categorize
 
-    subgraph Inheritance[Test Result Inheritance]
-        LLM_R[LLM Results<br/>• Prompt Injection: 0.96<br/>• Content Safety: 0.98<br/>• Quality: 0.94]
-        MCP_R[MCP Results<br/>• API Security: 0.99<br/>• Performance: 0.95<br/>• Availability: 0.99]
-        Agent_R[Agent Results<br/>• Inherited Security: 0.96<br/>• Tool Selection: 0.92<br/>• Goal Achievement: 0.89]
-        WF_R[Workflow Results<br/>• Overall Security: 0.89<br/>• Business Logic: 0.93<br/>• End-to-End: 0.91]
-    end
+    Categorize -->|LLM/MCP| Universal[Universal Tests<br/>100% Agnostic]
+    Categorize -->|Agent| Hybrid[Hybrid Tests<br/>60% Agnostic]
+    Categorize -->|Workflow| Specific[Specific Tests<br/>20% Agnostic]
 
-    LLM_R --> Agent_R
-    MCP_R --> Agent_R
-    Agent_R --> WF_R
+    Universal --> Cache_Universal[Cache Universal Results]
+    Hybrid --> Split_Tests{Split Tests}
+    Specific --> Framework_Tests[Framework-Specific Tests]
 
-    style LLM fill:#81C784,stroke:#4CAF50,stroke-width:2px
-    style MCP fill:#81C784,stroke:#4CAF50,stroke-width:2px
-    style Agent fill:#64B5F6,stroke:#2196F3,stroke-width:2px
-    style Workflow fill:#BA68C8,stroke:#9C27B0,stroke-width:2px
-    style LLM_R fill:#E8F5E9,stroke:#4CAF50,stroke-width:1px
-    style MCP_R fill:#E8F5E9,stroke:#4CAF50,stroke-width:1px
-    style Agent_R fill:#E3F2FD,stroke:#2196F3,stroke-width:1px
-    style WF_R fill:#F3E5F5,stroke:#9C27B0,stroke-width:1px
+    Split_Tests -->|Agnostic| Agnostic_Tests[Run Agnostic Tests]
+    Split_Tests -->|Specific| Framework_Tests
+
+    Agnostic_Tests --> Cache_Agnostic[Cache Agnostic Results]
+    Framework_Tests --> Cache_Specific[Cache Framework Results]
+
+    Cache_Universal --> Aggregate[Aggregate Results]
+    Cache_Agnostic --> Aggregate
+    Cache_Specific --> Aggregate
+
+    Aggregate --> Normalize[Normalize to Standard Format]
+    Normalize --> Report[Generate Report]
+
+    style Start fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style Universal fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style Hybrid fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style Specific fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
+    style Report fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
 ```
 
 ## Test Execution Flow
@@ -118,8 +140,8 @@ flowchart TD
     Check -->|No Dependencies| Foundation[Test Foundation Components]
     Check -->|Has Dependencies| Wait[Wait for Dependencies]
 
-    Foundation --> Cache1[Cache LLM Results]
-    Foundation --> Cache2[Cache MCP Results]
+    Foundation --> Cache1[Cache LLM Results<br/>Universal Cache]
+    Foundation --> Cache2[Cache MCP Results<br/>Universal Cache]
 
     Cache1 --> Ready1[LLM Tests Complete]
     Cache2 --> Ready2[MCP Tests Complete]
@@ -131,16 +153,16 @@ flowchart TD
     DepCheck -->|No| Wait
     DepCheck -->|Yes| AgentTest
 
-    AgentTest --> Inherit[Inherit Foundation Results]
-    Inherit --> AgentSpecific[Run Agent-Specific Tests]
+    AgentTest --> Inherit[Inherit Foundation Results<br/>Cross-Framework]
+    Inherit --> AgentSpecific[Run Agent Tests<br/>60% Agnostic, 40% Specific]
     AgentSpecific --> CacheAgent[Cache Agent Results]
 
     CacheAgent --> ReadyAgent[Agent Tests Complete]
 
     ReadyAgent --> WorkflowTest{Workflow Testing}
 
-    WorkflowTest --> InheritAll[Inherit All Agent Results]
-    InheritAll --> WFSpecific[Run Workflow-Specific Tests]
+    WorkflowTest --> InheritAll[Inherit All Agent Results<br/>Cross-Framework]
+    InheritAll --> WFSpecific[Run Workflow Tests<br/>20% Agnostic, 80% Specific]
     WFSpecific --> FinalResults[Generate Final Results]
 
     FinalResults --> Report[Generate Reports]
@@ -220,30 +242,45 @@ flowchart LR
 ```mermaid
 flowchart TD
     Test[Run Test] --> Result[Test Result]
-    Result --> Cache{Cache Result}
+    Result --> Scope{Framework Scope?}
 
-    Cache --> Meta[Store Metadata<br/>• Component ID<br/>• Version<br/>• Timestamp<br/>• TTL]
+    Scope -->|Agnostic| Universal_Cache[Universal Cache<br/>Shared Across Frameworks]
+    Scope -->|Specific| Framework_Cache[Framework Cache<br/>Isolated per Framework]
 
-    Meta --> TTL{Check TTL}
+    Universal_Cache --> Meta_U[Store Metadata<br/>• Component ID<br/>• Version<br/>• Timestamp<br/>• TTL<br/>• Framework: ANY]
+    Framework_Cache --> Meta_F[Store Metadata<br/>• Component ID<br/>• Version<br/>• Timestamp<br/>• TTL<br/>• Framework: Specific]
 
-    Request[New Test Request] --> CheckCache{Check Cache}
+    Meta_U --> TTL_U{Check TTL}
+    Meta_F --> TTL_F{Check TTL}
 
-    CheckCache -->|Found| TTL
+    Request[New Test Request] --> Framework_Check{Which Framework?}
+
+    Framework_Check --> CheckCache{Check Cache}
+
+    CheckCache -->|Universal Found| TTL_U
+    CheckCache -->|Framework Found| TTL_F
     CheckCache -->|Not Found| Test
 
-    TTL -->|Valid| UseCache[Use Cached Result]
-    TTL -->|Expired| Test
+    TTL_U -->|Valid| UseCache[Use Cached Result<br/>Cross-Framework]
+    TTL_F -->|Valid| UseCache
+    TTL_U -->|Expired| Test
+    TTL_F -->|Expired| Test
 
     UseCache --> Inherit[Inherit to Dependent]
 
-    Update[Component Update] --> Invalidate[Invalidate Cache]
-    Invalidate --> Cascade[Cascade Invalidation]
+    Update[Component Update] --> Invalidate{Which Cache?}
+    Invalidate -->|LLM/MCP| Invalidate_Universal[Invalidate Universal<br/>All Frameworks Affected]
+    Invalidate -->|Agent/Workflow| Invalidate_Specific[Invalidate Specific<br/>Single Framework]
+
+    Invalidate_Universal --> Cascade[Cascade Invalidation]
+    Invalidate_Specific --> Cascade
     Cascade --> Deps[Invalidate All Dependents]
 
     style Test fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
     style UseCache fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
-    style Invalidate fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
-    style Cache fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style Universal_Cache fill:#9C27B0,stroke:#7B1FA2,stroke-width:2px,color:#fff
+    style Framework_Cache fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style Invalidate_Universal fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
 ```
 
 ## Integration with Kahuna Ecosystem
@@ -289,54 +326,16 @@ flowchart TD
     style Dashboard fill:#E91E63,stroke:#C2185B,stroke-width:2px,color:#fff
 ```
 
-## Key Benefits Visualization
-
-```mermaid
-flowchart LR
-    subgraph Traditional[Traditional Testing]
-        T1[Test LLM: 5 min] --> T2[Test MCP: 3 min]
-        T2 --> T3[Test Agent: 5 min]
-        T3 --> T4[Test Workflow: 7 min]
-        T4 --> TTotal[Total: 20 min]
-    end
-
-    subgraph Compositional[Compositional Testing]
-        C1[Test LLM + MCP: 5 min<br/>Parallel] --> C2[Test Agent: 2 min<br/>Inherits Results]
-        C2 --> C3[Test Workflow: 2 min<br/>Inherits Results]
-        C3 --> CTotal[Total: 9 min]
-    end
-
-    TTotal -->|vs| Compare[55% Time Reduction]
-    CTotal -->|vs| Compare
-
-    style TTotal fill:#F44336,stroke:#C62828,stroke-width:2px,color:#fff
-    style CTotal fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
-    style Compare fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
-```
-
 ## Tabular Representations
-
-### Testing Framework Structure
-
-| Level              | Category | Phase       | Components | Description                              |
-| ------------------ | -------- | ----------- | ---------- | ---------------------------------------- |
-| **1. Framework**   | Quality  | Development | All        | Comprehensive pre-deployment validation  |
-|                    | Quality  | Runtime     | All        | Continuous quality monitoring            |
-|                    | Security | Development | All        | Security vulnerability assessment        |
-|                    | Security | Runtime     | All        | Real-time threat detection               |
-| **2. Foundation**  | Both     | Both        | LLM        | Language model testing (no dependencies) |
-|                    | Both     | Both        | MCP Server | API/tool testing (no dependencies)       |
-| **3. Integration** | Both     | Both        | Agent      | Combines LLM + MCP (inherits results)    |
-| **4. Business**    | Both     | Both        | Workflow   | End-to-end testing (inherits all)        |
 
 ### Component Test Inheritance Matrix
 
-| Component      | Depends On      | Inherits From                                      | New Tests                                                        | Inheritance Benefit       |
-| -------------- | --------------- | -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------- |
-| **LLM**        | None            | None                                               | • Prompt injection<br>• Content safety<br>• Response quality     | Foundation (0% inherited) |
-| **MCP Server** | None            | None                                               | • API security<br>• Performance<br>• Availability                | Foundation (0% inherited) |
-| **Agent**      | LLM + MCP       | • LLM security scores<br>• MCP performance metrics | • Tool selection<br>• Goal achievement<br>• Multi-turn coherence | ~60% inherited            |
-| **Workflow**   | Multiple Agents | • All agent scores<br>• All foundation scores      | • Business logic<br>• End-to-end flow<br>• Data consistency      | ~70% inherited            |
+| Component      | Framework Scope | Depends On      | Inherits From                                      | Cross-Framework Inheritance | New Tests                                                        | Inheritance Benefit       |
+| -------------- | --------------- | --------------- | -------------------------------------------------- | --------------------------- | ---------------------------------------------------------------- | ------------------------- |
+| **LLM**        | 100% Agnostic   | None            | None                                               | All results shared          | • Prompt injection<br>• Content safety<br>• Response quality     | Foundation (0% inherited) |
+| **MCP Server** | 100% Agnostic   | None            | None                                               | All results shared          | • API security<br>• Performance<br>• Availability                | Foundation (0% inherited) |
+| **Agent**      | 60% Agnostic    | LLM + MCP       | • LLM security scores<br>• MCP performance metrics | 60% cross-framework         | • Tool selection<br>• Goal achievement<br>• Multi-turn coherence | ~60% inherited            |
+| **Workflow**   | 20% Agnostic    | Multiple Agents | • All agent scores<br>• All foundation scores      | 20% cross-framework         | • Business logic<br>• End-to-end flow<br>• Data consistency      | ~70% inherited            |
 
 ### Quality vs Security Score Calculation
 
@@ -357,29 +356,17 @@ flowchart LR
 | **Coverage**          | 100% - All test cases                          | 10-20% - Critical only                                         | Dev: 100%, Runtime: Sampling          |
 | **Execution Time**    | Minutes to hours                               | Milliseconds to seconds                                        | Dev: Thorough, Runtime: Fast          |
 | **Test Types**        | • Edge cases<br>• Stress tests<br>• Benchmarks | • Security filters<br>• Quality scoring<br>• Anomaly detection | Dev: Comprehensive, Runtime: Targeted |
-| **Frequency**         | Per deployment                                 | Per request/response                                           | Dev: Once, Runtime: Continuous        |
+| **Frequency**         | On-Demand, Per deployment                      | Per request/response                                           | Dev: Once, Runtime: Continuous        |
 | **Action on Failure** | Block deployment                               | Log, alert, or block                                           | Dev: Prevent, Runtime: Respond        |
-
-### Test Execution Timeline
-
-| Phase | Component               | Duration   | Parallel? | Dependencies        | Cumulative Time        |
-| ----- | ----------------------- | ---------- | --------- | ------------------- | ---------------------- |
-| **1** | LLM Testing             | 3 min      | Yes       | None                | 3 min                  |
-| **1** | MCP Testing             | 3 min      | Yes       | None                | 3 min (parallel)       |
-| **2** | Agent Testing           | 2 min      | Yes       | LLM + MCP complete  | 5 min                  |
-| **3** | Workflow Testing        | 2 min      | No        | All agents complete | 7 min                  |
-| **4** | Report Generation       | 1 min      | No        | All tests complete  | 8 min                  |
-|       | **Traditional Total**   | **20 min** | Limited   | Sequential          | **20 min**             |
-|       | **Compositional Total** | **8 min**  | Extensive | Smart ordering      | **8 min (60% faster)** |
 
 ### Test Categories by Component
 
-| Component      | Quality Tests                                                                                                  | Security Tests                                                                                                              | Inherited | New | Total |
-| -------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------- | --- | ----- |
-| **LLM**        | • Coherence (Dev)<br>• Instruction following (Dev)<br>• Format compliance (Dev)<br>• Quality scoring (Runtime) | • Prompt injection (Dev)<br>• Content safety (Dev)<br>• Data leakage (Dev)<br>• Real-time filtering (Runtime)               | 0         | 8   | 8     |
-| **MCP Server** | • API compliance (Dev)<br>• Performance (Dev)<br>• Error handling (Dev)<br>• Availability monitoring (Runtime) | • Authentication (Dev)<br>• Input validation (Dev)<br>• Rate limiting (Dev)<br>• Access monitoring (Runtime)                | 0         | 8   | 8     |
-| **Agent**      | • Tool selection (Dev)<br>• Goal achievement (Dev)<br>• Efficiency (Dev)<br>• Performance tracking (Runtime)   | • Permission boundaries (Dev)<br>• Action authorization (Dev)<br>• Resource limits (Dev)<br>• Behavior monitoring (Runtime) | 16        | 8   | 24    |
-| **Workflow**   | • Business compliance (Dev)<br>• End-to-end success (Dev)<br>• Performance (Dev)<br>• KPI tracking (Runtime)   | • Cross-agent security (Dev)<br>• Data isolation (Dev)<br>• Audit completeness (Dev)<br>• Incident detection (Runtime)      | 48        | 8   | 56    |
+| Component      | Framework Scope | Quality Tests (Agnostic)                                                           | Quality Tests (Specific)                       | Security Tests (Agnostic)                                                         | Security Tests (Specific)                           | Inherited | New | Total |
+| -------------- | --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------- | --------- | --- | ----- |
+| **LLM**        | 100% Agnostic   | • Coherence<br>• Instruction following<br>• Format compliance<br>• Quality scoring | N/A                                            | • Prompt injection<br>• Content safety<br>• Data leakage<br>• Real-time filtering | N/A                                                 | 0         | 8   | 8     |
+| **MCP Server** | 100% Agnostic   | • API compliance<br>• Performance<br>• Error handling<br>• Availability            | N/A                                            | • Authentication<br>• Input validation<br>• Rate limiting<br>• Access monitoring  | N/A                                                 | 0         | 8   | 8     |
+| **Agent**      | 60% Agnostic    | • Tool selection<br>• Goal achievement                                             | • Memory management<br>• State handling        | • Permission boundaries<br>• Action authorization                                 | • Framework auth<br>• Context isolation             | 16        | 8   | 24    |
+| **Workflow**   | 20% Agnostic    | • Business compliance<br>• End-to-end success                                      | • Orchestration<br>• Inter-agent communication | • Data isolation<br>• Audit completeness                                          | • Framework security<br>• State management security | 48        | 8   | 56    |
 
 ### Kahuna Integration Points
 
@@ -389,7 +376,7 @@ flowchart LR
 | **Developer Mode** | Testing Executor      | • Test implementation<br>• Development testing<br>• Runtime monitoring | Executes all testing  |
 | **Executive Mode** | Metrics Consumer      | • Quality dashboards<br>• Security reports<br>• Business KPIs          | Receives test results |
 
-### Alert Severity and Response Matrix
+### Alert Severity and Response Matrix (Rough Draft - still a WIP)
 
 | Severity     | Quality Threshold | Security Threshold | Response Time | Action                      |
 | ------------ | ----------------- | ------------------ | ------------- | --------------------------- |
@@ -400,30 +387,51 @@ flowchart LR
 
 ### Cache Strategy Parameters
 
-| Parameter            | Value     | Purpose                   | Impact                |
-| -------------------- | --------- | ------------------------- | --------------------- |
-| **TTL (Foundation)** | 24 hours  | LLM/MCP rarely change     | High reuse            |
-| **TTL (Agent)**      | 4 hours   | Moderate change frequency | Balanced              |
-| **TTL (Workflow)**   | 1 hour    | Frequent updates          | Fresh results         |
-| **Invalidation**     | On update | Maintain consistency      | Cascade to dependents |
-| **Cache Hit Rate**   | ~70%      | Reduce redundant testing  | 70% time saved        |
+| Parameter                   | Value     | Purpose                        | Impact                       | Framework Scope    |
+| --------------------------- | --------- | ------------------------------ | ---------------------------- | ------------------ |
+| **TTL (LLM/MCP)**           | 24 hours  | Foundation rarely changes      | High reuse across frameworks | Universal cache    |
+| **TTL (Agent - Agnostic)**  | 12 hours  | Core behaviors stable          | Cross-framework reuse        | Universal cache    |
+| **TTL (Agent - Specific)**  | 4 hours   | Framework features change      | Framework-isolated           | Framework cache    |
+| **TTL (Workflow)**          | 1 hour    | Frequent updates               | Fresh results                | Framework cache    |
+| **Cross-Framework Sharing** | Enabled   | Maximize test reuse            | 40-60% reduction in testing  | LLM/MCP/Agent core |
+| **Invalidation**            | On update | Maintain consistency           | Cascade to dependents        | Both cache types   |
+| **Cache Hit Rate**          | ~85%      | Increased with universal cache | 85% time saved               | Overall            |
+
+## Framework Compatibility Matrix
+
+| Framework     | LLM Support | MCP Support | Agent Support | Workflow Support | Adapter Status | Testing Coverage |
+| ------------- | ----------- | ----------- | ------------- | ---------------- | -------------- | ---------------- |
+| **Aurite**    | 100%        | 100%        | 100%          | 100%             | Native         | 100%             |
+| **LangChain** | 100%        | 100%        | 80%           | 70%              | Available      | 85%              |
+| **AutoGen**   | 100%        | 100%        | 75%           | 65%              | Available      | 80%              |
+| **CrewAI**    | 100%        | 100%        | 70%           | 60%              | In Development | 75%              |
+| **Custom**    | 100%        | 100%        | Varies        | Varies           | Generic        | 60-80%           |
 
 ## Summary
 
 This hierarchical testing structure provides:
 
-1. **Clear Organization**: Separation between Quality and Security, Development and Runtime
-2. **Efficient Execution**: Through test result inheritance and caching
-3. **Comprehensive Coverage**: All components tested at appropriate levels
-4. **Business Integration**: From requirements (Manager) to metrics (Executive)
-5. **Significant Time Savings**: 50-70% reduction through compositional approach
+1. **Three-Dimensional Organization**: Quality/Security × Development/Runtime × Agnostic/Specific
+2. **Framework Independence**: LLM and MCP tests work across all frameworks
+3. **Cross-Framework Inheritance**: Agnostic test results shared between frameworks
+4. **Efficient Execution**: Through enhanced caching and result reuse
+5. **Comprehensive Coverage**: All components tested at appropriate levels
+6. **Business Integration**: From requirements (Manager) to metrics (Executive)
+7. **Significant Time Savings**: 70-85% reduction through compositional and cross-framework approach
 
-The framework ensures that each component is tested appropriately while avoiding redundant testing through intelligent inheritance of results from foundation components to higher-level integrations.
+The framework ensures that each component is tested appropriately while maximizing test reuse across different agent frameworks through:
 
-The tables above provide a structured view that complements the visual diagrams, making it easy to:
+- **Universal caching** for framework-agnostic components
+- **Intelligent inheritance** of results across framework boundaries
+- **Adapter pattern** for framework translation
+- **Standardized formats** for cross-framework comparison
 
-- Compare testing approaches across components
-- Understand inheritance relationships
-- Calculate time savings
-- Plan test implementation
-- Set appropriate thresholds and alerts
+The tables and diagrams above provide a structured view that complements the visual representations, making it easy to:
+
+- Compare testing approaches across components and frameworks
+- Understand inheritance relationships both within and across frameworks
+- Calculate time savings from cross-framework test reuse
+- Plan test implementation for multi-framework environments
+- Set appropriate thresholds and alerts for each framework
+
+For detailed architecture on framework-agnostic testing, see [Framework-Agnostic Testing Architecture](framework_agnostic_testing.md).
