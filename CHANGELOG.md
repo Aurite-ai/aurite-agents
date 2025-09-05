@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - docs: test for release pypi workflow ([@jitenoswal](https://github.com/jitenoswal)) [#165](https://github.com/Aurite-ai/aurite-agents/pull/165)
 
 ### Fixed
+- fix: update version bump method in changelog automation ([@jwilcox17](https://github.com/jwilcox17)) [#171](https://github.com/Aurite-ai/aurite-agents/pull/171)
 - fix: changelog now has proper formatting to work with cicd automation ([@jwilcox17](https://github.com/jwilcox17)) [#168](https://github.com/Aurite-ai/aurite-agents/pull/168)
 - fix: github handling in git automation workflows ([@jwilcox17](https://github.com/jwilcox17)) [#156](https://github.com/Aurite-ai/aurite-agents/pull/156)
 - fix: improve release workflow PR info extraction from commit messages ([@jitenoswal](https://github.com/jitenoswal)) [#160](https://github.com/Aurite-ai/aurite-agents/pull/160)
