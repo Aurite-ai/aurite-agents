@@ -103,5 +103,20 @@
             "required": ["status"],
             "additionalProperties": false
         }
+    },
+    {
+        "type": "evaluation",
+        "name": "Eval Weather Agent Precomputed",
+        "test_cases": [
+            {
+                "input": "What's the weather in London?",
+                "output": "The weather in London is 15°C, partly cloudy",
+                "expectations": [
+                    "The output contains temperature information in celcius",
+                    "The output mentions the city name",
+                    "The output provides weather conditions"
+                ]
+            }
+        ]
     }
 ]
