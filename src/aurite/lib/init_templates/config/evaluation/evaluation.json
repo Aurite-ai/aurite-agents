@@ -4,8 +4,26 @@
         "name": "Eval Weather Agent",
         "eval_name": "Weather Agent",
         "eval_type": "agent",
-        "user_input": "london",
-        "expected_output": "The result should include information about the weather, including the temperature in celcius"
+        "test_cases": [
+            {
+                "input": "london",
+                "expectations": [
+                    "The output contains temperature information in celcius"
+                ]
+            },
+            {
+                "input": "tokyo",
+                "expectations": [
+                    "The output contains temperature information in celcius"
+                ]
+            },
+            {
+                "input": "What is the weather in San Francisco? Use Fahrenheit",
+                "expectations": [
+                    "The output contains temperature information in fahrenheit"
+                ]
+            }
+        ]
     },
     {
         "type": "evaluation",
@@ -13,8 +31,14 @@
         "description": "For testing expected_schema. This will fail, as weather_summary is renamed to weather_summary_asdf",
         "eval_name": "Structured Output Weather Agent",
         "eval_type": "agent",
-        "user_input": "london",
-        "expected_output": "The result should include information about the weather, including the temperature in celcius",
+        "test_cases": [
+            {
+                "input": "london",
+                "expectations": [
+                    "The output contains temperature information in celcius"
+                ]
+            }
+        ],
         "review_llm": "anthropic_claude_3_haiku",
         "expected_schema": {
             "type": "object",
@@ -53,8 +77,14 @@
         "description": "For testing expected_schema. This should succeed.",
         "eval_name": "ExampleCustomWorkflow",
         "eval_type": "custom_workflow",
-        "user_input": "london",
-        "expected_output": "The result should include information about the weather, including the temperature in celcius",
+        "test_cases": [
+            {
+                "input": "london",
+                "expectations": [
+                    "The output contains temperature information in celcius"
+                ]
+            }
+        ],
         "review_llm": "anthropic_claude_3_haiku",
         "expected_schema": {  
             "type": "object",
@@ -73,5 +103,20 @@
             "required": ["status"],
             "additionalProperties": false
         }
+    },
+    {
+        "type": "evaluation",
+        "name": "Eval Weather Agent Precomputed",
+        "test_cases": [
+            {
+                "input": "What's the weather in London?",
+                "output": "The weather in London is 15°C, partly cloudy",
+                "expectations": [
+                    "The output contains temperature information in celcius",
+                    "The output mentions the city name",
+                    "The output provides weather conditions"
+                ]
+            }
+        ]
     }
 ]
