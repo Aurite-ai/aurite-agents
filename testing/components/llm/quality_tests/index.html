@@ -1,0 +1,3472 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for Aurite Agents, a framework for building AI agents.">
+      
+      
+        <meta name="author" content="Aurite AI">
+      
+      
+        <link rel="canonical" href="https://aurite-ai.github.io/aurite-agents/testing/components/llm/quality_tests/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../security_tests/">
+      
+      
+      <link rel="icon" href="../../../../images/aurite_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Quality Tests - Aurite Agents Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#llm-quality-tests-specification" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../../.." title="Aurite Agents Documentation" class="md-header__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Aurite Agents Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Quality Tests
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../../.." title="Aurite Agents Documentation" class="md-nav__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    Aurite Agents Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/installation_guides/package_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Package Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/installation_guides/repository_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Repository Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/Tutorials_Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01: Introducing Aurite Agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/02_Agents_and_Tools.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02: Agents and Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/03_Agent_Challenge.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03: Agent Challenge
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    04: Agent Challenge Solutions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05: LLMs, Schemas, and Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/06_Building_Your_Own_MCP_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06: Building Your Own MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../getting-started/tutorials/07_Understanding_Projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07: Understanding Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../usage/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../usage/api_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../usage/tui_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    TUI Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Configurations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Configurations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/projects_and_workspaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects and Workspaces
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/linear_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Linear Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/custom_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../config/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/design/aurite_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/design/config_manager_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Manager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/design/mcp_host_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Host
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Flow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Flow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/flow/aurite_engine_execution_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine Flow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/flow/config_index_building_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Index Building
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/flow/mcp_server_registration_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server Registration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../architecture/flow/session_management_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Testing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/testing_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/compositional_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compositional Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/test_inheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Test Inheritance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/testing_hierarchy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_1" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_1" id="__nav_6_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            LLM
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-test-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quality Test Categories
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Test Categories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-response-coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Response Coherence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-output-formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Output Formatting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-hallucination-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Hallucination Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-response-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Response Consistency
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-token-efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Token Efficiency
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-time-quality-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Development-Time Quality Tests
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development-Time Quality Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-1-basic-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 1: Basic Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-2-complex-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 2: Complex Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-3-json-output-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 3: JSON Output Compliance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-4-structured-output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 4: Structured Output Formats
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-5-factual-accuracy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 5: Factual Accuracy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-6-consistency-across-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 6: Consistency Across Runs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-7-context-window-utilization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 7: Context Window Utilization
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-8-response-coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 8: Response Coherence
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-quality-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Quality Tests
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Quality Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitor-1-output-quality-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 1: Output Quality Scoring
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-2-format-compliance-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 2: Format Compliance Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-3-instruction-adherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 3: Instruction Adherence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-4-response-time-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 4: Response Time Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-5-drift-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 5: Drift Detection
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-execution-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Execution Framework
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Execution Framework">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-testing-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Development Testing Pipeline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-monitoring-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Monitoring Pipeline
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-score-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quality Score Calculation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Score Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#composite-quality-score-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      Composite Quality Score Formula
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-agent-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration with Agent Testing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-test-data-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Test Data Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-baseline-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Baseline Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-continuous-improvement" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Continuous Improvement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security_tests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_2" id="__nav_6_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            MCP Server
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp_server/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp_server/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_3" id="__nav_6_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agent/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agent/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agent/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agent/composition_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Composition Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_4" id="__nav_6_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Workflow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Workflow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/integration_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Integration Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/development_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/runtime_monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime Monitoring
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../guides/compliance_framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compliance Framework
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Security
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            User Security
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../user_security/access_control.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Access Control
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-test-categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quality Test Categories
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Test Categories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-response-coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Response Coherence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-output-formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Output Formatting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-hallucination-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Hallucination Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-response-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Response Consistency
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-token-efficiency" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Token Efficiency
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-time-quality-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Development-Time Quality Tests
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development-Time Quality Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-1-basic-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 1: Basic Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-2-complex-instruction-following" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 2: Complex Instruction Following
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-3-json-output-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 3: JSON Output Compliance
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-4-structured-output-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 4: Structured Output Formats
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-5-factual-accuracy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 5: Factual Accuracy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-6-consistency-across-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 6: Consistency Across Runs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-7-context-window-utilization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 7: Context Window Utilization
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-8-response-coherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test 8: Response Coherence
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-quality-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Quality Tests
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runtime Quality Tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitor-1-output-quality-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 1: Output Quality Scoring
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-2-format-compliance-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 2: Format Compliance Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-3-instruction-adherence" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 3: Instruction Adherence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-4-response-time-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 4: Response Time Analysis
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#monitor-5-drift-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      Monitor 5: Drift Detection
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-execution-framework" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Execution Framework
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Execution Framework">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-testing-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Development Testing Pipeline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runtime-monitoring-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Monitoring Pipeline
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-score-calculation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quality Score Calculation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quality Score Calculation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#composite-quality-score-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      Composite Quality Score Formula
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-agent-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration with Agent Testing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-test-data-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Test Data Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-baseline-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Baseline Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-continuous-improvement" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Continuous Improvement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Documentation
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="llm-quality-tests-specification">LLM Quality Tests Specification</h1>
+<h2 id="overview">Overview</h2>
+<p>This document specifies all quality tests for Large Language Models, organized by testing phase (development vs runtime) and categorized by the quality aspect being tested.</p>
+<h2 id="quality-test-categories">Quality Test Categories</h2>
+<h3 id="1-response-coherence">1. Response Coherence</h3>
+<p><strong>Purpose:</strong> Ensure LLM outputs are logically consistent and well-structured</p>
+<h3 id="2-instruction-following">2. Instruction Following</h3>
+<p><strong>Purpose:</strong> Validate the LLM's ability to accurately follow given instructions</p>
+<h3 id="3-output-formatting">3. Output Formatting</h3>
+<p><strong>Purpose:</strong> Verify outputs conform to requested formats (JSON, lists, etc.)</p>
+<h3 id="4-hallucination-detection">4. Hallucination Detection</h3>
+<p><strong>Purpose:</strong> Identify when the LLM generates false or unsupported information</p>
+<h3 id="5-response-consistency">5. Response Consistency</h3>
+<p><strong>Purpose:</strong> Ensure similar inputs produce consistent outputs</p>
+<h3 id="6-token-efficiency">6. Token Efficiency</h3>
+<p><strong>Purpose:</strong> Measure how efficiently the LLM uses tokens</p>
+<h2 id="development-time-quality-tests">Development-Time Quality Tests</h2>
+<h3 id="test-1-basic-instruction-following">Test 1: Basic Instruction Following</h3>
+<p><strong>Category:</strong> Instruction Following
+<strong>Purpose:</strong> Verify the LLM can follow simple, explicit instructions
+<strong>Method:</strong> Provide clear instructions and validate compliance
+<strong>Success Criteria:</strong> 95% compliance rate
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">test_cases</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="p">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        <span class="s2">&quot;instruction&quot;</span><span class="p">:</span> <span class="s2">&quot;List exactly 5 colors, one per line&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span> <span class="o">==</span> <span class="mi">5</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="p">},</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="p">{</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="s2">&quot;instruction&quot;</span><span class="p">:</span> <span class="s2">&quot;Write a haiku about technology&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">validate_haiku_structure</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="p">},</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="p">{</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;instruction&quot;</span><span class="p">:</span> <span class="s2">&quot;Respond with only &#39;YES&#39; or &#39;NO&#39;: Is water wet?&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;YES&#39;</span><span class="p">,</span> <span class="s1">&#39;NO&#39;</span><span class="p">]</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">}</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-2-complex-instruction-following">Test 2: Complex Instruction Following</h3>
+<p><strong>Category:</strong> Instruction Following
+<strong>Purpose:</strong> Test ability to follow multi-step or conditional instructions
+<strong>Method:</strong> Provide complex instructions with multiple requirements
+<strong>Success Criteria:</strong> 85% compliance rate
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">complex_tests</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="s2">&quot;instruction&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s2">        1. Start your response with &#39;ANALYSIS:&#39;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="s2">        2. List 3 pros and 3 cons</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="s2">        3. End with a recommendation</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="s2">        4. Keep total response under 200 words</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="s2">        &quot;&quot;&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">validate_complex_structure</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="p">}</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-3-json-output-compliance">Test 3: JSON Output Compliance</h3>
+<p><strong>Category:</strong> Output Formatting
+<strong>Purpose:</strong> Ensure valid JSON generation when requested
+<strong>Method:</strong> Request JSON with specific schema
+<strong>Success Criteria:</strong> 100% valid JSON, 95% schema compliance
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">json_tests</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="p">{</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>        <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Return a JSON object with user information&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="s2">&quot;schema&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;object&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>            <span class="s2">&quot;properties&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>                <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">},</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>                <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span> <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;email&quot;</span><span class="p">}</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>            <span class="p">},</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>            <span class="s2">&quot;required&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;age&quot;</span><span class="p">]</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="p">}</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="p">}</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-4-structured-output-formats">Test 4: Structured Output Formats</h3>
+<p><strong>Category:</strong> Output Formatting
+<strong>Purpose:</strong> Test various structured output formats
+<strong>Method:</strong> Request different formats (CSV, Markdown, XML)
+<strong>Success Criteria:</strong> 90% format compliance
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">format_tests</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="p">{</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>        <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;markdown_table&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>        <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Create a markdown table with 3 columns and 3 rows&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">validate_markdown_table</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="p">},</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="p">{</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="s2">&quot;format&quot;</span><span class="p">:</span> <span class="s2">&quot;csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>        <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Generate CSV data with headers&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="n">validate_csv_format</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    <span class="p">}</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-5-factual-accuracy">Test 5: Factual Accuracy</h3>
+<p><strong>Category:</strong> Hallucination Detection
+<strong>Purpose:</strong> Detect generation of false information
+<strong>Method:</strong> Ask questions with known answers
+<strong>Success Criteria:</strong> &lt;5% hallucination rate
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">factual_tests</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="p">{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;What is the capital of France?&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="s2">&quot;expected&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Paris&quot;</span><span class="p">],</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;exact&quot;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="p">},</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="p">{</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;List the primary colors&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="s2">&quot;expected&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;yellow&quot;</span><span class="p">],</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;contains_all&quot;</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="p">}</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-6-consistency-across-runs">Test 6: Consistency Across Runs</h3>
+<p><strong>Category:</strong> Response Consistency
+<strong>Purpose:</strong> Ensure deterministic behavior when needed
+<strong>Method:</strong> Run same prompt multiple times with temperature=0
+<strong>Success Criteria:</strong> 95% consistency rate
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">consistency_test</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;Define machine learning in one sentence&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="s2">&quot;runs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="s2">&quot;validation&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">responses</span><span class="p">:</span> <span class="n">similarity_score</span><span class="p">(</span><span class="n">responses</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.95</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="test-7-context-window-utilization">Test 7: Context Window Utilization</h3>
+<p><strong>Category:</strong> Token Efficiency
+<strong>Purpose:</strong> Test handling of different context sizes
+<strong>Method:</strong> Provide varying amounts of context
+<strong>Success Criteria:</strong> Appropriate response scaling
+<strong>Frequency:</strong> Weekly</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">context_tests</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="p">{</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>        <span class="s2">&quot;context_size&quot;</span><span class="p">:</span> <span class="s2">&quot;minimal&quot;</span><span class="p">,</span>  <span class="c1"># &lt;100 tokens</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="s2">&quot;task&quot;</span><span class="p">:</span> <span class="s2">&quot;Summarize this paragraph&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="s2">&quot;expected_response_size&quot;</span><span class="p">:</span> <span class="s2">&quot;short&quot;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="p">},</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="p">{</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="s2">&quot;context_size&quot;</span><span class="p">:</span> <span class="s2">&quot;large&quot;</span><span class="p">,</span>  <span class="c1"># &gt;2000 tokens</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="s2">&quot;task&quot;</span><span class="p">:</span> <span class="s2">&quot;Extract key points&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>        <span class="s2">&quot;expected_response_size&quot;</span><span class="p">:</span> <span class="s2">&quot;medium&quot;</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="p">}</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="p">]</span>
+</code></pre></div>
+<h3 id="test-8-response-coherence">Test 8: Response Coherence</h3>
+<p><strong>Category:</strong> Response Coherence
+<strong>Purpose:</strong> Evaluate logical flow and structure
+<strong>Method:</strong> Analyze response structure and transitions
+<strong>Success Criteria:</strong> Coherence score &gt; 0.85
+<strong>Frequency:</strong> Every deployment</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">coherence_metrics</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="s2">&quot;logical_flow&quot;</span><span class="p">:</span> <span class="n">check_logical_transitions</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="s2">&quot;topic_consistency&quot;</span><span class="p">:</span> <span class="n">check_topic_drift</span><span class="p">,</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="s2">&quot;conclusion_alignment&quot;</span><span class="p">:</span> <span class="n">check_conclusion_relevance</span><span class="p">,</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="s2">&quot;paragraph_structure&quot;</span><span class="p">:</span> <span class="n">check_paragraph_coherence</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="runtime-quality-tests">Runtime Quality Tests</h2>
+<h3 id="monitor-1-output-quality-scoring">Monitor 1: Output Quality Scoring</h3>
+<p><strong>Category:</strong> Response Coherence
+<strong>Metrics Collected:</strong> Quality score per response
+<strong>Alerting Thresholds:</strong> Score &lt; 0.7 triggers review
+<strong>Response Actions:</strong> Flag for human review, adjust parameters</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">runtime_quality_monitor</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="s2">&quot;sample_rate&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>  <span class="c1"># Check 10% of responses</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="s2">&quot;metrics&quot;</span><span class="p">:</span> <span class="p">[</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>        <span class="s2">&quot;coherence_score&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>        <span class="s2">&quot;relevance_score&quot;</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>        <span class="s2">&quot;completeness_score&quot;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="p">],</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="s2">&quot;alert_threshold&quot;</span><span class="p">:</span> <span class="mf">0.7</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="monitor-2-format-compliance-tracking">Monitor 2: Format Compliance Tracking</h3>
+<p><strong>Category:</strong> Output Formatting
+<strong>Metrics Collected:</strong> Format error rate
+<strong>Alerting Thresholds:</strong> Error rate &gt; 5%
+<strong>Response Actions:</strong> Log errors, notify development team</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">format_monitor</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="s2">&quot;track&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;json_errors&quot;</span><span class="p">,</span> <span class="s2">&quot;schema_violations&quot;</span><span class="p">,</span> <span class="s2">&quot;format_failures&quot;</span><span class="p">],</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="s2">&quot;aggregation_window&quot;</span><span class="p">:</span> <span class="s2">&quot;5m&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="s2">&quot;alert_on&quot;</span><span class="p">:</span> <span class="s2">&quot;error_rate &gt; 0.05&quot;</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="monitor-3-instruction-adherence">Monitor 3: Instruction Adherence</h3>
+<p><strong>Category:</strong> Instruction Following
+<strong>Metrics Collected:</strong> Instruction compliance rate
+<strong>Alerting Thresholds:</strong> Compliance &lt; 90%
+<strong>Response Actions:</strong> Review prompts, adjust system instructions</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">instruction_monitor</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="s2">&quot;checks&quot;</span><span class="p">:</span> <span class="p">[</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>        <span class="s2">&quot;word_count_compliance&quot;</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>        <span class="s2">&quot;format_compliance&quot;</span><span class="p">,</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>        <span class="s2">&quot;task_completion&quot;</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="p">],</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="s2">&quot;baseline&quot;</span><span class="p">:</span> <span class="mf">0.90</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="monitor-4-response-time-analysis">Monitor 4: Response Time Analysis</h3>
+<p><strong>Category:</strong> Token Efficiency
+<strong>Metrics Collected:</strong> Response time, tokens used
+<strong>Alerting Thresholds:</strong> P95 &gt; 2s, avg tokens &gt; 500
+<strong>Response Actions:</strong> Optimize prompts, adjust max_tokens</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">performance_monitor</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s2">&quot;metrics&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>        <span class="s2">&quot;response_time_ms&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;p50&quot;</span><span class="p">,</span> <span class="s2">&quot;p95&quot;</span><span class="p">,</span> <span class="s2">&quot;p99&quot;</span><span class="p">],</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>        <span class="s2">&quot;tokens_used&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;avg&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">],</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>        <span class="s2">&quot;tokens_per_second&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;avg&quot;</span><span class="p">]</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="p">},</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="s2">&quot;alerts&quot;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>        <span class="s2">&quot;p95_response_time&quot;</span><span class="p">:</span> <span class="s2">&quot;&gt; 2000&quot;</span><span class="p">,</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>        <span class="s2">&quot;avg_tokens&quot;</span><span class="p">:</span> <span class="s2">&quot;&gt; 500&quot;</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="p">}</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="monitor-5-drift-detection">Monitor 5: Drift Detection</h3>
+<p><strong>Category:</strong> Response Consistency
+<strong>Metrics Collected:</strong> Response pattern changes
+<strong>Alerting Thresholds:</strong> Significant drift detected
+<strong>Response Actions:</strong> Investigate model changes, retrain baselines</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">drift_detector</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="s2">&quot;baseline_window&quot;</span><span class="p">:</span> <span class="s2">&quot;7d&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="s2">&quot;detection_methods&quot;</span><span class="p">:</span> <span class="p">[</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>        <span class="s2">&quot;embedding_distance&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>        <span class="s2">&quot;topic_distribution&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>        <span class="s2">&quot;response_length_distribution&quot;</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="p">],</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="s2">&quot;sensitivity&quot;</span><span class="p">:</span> <span class="mf">0.15</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="test-execution-framework">Test Execution Framework</h2>
+<h3 id="development-testing-pipeline">Development Testing Pipeline</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">LLMQualityTester</span><span class="p">:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run_development_tests</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">llm_config</span><span class="p">):</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>        <span class="c1"># Run each test category</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;instruction_following&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_instruction_following</span><span class="p">()</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;output_formatting&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_output_formatting</span><span class="p">()</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;hallucination&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_hallucination_rate</span><span class="p">()</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;consistency&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_consistency</span><span class="p">()</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;coherence&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_coherence</span><span class="p">()</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>        <span class="c1"># Calculate composite score</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>        <span class="n">results</span><span class="p">[</span><span class="s2">&quot;composite_quality&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_quality_score</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>        <span class="k">return</span> <span class="n">results</span>
+</code></pre></div>
+<h3 id="runtime-monitoring-pipeline">Runtime Monitoring Pipeline</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">LLMQualityMonitor</span><span class="p">:</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">monitor_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">response</span><span class="p">):</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>        <span class="n">metrics</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>        <span class="c1"># Real-time quality checks</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>        <span class="n">metrics</span><span class="p">[</span><span class="s2">&quot;coherence&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">score_coherence</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>        <span class="n">metrics</span><span class="p">[</span><span class="s2">&quot;format_valid&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_format</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>        <span class="n">metrics</span><span class="p">[</span><span class="s2">&quot;instruction_followed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_instruction_adherence</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">response</span><span class="p">)</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>        <span class="c1"># Update aggregated metrics</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">update_metrics</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>        <span class="c1"># Check thresholds</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">should_alert</span><span class="p">(</span><span class="n">metrics</span><span class="p">):</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">send_alert</span><span class="p">(</span><span class="n">metrics</span><span class="p">)</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>        <span class="k">return</span> <span class="n">metrics</span>
+</code></pre></div>
+<h2 id="quality-score-calculation">Quality Score Calculation</h2>
+<h3 id="composite-quality-score-formula">Composite Quality Score Formula</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">calculate_quality_score</span><span class="p">(</span><span class="n">test_results</span><span class="p">):</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">weights</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>        <span class="s2">&quot;instruction_following&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>        <span class="s2">&quot;output_formatting&quot;</span><span class="p">:</span> <span class="mf">0.20</span><span class="p">,</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>        <span class="s2">&quot;coherence&quot;</span><span class="p">:</span> <span class="mf">0.20</span><span class="p">,</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>        <span class="s2">&quot;consistency&quot;</span><span class="p">:</span> <span class="mf">0.15</span><span class="p">,</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        <span class="s2">&quot;hallucination_rate&quot;</span><span class="p">:</span> <span class="mf">0.20</span>  <span class="c1"># Inverted - lower is better</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="p">}</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>    <span class="n">score</span> <span class="o">=</span> <span class="mi">0</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>    <span class="k">for</span> <span class="n">category</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">weights</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>        <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;hallucination_rate&quot;</span><span class="p">:</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>            <span class="c1"># Invert hallucination rate (lower is better)</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>            <span class="n">score</span> <span class="o">+=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">test_results</span><span class="p">[</span><span class="n">category</span><span class="p">])</span> <span class="o">*</span> <span class="n">weight</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>            <span class="n">score</span> <span class="o">+=</span> <span class="n">test_results</span><span class="p">[</span><span class="n">category</span><span class="p">]</span> <span class="o">*</span> <span class="n">weight</span>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>    <span class="k">return</span> <span class="n">score</span>
+</code></pre></div>
+<h2 id="integration-with-agent-testing">Integration with Agent Testing</h2>
+<p>Quality scores are inherited by agents:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">inheritable_quality_metrics</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>    <span class="s2">&quot;instruction_following_accuracy&quot;</span><span class="p">:</span> <span class="mf">0.95</span><span class="p">,</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="s2">&quot;output_format_compliance&quot;</span><span class="p">:</span> <span class="mf">0.92</span><span class="p">,</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="s2">&quot;response_coherence&quot;</span><span class="p">:</span> <span class="mf">0.94</span><span class="p">,</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="s2">&quot;hallucination_rate&quot;</span><span class="p">:</span> <span class="mf">0.08</span><span class="p">,</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="s2">&quot;response_consistency&quot;</span><span class="p">:</span> <span class="mf">0.91</span><span class="p">,</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="s2">&quot;token_efficiency&quot;</span><span class="p">:</span> <span class="mf">0.88</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="best-practices">Best Practices</h2>
+<h3 id="1-test-data-management">1. Test Data Management</h3>
+<ul>
+<li>Maintain versioned test datasets</li>
+<li>Include edge cases and adversarial examples</li>
+<li>Regularly update test cases based on production issues</li>
+<li>Balance test coverage with execution time</li>
+</ul>
+<h3 id="2-baseline-management">2. Baseline Management</h3>
+<ul>
+<li>Establish baselines for each model version</li>
+<li>Track metric trends over time</li>
+<li>Use statistical significance testing for changes</li>
+<li>Document expected variations</li>
+</ul>
+<h3 id="3-continuous-improvement">3. Continuous Improvement</h3>
+<ul>
+<li>Analyze failed tests to improve prompts</li>
+<li>Update test thresholds based on real-world performance</li>
+<li>Add new tests for emerging quality issues</li>
+<li>Share learnings across teams</li>
+</ul>
+<h2 id="related-documentation">Related Documentation</h2>
+<ul>
+<li><a href="../security_tests/">Security Tests Specification</a></li>
+<li><a href="../">LLM Testing Overview</a></li>
+<li><a href="../../../architecture/test_inheritance/">Test Inheritance</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Aurite-ai" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/aurite-agents/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../../../..", "features": ["navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+    
+  </body>
+</html>
