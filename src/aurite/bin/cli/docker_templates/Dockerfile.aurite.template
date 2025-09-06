@@ -1,0 +1,42 @@
+# Auto-generated Dockerfile for Aurite project
+ARG version_tag=latest
+FROM aurite/aurite-agents:${version_tag}
+
+# ============================================
+# USER CUSTOMIZATION SECTION - START
+# ============================================
+# Uncomment and modify the lines below to install additional dependencies
+# or configure your environment as needed.
+
+# Example: Install additional Python packages
+# RUN pip install --no-cache-dir pandas numpy scikit-learn
+
+# Example: Install system packages (requires switching to root temporarily)
+# USER root
+# RUN apt-get update && apt-get install -y \
+#     package-name \
+#     && rm -rf /var/lib/apt/lists/*
+# USER appuser
+
+# Example: Set environment variables
+# ENV MY_CUSTOM_VAR=value
+
+# Example: Copy additional configuration files
+# COPY config/custom-config.yaml /app/config/
+
+# ============================================
+# USER CUSTOMIZATION SECTION - END
+# ============================================
+
+# Copy project files into the container
+COPY . /app/project/
+
+# Set working directory
+WORKDIR /app/project
+
+# Ensure proper permissions
+USER root
+RUN chown -R appuser:appuser /app/project
+USER appuser
+
+# The base image already has the correct entrypoint and CMD

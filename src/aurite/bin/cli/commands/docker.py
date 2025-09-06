@@ -4,6 +4,12 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+try:
+    from importlib.resources import files
+except ImportError:
+    # Python < 3.9
+    from importlib_resources import files  # type: ignore
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -102,7 +108,7 @@ def _pull_image(image_name: str) -> bool:
 
 
 def docker_command(
-    action: str = typer.Argument("run", help="Docker action: run, stop, logs, shell, status, pull, build"),
+    action: str = typer.Argument("run", help="Docker action: run, stop, logs, shell, status, pull, build, init"),
     project_path: str = typer.Option(".", "--project", "-p", help="Path to Aurite project directory"),
     container_name: str = typer.Option("aurite-server", "--name", "-n", help="Container name"),
     port: int = typer.Option(8000, "--port", help="Port to expose (default: 8000)"),
@@ -115,6 +121,10 @@ def docker_command(
         None, "--build-tag", "-t", help="Tag for built image (e.g., my-project:latest)"
     ),
     push_after_build: bool = typer.Option(False, "--push", help="Push built image to registry after building"),
+    regenerate: bool = typer.Option(False, "--regenerate", help="Regenerate Dockerfile.aurite and .dockerignore"),
+    dockerfile: Optional[str] = typer.Option(
+        None, "--dockerfile", help="Path to custom Dockerfile (build action only)"
+    ),
 ):
     """
     Manage Aurite Docker containers.
@@ -127,6 +137,14 @@ def docker_command(
       status  - Check container status
       pull    - Pull latest image
       build   - Build custom image with project embedded
+      init    - Create Docker files without building
+
+    Build Notes:
+      The build and init actions create Dockerfile.aurite and .dockerignore files that
+      are saved in your project directory for customization. Edit the USER CUSTOMIZATION
+      SECTION in Dockerfile.aurite to add dependencies, then build.
+      Use --regenerate to overwrite existing Docker files with fresh templates.
+      Use --dockerfile to specify a custom Dockerfile path for the build action.
     """
 
     # Validate Docker installation
@@ -305,6 +323,83 @@ def docker_command(
         else:
             logger(f"[bold green]✓ Successfully pulled: {image_name}[/bold green]")
 
+    elif action == "init":
+        # Initialize Docker files without building
+        logger("[bold green]📝 Initializing Docker files for Aurite project...[/bold green]")
+
+        # Validate project directory
+        if not _validate_project_directory(project_path):
+            logger(f"[bold yellow]⚠ Warning:[/bold yellow] No .aurite file found in {project_path}")
+            if not typer.confirm("Continue anyway?"):
+                raise typer.Exit()
+        else:
+            logger(f"[bold green]✓[/bold green] Found Aurite project at {project_path}")
+
+        # Load templates from docker_templates directory
+        templates_dir = files("aurite.bin.cli.docker_templates")
+
+        # Load Dockerfile template and substitute version_tag
+        dockerfile_template = (templates_dir / "Dockerfile.aurite.template").read_text()
+        dockerfile_content = dockerfile_template.replace("version_tag=latest", f"version_tag={version_tag}")
+
+        # Load .dockerignore template
+        dockerignore_content = (templates_dir / "dockerignore.template").read_text()
+
+        dockerfile_path = Path(project_path) / "Dockerfile.aurite"
+        dockerignore_path = Path(project_path) / ".dockerignore"
+
+        # Check if files exist and handle accordingly
+        dockerfile_exists = dockerfile_path.exists()
+        dockerignore_exists = dockerignore_path.exists()
+
+        # Track if any files were created/modified
+        files_created = False
+
+        # Handle Dockerfile.aurite
+        if dockerfile_exists and not regenerate:
+            logger("[bold yellow]Dockerfile.aurite already exists[/bold yellow]")
+            logger("  To regenerate, use --regenerate flag")
+        else:
+            if dockerfile_exists and regenerate:
+                logger("[bold yellow]Regenerating Dockerfile.aurite (existing file will be overwritten)[/bold yellow]")
+
+            # Write Dockerfile
+            with open(dockerfile_path, "w") as f:
+                f.write(dockerfile_content)
+
+            logger("[bold green]✓ Created Dockerfile.aurite[/bold green]")
+            logger("  [cyan]This file has been saved for your customization.[/cyan]")
+            logger("  [cyan]Edit the USER CUSTOMIZATION SECTION to add dependencies.[/cyan]")
+            files_created = True
+
+        # Handle .dockerignore
+        if dockerignore_exists and not regenerate:
+            logger("[bold yellow].dockerignore already exists[/bold yellow]")
+        else:
+            if dockerignore_exists and regenerate:
+                # Backup existing .dockerignore before overwriting
+                dockerignore_backup_path = Path(project_path) / ".dockerignore.backup"
+                dockerignore_path.rename(dockerignore_backup_path)
+                logger("[bold yellow]Backed up existing .dockerignore to .dockerignore.backup[/bold yellow]")
+
+            # Write .dockerignore
+            with open(dockerignore_path, "w") as f:
+                f.write(dockerignore_content)
+
+            logger("[bold green]✓ Created .dockerignore[/bold green]")
+            files_created = True
+
+        # Show summary and next steps
+        if files_created:
+            logger("\n[bold cyan]Docker files initialized successfully![/bold cyan]")
+            logger("\n[bold]Next steps:[/bold]")
+            logger("  1. Review and customize [bold]Dockerfile.aurite[/bold]")
+            logger("  2. Add any custom dependencies in the USER CUSTOMIZATION SECTION")
+            logger("  3. Run [bold]aurite docker build[/bold] to build your image")
+        else:
+            logger("\n[bold yellow]All Docker files already exist.[/bold yellow]")
+            logger("Use [bold]--regenerate[/bold] flag to overwrite with fresh templates.")
+
     elif action == "build":
         # Build custom image with project embedded
         logger("[bold green]🔨 Building custom Aurite image with project embedded...[/bold green]")
@@ -323,132 +418,85 @@ def docker_command(
             build_tag = f"{project_name.lower()}:latest"
             logger(f"[bold blue]Using auto-generated tag: {build_tag}[/bold blue]")
 
-        # Create temporary Dockerfile
-        dockerfile_content = f"""# Auto-generated Dockerfile for Aurite project
-FROM aurite/aurite-agents:{version_tag}
+        # Handle custom Dockerfile or auto-generated one
+        if dockerfile:
+            # Use custom Dockerfile path
+            dockerfile_path = Path(dockerfile)
+            if not dockerfile_path.exists():
+                logger(f"[bold red]✗ Custom Dockerfile not found: {dockerfile}[/bold red]")
+                raise typer.Exit(code=1)
+            logger(f"[bold blue]Using custom Dockerfile: {dockerfile}[/bold blue]")
 
-# Copy project files into the container
-COPY . /app/project/
+            # Still handle .dockerignore
+            dockerignore_path = Path(project_path) / ".dockerignore"
+            dockerignore_exists = dockerignore_path.exists()
 
-# Set working directory
-WORKDIR /app/project
+            if not dockerignore_exists:
+                # Load .dockerignore template
+                templates_dir = files("aurite.bin.cli.docker_templates")
+                dockerignore_content = (templates_dir / "dockerignore.template").read_text()
 
-# Ensure proper permissions
-USER root
-RUN chown -R appuser:appuser /app/project
-USER appuser
+                # Write .dockerignore
+                with open(dockerignore_path, "w") as f:
+                    f.write(dockerignore_content)
+                logger("[bold green]✓ Created .dockerignore[/bold green]")
+            else:
+                logger("[bold blue]Using existing .dockerignore[/bold blue]")
+        else:
+            # Use auto-generated Dockerfile.aurite
+            # Load templates from docker_templates directory
+            templates_dir = files("aurite.bin.cli.docker_templates")
 
-# The base image already has the correct entrypoint and CMD
-"""
+            # Load Dockerfile template and substitute version_tag
+            dockerfile_template = (templates_dir / "Dockerfile.aurite.template").read_text()
+            dockerfile_content = dockerfile_template.replace("version_tag=latest", f"version_tag={version_tag}")
 
-        # Create .dockerignore to exclude unnecessary files
-        dockerignore_content = """# Auto-generated .dockerignore for Aurite build
-# Python cache files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+            # Load .dockerignore template
+            dockerignore_content = (templates_dir / "dockerignore.template").read_text()
 
-# Virtual environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+            dockerfile_path = Path(project_path) / "Dockerfile.aurite"
+            dockerignore_path = Path(project_path) / ".dockerignore"
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+            # Check if files exist and handle accordingly
+            dockerfile_exists = dockerfile_path.exists()
+            dockerignore_exists = dockerignore_path.exists()
 
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+            # Handle Dockerfile.aurite
+            if dockerfile_exists and not regenerate:
+                logger("[bold blue]Using existing Dockerfile.aurite[/bold blue]")
+                logger("  To regenerate, use --regenerate flag")
+            else:
+                if dockerfile_exists and regenerate:
+                    logger(
+                        "[bold yellow]Regenerating Dockerfile.aurite (existing file will be overwritten)[/bold yellow]"
+                    )
 
-# Git
-.git/
-.gitignore
+                # Write Dockerfile
+                with open(dockerfile_path, "w") as f:
+                    f.write(dockerfile_content)
 
-# Docker files
-Dockerfile*
-.dockerignore
-docker-compose*.yml
+                logger("[bold green]✓ Created Dockerfile.aurite[/bold green]")
+                logger("  [cyan]This file has been saved for your customization.[/cyan]")
+                logger("  [cyan]Edit the USER CUSTOMIZATION SECTION to add dependencies.[/cyan]")
 
-# Logs
-*.log
-logs/
+            # Handle .dockerignore
+            if dockerignore_exists and not regenerate:
+                logger("[bold blue]Using existing .dockerignore[/bold blue]")
+            else:
+                if dockerignore_exists and regenerate:
+                    # Backup existing .dockerignore before overwriting
+                    dockerignore_backup_path = Path(project_path) / ".dockerignore.backup"
+                    dockerignore_path.rename(dockerignore_backup_path)
+                    logger("[bold yellow]Backed up existing .dockerignore to .dockerignore.backup[/bold yellow]")
 
-# Node modules (if any)
-node_modules/
+                # Write .dockerignore
+                with open(dockerignore_path, "w") as f:
+                    f.write(dockerignore_content)
 
-# Temporary files
-tmp/
-temp/
-*.tmp
+                logger("[bold green]✓ Created .dockerignore[/bold green]")
 
-# Large data files
-*.db
-*.sqlite
-*.sqlite3
-
-# Cache directories
-.cache/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Build artifacts
-*.tar.gz
-*.zip
-"""
-
-        dockerfile_path = Path(project_path) / "Dockerfile.aurite"
-        dockerignore_path = Path(project_path) / ".dockerignore"
-        dockerignore_backup_path = Path(project_path) / ".dockerignore.backup"
-
-        # Backup existing .dockerignore if it exists
-        existing_dockerignore = dockerignore_path.exists()
-        if existing_dockerignore:
-            dockerignore_path.rename(dockerignore_backup_path)
-            logger("[bold blue]Backed up existing .dockerignore[/bold blue]")
-
+        # For build action, continue with the build process
         try:
-            # Write temporary Dockerfile
-            with open(dockerfile_path, "w") as f:
-                f.write(dockerfile_content)
-
-            # Write temporary .dockerignore
-            with open(dockerignore_path, "w") as f:
-                f.write(dockerignore_content)
-
-            logger(f"[bold blue]Created temporary Dockerfile: {dockerfile_path}[/bold blue]")
-            logger(f"[bold blue]Created temporary .dockerignore: {dockerignore_path}[/bold blue]")
-
             # Pull base image first
             logger(f"[bold blue]Ensuring base image is available: {image_name}[/bold blue]")
             if not _pull_image(image_name):
@@ -489,25 +537,21 @@ htmlcov/
                 logger(f"  Run your custom image: [bold]docker run -p 8000:8000 --env-file .env {build_tag}[/bold]")
                 logger(f"  Push to registry: [bold]docker push {build_tag}[/bold]")
 
+                # Provide guidance on customization
+                if not dockerfile_exists or regenerate:
+                    logger("\n[bold cyan]Customization:[/bold cyan]")
+                    logger("  Edit [bold]Dockerfile.aurite[/bold] to add custom dependencies")
+                    logger("  Then run [bold]aurite docker build[/bold] again to rebuild with changes")
+
             else:
                 logger("[bold red]✗ Failed to build image[/bold red]")
                 raise typer.Exit(code=1)
 
-        finally:
-            # Clean up temporary files
-            if dockerfile_path.exists():
-                dockerfile_path.unlink()
-                logger("[bold blue]Cleaned up temporary Dockerfile[/bold blue]")
-            if dockerignore_path.exists():
-                dockerignore_path.unlink()
-                logger("[bold blue]Cleaned up temporary .dockerignore[/bold blue]")
-
-            # Restore original .dockerignore if it existed
-            if existing_dockerignore and dockerignore_backup_path.exists():
-                dockerignore_backup_path.rename(dockerignore_path)
-                logger("[bold blue]Restored original .dockerignore[/bold blue]")
+        except Exception as e:
+            logger(f"[bold red]✗ Build failed: {e}[/bold red]")
+            raise typer.Exit(code=1) from e
 
     else:
         logger(f"[bold red]Unknown action: {action}[/bold red]")
-        logger("Available actions: run, stop, logs, shell, status, pull, build")
+        logger("Available actions: run, stop, logs, shell, status, pull, build, init")
         raise typer.Exit(code=1)

@@ -176,6 +176,7 @@ extend_exclude = [
 ]
 per_rule_ignores = { DEP001 = [
     "pytest_benchmark",
+    "importlib_resources",
 ], DEP002 = [
     "psycopg2-binary",
 ], DEP003 = [
