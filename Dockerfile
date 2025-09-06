@@ -11,7 +11,8 @@
 # =============================================================================
 
 # Build stage
-FROM python:3.12-slim AS builder
+# To get the current SHA256: docker pull python:3.12-slim && docker inspect python:3.12-slim | grep -A1 RepoDigests
+FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047 AS builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -25,19 +26,28 @@ RUN apt-get update && \
 # Set working directory for build
 WORKDIR /build
 
-# Copy the entire project context
-# .dockerignore will handle exclusions
+# Copy only requirements first for better caching
+COPY requirements.txt .
+
+# Build wheels for all dependencies
+# This step will be cached if requirements.txt doesn't change
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
+# Install the wheels (this is faster than building from source)
+RUN pip install --no-cache-dir --no-deps /wheels/*.whl
+
+# Copy the rest of the project for the editable install
 COPY . .
 
-# Install dependencies from the poetry-generated requirements.txt
-# We use --no-deps to avoid installing dependencies twice (poetry already did it)
-
-RUN pip install --no-deps -r requirements.txt
+# Install the package itself in editable mode (for development flexibility)
+# This needs to happen after wheels are installed
+RUN pip install --no-cache-dir -e .
 
 # =============================================================================
 # Runtime stage
 # =============================================================================
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047
 
 # Add metadata labels for DockerHub
 LABEL org.opencontainers.image.title="Aurite Agents Framework" \
@@ -68,8 +78,10 @@ RUN mkdir -p /app/src /app/project /app/cache && \
     chown -R appuser:appuser /app
 
 # Copy necessary artifacts from the builder stage
-# Copy installed Python packages (including dev dependencies and editable install)
+# Copy installed Python packages
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+# Copy pip metadata (for pip list, pip show, etc.)
+COPY --from=builder /usr/local/lib/python3.12/site-packages/*.dist-info /usr/local/lib/python3.12/site-packages/
 # Copy the source code (needed for editable install runtime and reload)
 COPY --from=builder /build/src/ /app/src/
 # Copy pyproject.toml (might be needed by runtime tools or for reference)

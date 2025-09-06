@@ -1,38 +1,25 @@
-# Auto-generated Dockerfile for Aurite project
+# Auto-generated Dockerfile for Aurite project. Update as needed.
+# To build the image, run:
+# aurite docker build --version latest
+# =============================================================================
+# Aurite Agents Framework - Project Docker Image
+# =============================================================================
 ARG version_tag=latest
 FROM aurite/aurite-agents:${version_tag}
-
-# ============================================
-# USER CUSTOMIZATION SECTION - START
-# ============================================
-# Uncomment and modify the lines below to install additional dependencies
-# or configure your environment as needed.
-
-# Example: Install additional Python packages
-# RUN pip install --no-cache-dir pandas numpy scikit-learn
-
-# Example: Install system packages (requires switching to root temporarily)
-# USER root
-# RUN apt-get update && apt-get install -y \
-#     package-name \
-#     && rm -rf /var/lib/apt/lists/*
-# USER appuser
-
-# Example: Set environment variables
-# ENV MY_CUSTOM_VAR=value
-
-# Example: Copy additional configuration files
-# COPY config/custom-config.yaml /app/config/
-
-# ============================================
-# USER CUSTOMIZATION SECTION - END
-# ============================================
 
 # Copy project files into the container
 COPY . /app/project/
 
 # Set working directory
 WORKDIR /app/project
+
+# To install dependencies from requirements.txt, uncomment the following:
+# USER root
+# RUN if [ -f requirements.txt ]; then \
+#     pip install --no-cache-dir -r requirements.txt; \
+#     fi
+# RUN chown -R appuser:appuser /app/project
+# USER appuser
 
 # Ensure proper permissions
 USER root
