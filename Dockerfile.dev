@@ -2,10 +2,7 @@
 # Aurite Agents Framework - Public Docker Image
 # =============================================================================
 # This Dockerfile creates a production-ready container for the Aurite Agents
-# framework, installing it as a proper Python package.
-#
-# Build:
-#   docker build -f Dockerfile.public -t aurite/aurite-agents:latest .
+# framework that can be published to DockerHub for public use.
 #
 # Usage:
 #   docker run -v /path/to/project:/app/project -p 8000:8000 aurite/aurite-agents
@@ -14,6 +11,7 @@
 # =============================================================================
 
 # Build stage
+# To get the current SHA256: docker pull python:3.12-slim && docker inspect python:3.12-slim | grep -A1 RepoDigests
 FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047 AS builder
 
 # Install build dependencies
@@ -28,10 +26,18 @@ RUN apt-get update && \
 # Set working directory for build
 WORKDIR /build
 
-# Upgrade pip for better wheel handling
-RUN pip install --upgrade pip
+# Copy only requirements first for better caching
+COPY requirements.txt .
 
-# Copy the requirements files first for better caching
+# Build wheels for all dependencies
+# This step will be cached if requirements.txt doesn't change
+RUN pip install --upgrade pip && \
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
+
+# Install the wheels (this is faster than building from source)
+RUN pip install --no-deps /wheels/*.whl
+
+# Copy the rest of the project for the editable install
 COPY src/ ./src/
 COPY pyproject.toml .
 COPY docker-entrypoint.sh .
@@ -39,12 +45,9 @@ COPY LICENSE .
 COPY README.md .
 COPY requirements.txt .
 
-# Build wheel for aurite-agents and all its dependencies
-# This creates wheels in /wheels directory for faster installation
-RUN pip wheel --no-cache-dir --wheel-dir /wheels .
-
-# Install all wheels (aurite-agents and dependencies)
-RUN pip install --no-cache-dir --no-deps /wheels/*.whl
+# Install the package itself in editable mode (for development flexibility)
+# This needs to happen after wheels are installed
+RUN pip install -e .
 
 # =============================================================================
 # Runtime stage
@@ -61,9 +64,11 @@ LABEL org.opencontainers.image.title="Aurite Agents Framework" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="0.3.28" \
       org.opencontainers.image.authors="Ryan W <ryan@aurite.ai>, Blake R <blake@aurite.ai>, Jiten Oswal <jiten@aurite.ai>" \
+      org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
       maintainer="Aurite AI <hello@aurite.ai>"
 
 # Install runtime dependencies
+# We need curl for healthcheck, libpq5 for psycopg2, python3 for health check script
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         curl \
@@ -74,16 +79,24 @@ RUN apt-get update && \
 RUN useradd -m -u 1000 appuser
 
 # Create application directories
-RUN mkdir -p /app/project /app/cache && \
+RUN mkdir -p /app/src /app/project /app/cache && \
     chown -R appuser:appuser /app
 
-# Copy installed Python packages from builder
+# Copy necessary artifacts from the builder stage
+# Copy installed Python packages
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+# Copy pip metadata (for pip list, pip show, etc.)
+COPY --from=builder /usr/local/lib/python3.12/site-packages/*.dist-info /usr/local/lib/python3.12/site-packages/
+# Copy the source code (needed for editable install runtime and reload)
+COPY --from=builder /build/src/ /app/src/
+# Copy pyproject.toml (might be needed by runtime tools or for reference)
+COPY --from=builder /build/pyproject.toml /app/
+# Copy entrypoint script
+COPY --from=builder /build/docker-entrypoint.sh /app/
 
-# Copy entrypoint script if it exists
-COPY --chown=appuser:appuser docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Make entrypoint executable and ensure proper ownership
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chown appuser:appuser /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER appuser
@@ -92,14 +105,14 @@ USER appuser
 WORKDIR /app/project
 
 # Set environment variables
-# No PYTHONPATH needed - aurite is properly installed as a package
-ENV PYTHONUNBUFFERED=1 \
-    AURITE_PROJECT_DIR=/app/project
+ENV PYTHONPATH=/app/src:/app/project \
+    PYTHONUNBUFFERED=1
 
 # Expose the API port
 EXPOSE 8000
 
-# Health check using Python to check the health endpoint
+# Health check - use Python to check the health endpoint
+# This avoids dependency on external tools and provides better error messages
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${AURITE_API_PORT:-8000}/health').read()" || exit 1
 

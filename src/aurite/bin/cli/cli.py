@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 
 try:
@@ -54,7 +55,8 @@ def main(
     ),
 ):
     """A framework for building, testing, and running AI agents."""
-    pass
+    # Load environment variables from .env file in current working directory
+    load_dotenv()
 
 
 list_app = typer.Typer(

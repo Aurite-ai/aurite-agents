@@ -459,6 +459,9 @@ class AuriteEngine:
                 )
 
             return run_result
+        except ConfigurationError:
+            # Re-raise ConfigurationErrors directly so they can be properly handled by workflows
+            raise
         except Exception as e:
             error_msg = (
                 f"Unexpected error in AuriteEngine while running Agent '{agent_name}': {type(e).__name__}: {str(e)}"
