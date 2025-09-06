@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from aurite.execution.aurite_engine import AuriteEngine
-from aurite.lib.components.agents.agent_models import AgentRunResult
+from aurite.lib.models import AgentRunResult
 from aurite.lib.models.config.components import CustomWorkflowConfig
 
 

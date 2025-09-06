@@ -21,7 +21,11 @@ async def test_stdio_server_working(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "error_stdio_server")))
+        server_config = config_manager.get_config("mcp_server", "error_stdio_server")
+        if not server_config:
+            raise ValueError("MCP server config 'error_stdio_server' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         with pytest.raises(MCPServerTimeoutError):
             await host.call_tool("error_stdio_server-timeout", {"a": 1, "b": 2})
@@ -42,7 +46,11 @@ async def test_http_server_error(with_test_config, start_http_server):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "error_http_server")))
+        server_config = config_manager.get_config("mcp_server", "error_http_server")
+        if not server_config:
+            raise ValueError("MCP server config 'error_http_server' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         with pytest.raises(MCPServerTimeoutError):
             await host.call_tool("error_http_server-timeout", {"a": 1, "b": 2})

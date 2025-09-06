@@ -78,7 +78,11 @@ async def run_agent(
             session_id=request.session_id,
         )
         if result.status == "success":
-            agent_config = AgentConfig(**config_manager.get_config("agent", agent_name))
+            agent_config_dict = config_manager.get_config("agent", agent_name)
+            if not agent_config_dict:
+                raise ConfigurationError(f"Agent Config for {agent_name} not found")
+
+            agent_config = AgentConfig(**agent_config_dict)
 
             if agent_config.llm_config_id and not agent_config.llm:
                 config_manager.validate_llm(agent_config.llm_config_id)
@@ -238,12 +242,12 @@ async def evaluate_component_by_config(
 
 
 def _validate_agent(agent_name: str, config_manager: ConfigManager):
-    agent_config = config_manager.get_config("agent", agent_name)
+    agent_config_dict = config_manager.get_config("agent", agent_name)
 
-    if not agent_config:
+    if not agent_config_dict:
         raise ConfigurationError(f"Agent Config for {agent_name} not found")
 
-    agent_config: AgentConfig = AgentConfig(**agent_config)
+    agent_config = AgentConfig(**agent_config_dict)
 
     llm_config = None
     if agent_config.llm_config_id:

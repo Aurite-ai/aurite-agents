@@ -71,7 +71,7 @@ async def run_component(
         if component_type == "agent":
             if not user_message:
                 # Interactive mode - use Textual TUI
-                from ..tui.chat import TextualChatApp
+                from ...tui.apps.chat import TextualChatApp
 
                 if not session_id:
                     logger(

@@ -5,6 +5,7 @@ import pytest
 
 from aurite.aurite import Aurite
 from aurite.lib.models.config.components import ClientConfig
+from aurite.utils.errors import MCPServerFileNotFoundError
 
 
 @pytest.mark.anyio
@@ -21,8 +22,11 @@ async def test_stdio_server_working(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
+        server_config = config_manager.get_config("mcp_server", "weather_server_control")
+        if not server_config:
+            raise ValueError("MCP server config 'weather_server_control' not found")
 
+        await host.register_client(ClientConfig(**server_config))
         tool_result = await host.call_tool("weather_server_control-weather_lookup", {"location": "London"})
 
         assert tool_result is not None
@@ -45,7 +49,11 @@ async def test_stdio_server_wrong_args(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
+        server_config = config_manager.get_config("mcp_server", "weather_server_control")
+        if not server_config:
+            raise ValueError("MCP server config 'weather_server_control' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         tool_result = await host.call_tool("weather_server_control-weather_lookup", {"sdfsdf": "sdffsdfsdf"})
 
@@ -68,7 +76,11 @@ async def test_stdio_server_tool_dne(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "weather_server_control")))
+        server_config = config_manager.get_config("mcp_server", "weather_server_control")
+        if not server_config:
+            raise ValueError("MCP server config 'weather_server_control' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         with pytest.raises(Exception):
             await host.call_tool("asdf", {"sdfsdf": "sdffsdfsdf"})
@@ -88,7 +100,9 @@ async def test_stdio_server_incorrect_path(with_test_config):
 
         config_manager.refresh()
 
-        with pytest.raises(Exception):
-            await host.register_client(
-                ClientConfig(**config_manager.get_config("mcp_server", "weather_server_invalid_server_path"))
-            )
+        with pytest.raises(MCPServerFileNotFoundError):
+            server_config = config_manager.get_config("mcp_server", "weather_server_invalid_server_path")
+            if not server_config:
+                raise ValueError("MCP server config 'weather_server_control' not found")
+
+            await host.register_client(ClientConfig(**server_config))

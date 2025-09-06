@@ -29,20 +29,10 @@ WORKDIR /build
 # .dockerignore will handle exclusions
 COPY . .
 
-# Install poetry
-RUN pip install poetry
+# Install dependencies from the poetry-generated requirements.txt
+# We use --no-deps to avoid installing dependencies twice (poetry already did it)
 
-# Configure poetry to install packages to the system python
-RUN poetry config virtualenvs.create false
-
-# Install all dependencies, including the project itself in editable mode
-# This is the single source of truth for dependencies
-# Install dependencies using the lock file
-RUN poetry install --no-root --with storage
-
-# Then install the project itself
-RUN poetry install --only-root
-
+RUN pip install --no-deps -r requirements.txt
 
 # =============================================================================
 # Runtime stage

@@ -295,7 +295,7 @@ async def log_requests(request: Request, call_next: Callable):
 try:
     # Override the default swagger_ui_parameters to use CDN assets
     app.swagger_ui_parameters = {
-        **app.swagger_ui_parameters,
+        **app.swagger_ui_parameters,  # type: ignore
         "swagger_js_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
         "swagger_css_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
     }

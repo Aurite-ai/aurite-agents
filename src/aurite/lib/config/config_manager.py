@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
+from pydantic import ValidationError
 
+from ...utils.errors import MCPServerFileNotFoundError
 from ..models.api.responses import ComponentCreateResponse
 from ..storage.db.db_manager import StorageManager
 from .config_utils import find_anchor_files
@@ -248,7 +250,7 @@ class ConfigManager:
             logger.debug(f"Indexed '{component_id}' ({component_type}) from {config_file}")
 
     def _resolve_paths_in_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Resolves relative paths in a component's configuration data."""
+        """Resolves relative paths in a component's configuration data and validates file existence for MCP servers."""
         context_path_str = config_data.get("_context_path")
         if not context_path_str:
             return config_data
@@ -256,12 +258,32 @@ class ConfigManager:
         context_path = Path(context_path_str)
         resolved_data = config_data.copy()
         component_type = resolved_data.get("type")
+        component_name = resolved_data.get("name", "unknown")
 
         if component_type == "mcp_server":
             if "server_path" in resolved_data and resolved_data["server_path"]:
                 path = Path(resolved_data["server_path"])
                 if not path.is_absolute():
-                    resolved_data["server_path"] = (context_path / path).resolve()
+                    resolved_path = (context_path / path).resolve()
+                else:
+                    resolved_path = path.resolve()
+
+                # Check if the file exists for stdio transport type
+                transport_type = resolved_data.get("transport_type")
+                if transport_type == "stdio" or (not transport_type and resolved_data.get("server_path")):
+                    # If transport_type is not set but server_path is, it will be inferred as stdio
+                    if not resolved_path.exists():
+                        raise MCPServerFileNotFoundError(
+                            server_name=component_name, server_path=str(resolved_path), context_path=str(context_path)
+                        )
+                    if not resolved_path.is_file():
+                        raise MCPServerFileNotFoundError(
+                            server_name=component_name,
+                            server_path=f"{resolved_path} (not a file)",
+                            context_path=str(context_path),
+                        )
+
+                resolved_data["server_path"] = resolved_path
 
         elif component_type == "custom_workflow":
             if "module_path" in resolved_data and resolved_data["module_path"]:
@@ -457,6 +479,11 @@ class ConfigManager:
         # Read the whole file, update the specific component, and write it back
         file_content_str = self.get_file_content(source_name, str(relative_path))
         if file_content_str is None:
+            return False
+
+        # Detect file format based on extension
+        if not self._file_manager:
+            logger.error("FileManager not initialized. Cannot detect file format.")
             return False
 
         file_format = self._file_manager._detect_file_format(source_file_path)
@@ -781,17 +808,17 @@ class ConfigManager:
             model_class(**clean_config)
             return True, []
 
-        except Exception as e:
+        except ValidationError as e:
             # Parse Pydantic validation errors into readable messages
             errors = []
-            if hasattr(e, "errors"):
-                for error in e.errors():
-                    field_path = " -> ".join(str(loc) for loc in error["loc"])
-                    error_msg = error["msg"]
-                    errors.append(f"Field '{field_path}': {error_msg}")
-            else:
-                errors.append(f"Validation error: {str(e)}")
-
+            for error in e.errors():
+                field_path = " -> ".join(str(loc) for loc in error["loc"])
+                error_msg = error["msg"]
+                errors.append(f"Field '{field_path}': {error_msg}")
+            return False, errors
+        except Exception as e:
+            # Handle any other exceptions
+            errors = [f"Validation error: {str(e)}"]
             return False, errors
 
     def validate_all_components(self) -> List[Dict[str, Any]]:

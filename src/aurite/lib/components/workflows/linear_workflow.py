@@ -16,7 +16,7 @@ from ...models.config.components import WorkflowComponent, WorkflowConfig
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
-    from ...execution.aurite_engine import AuriteEngine
+    from ....execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 

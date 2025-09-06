@@ -69,16 +69,23 @@ class AuriteEngine:
             raise ValueError("ConfigManager instance is required for AuriteEngine.")
         if not host_instance:
             raise ValueError("MCPHost instance is required for AuriteEngine.")
+        if not storage_manager and not cache_manager:
+            logger.warning("No StorageManager or CacheManager provided. Session history and results will not be saved.")
 
         self._config_manager = config_manager
         self._host = host_instance
         self._storage_manager = storage_manager
+        self._cache_manager = cache_manager
+
         # The engine now uses a SessionManager for history, which supports both file and database storage
-        self._session_manager = (
-            SessionManager(cache_manager=cache_manager, storage_manager=storage_manager)
-            if (cache_manager or storage_manager)
-            else None
-        )
+        # SessionManager requires both parameters, with storage_manager being optional (can be None)
+        if self._cache_manager:
+            self._session_manager = SessionManager(
+                cache_manager=self._cache_manager,
+                storage_manager=self._storage_manager,  # Can be None
+            )
+        else:
+            self._session_manager = None
         self._llm_client_cache: Dict[str, "LiteLLMClient"] = {}
         self.langfuse = langfuse
         logger.debug(f"AuriteEngine initialized (StorageManager {'present' if storage_manager else 'absent'}).")
@@ -91,7 +98,7 @@ class AuriteEngine:
 
     def _should_enable_logging(
         self,
-        component_config: Union["AgentConfig", "WorkflowConfig"],
+        component_config: Union["AgentConfig", "WorkflowConfig", "GraphWorkflowConfig"],
         force_logging: Optional[bool] = None,
     ) -> bool:
         """
@@ -230,6 +237,12 @@ class AuriteEngine:
             # Check if agent has include_history=true
             agent_config_dict = self._config_manager.get_config("agent", agent_name)
             if agent_config_dict:
+                # Validate that 'name' field is present in the config
+                if "name" not in agent_config_dict:
+                    raise ConfigurationError(
+                        f"Agent configuration '{agent_name}' is missing required 'name' field. "
+                        f"This indicates a malformed configuration file."
+                    )
                 agent_config = AgentConfig(**agent_config_dict)
                 if agent_config.include_history:
                     session_id = f"agent-{uuid.uuid4().hex[:8]}"
@@ -250,7 +263,16 @@ class AuriteEngine:
                 session_id=session_id,
             )
             # Create trace if Langfuse is enabled
-            agent_config_for_log_check = AgentConfig(**self._config_manager.get_config("agent", agent_name))
+            agent_config_dict_for_log = self._config_manager.get_config("agent", agent_name)
+            if not agent_config_dict_for_log:
+                raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+            # Validate that 'name' field is present in the config
+            if "name" not in agent_config_dict_for_log:
+                raise ConfigurationError(
+                    f"Agent configuration '{agent_name}' is missing required 'name' field. "
+                    f"This indicates a malformed configuration file."
+                )
+            agent_config_for_log_check = AgentConfig(**agent_config_dict_for_log)
             if self.langfuse and self._should_enable_logging(agent_config_for_log_check, force_logging):
                 if os.getenv("LANGFUSE_USER_ID"):
                     user_id = os.getenv("LANGFUSE_USER_ID")
@@ -347,6 +369,12 @@ class AuriteEngine:
         agent_config_dict = self._config_manager.get_config("agent", agent_name)
         if not agent_config_dict:
             raise ConfigurationError(f"Agent configuration '{agent_name}' not found.")
+        # Validate that 'name' field is present in the config
+        if "name" not in agent_config_dict:
+            raise ConfigurationError(
+                f"Agent configuration '{agent_name}' is missing required 'name' field. "
+                f"This indicates a malformed configuration file."
+            )
         agent_config = AgentConfig(**agent_config_dict)
         effective_include_history = (
             force_include_history if force_include_history is not None else agent_config.include_history

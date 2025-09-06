@@ -52,6 +52,7 @@ dependencies = [
     "litellm (>=1.75.4,<2.0.0)",
     "fastmcp (>=2.11.3,<3.0.0)",
     "rich (>=14.1.0,<15.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
 ]
 
 # DEV DEPENDENCIES
@@ -158,8 +159,11 @@ check_untyped_defs = false
 disallow_untyped_defs = false
 show_error_codes = true
 disallow_untyped_calls = false
-files = ["src/aurite/**/*.py"]
+files = ["src/aurite"]
 follow_imports = "silent"
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
 
 # DEPTRY CONFIGURATION
 [tool.deptry]
@@ -172,6 +176,8 @@ extend_exclude = [
 ]
 per_rule_ignores = { DEP001 = [
     "pytest_benchmark",
+], DEP002 = [
+    "psycopg2-binary",
 ], DEP003 = [
     "google",
     "httpx",
