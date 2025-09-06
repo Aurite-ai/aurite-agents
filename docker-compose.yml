@@ -28,7 +28,7 @@ services:
       - .env # Load environment variables from .env file
     environment:
       # Use file-based mode for testing (default for most users)
-      AURITE_ENABLE_DB: "false"
+      AURITE_ENABLE_DB: "true"
       # Database configuration (available if user wants to enable it)
       AURITE_DB_TYPE: postgres
       AURITE_DB_HOST: postgres  # Use the postgres service name

@@ -37,7 +37,12 @@ RUN poetry config virtualenvs.create false
 
 # Install all dependencies, including the project itself in editable mode
 # This is the single source of truth for dependencies
-RUN poetry install --with storage
+# Install dependencies using the lock file
+RUN poetry install --no-root --with storage
+
+# Then install the project itself
+RUN poetry install --only-root
+
 
 # =============================================================================
 # Runtime stage
@@ -94,23 +99,7 @@ WORKDIR /app/project
 
 # Set environment variables
 ENV PYTHONPATH=/app/src \
-    PYTHONUNBUFFERED=1 \
-    # API server settings
-    AURITE_API_HOST=0.0.0.0 \
-    AURITE_API_PORT=8000 \
-    # Feature flags
-    AURITE_ALLOW_DYNAMIC_REGISTRATION=true \
-    # Database settings (default to file-based mode)
-    AURITE_ENABLE_DB=false \
-    AURITE_DB_TYPE=sqlite \
-    AURITE_DB_PATH=/app/project/.aurite_db/aurite.db \
-    # Cache directory
-    CACHE_DIR=/app/cache \
-    # Logging
-    LOG_LEVEL=INFO \
-    ENV=production \
-    # Auto-initialization (disabled by default for security)
-    AURITE_AUTO_INIT=false
+    PYTHONUNBUFFERED=1
 
 # Expose the API port
 EXPOSE 8000

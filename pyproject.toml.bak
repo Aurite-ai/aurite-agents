@@ -42,6 +42,7 @@ dependencies = [
     "pydantic-settings (>=2.10.1,<3.0.0)",
     "sqlalchemy (>=2.0.41,<3.0.0)",
     "cryptography (>=43.0.0,<46.0.0)",
+    "pydub (>=0.25.1,<0.26.0)",
     "tomli (>=2.2.1,<3.0.0)",
     "textual[syntax] (>=3.5.0,<4.0.0)",
     "toml (>=0.10.2,<0.11.0)",
@@ -52,6 +53,7 @@ dependencies = [
     "litellm (>=1.75.4,<2.0.0)",
     "fastmcp (>=2.11.3,<3.0.0)",
     "rich (>=14.1.0,<15.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
 ]
 
 # DEV DEPENDENCIES
@@ -72,8 +74,8 @@ mkdocs-gen-files = "^0.5.0"
 mkdocs-jupyter = "^0.25.1"
 mkdocs-material = "^9.6.16"
 pymdown-extensions = "^10.16.1"
-pytest-benchmark = "^5.1.0"
 
+# PROJECT CONFIGURATION
 [project.scripts]
 aurite = "aurite.bin.cli:app"
 
@@ -164,12 +166,7 @@ follow_imports = "silent"
 # DEPTRY CONFIGURATION
 [tool.deptry]
 known_first_party = ["aurite"]
-extend_exclude = [
-    "tests",
-    "docs",
-    "src/aurite/lib/storage/mcp_storage",
-    "scripts",
-]
+extend_exclude = ["tests", "docs"]
 per_rule_ignores = { DEP001 = [
     "pytest_benchmark",
 ], DEP003 = [
@@ -185,7 +182,6 @@ per_rule_ignores = { DEP001 = [
     "mem0",
     "psycopg2",
     "sentence_transformers",
-    "pytest_benchmark",
 ] }
 
 [tool.deptry.package_module_name_map]
@@ -217,7 +213,6 @@ ignore = [
     "C901", # too complex
     "E722", # do not use bare except
     "F403", # forbidden import
-    "E402", # module level import not at top of file
 ]
 
 [tool.ruff.lint.isort]

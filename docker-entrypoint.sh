@@ -189,6 +189,40 @@ except Exception as e:
     fi
 }
 
+# Function to export configurations to database
+export_configurations() {
+    # Check if auto-export is enabled (default is true unless explicitly disabled)
+    if [[ "${AURITE_AUTO_EXPORT}" == "false" ]]; then
+        log_info "AURITE_AUTO_EXPORT is disabled - skipping configuration export"
+        return 0
+    fi
+
+    if [[ "${AURITE_ENABLE_DB}" == "true" ]]; then
+        log_info "Checking if configurations need to be exported to database..."
+
+        # Set up Python path for aurite CLI
+        export PYTHONPATH="/app/src:${PYTHONPATH}"
+
+        # Run aurite export to sync file-based configs to database
+        log_info "Running 'aurite export' to sync configurations to database..."
+        log_info "This will sync all configurations from /app/project/config to the database"
+
+        # Run the export command
+        if python -m aurite.bin.cli.main export 2>&1 | while IFS= read -r line; do
+            # Log each line from the export command
+            echo "[EXPORT] $line"
+        done; then
+            log_info "Configuration export completed successfully"
+        else
+            log_warn "Configuration export failed or partially completed"
+            log_warn "The API will continue with file-based configurations if database sync failed"
+            # Don't exit on failure - the API can still run with file-based configs
+        fi
+    else
+        log_debug "Database mode is disabled - skipping configuration export"
+    fi
+}
+
 # Function to display startup information
 display_startup_info() {
     log_info "=============================================="
@@ -239,6 +273,9 @@ main() {
 
     # Wait for database if needed
     wait_for_database
+
+    # Export configurations to database if enabled
+    export_configurations
 
     # Set up Python path
     export PYTHONPATH="/app/src:${PYTHONPATH}"

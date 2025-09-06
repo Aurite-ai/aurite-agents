@@ -141,7 +141,7 @@ async def _evaluate_case(
 
             jsonschema.validate(instance=data_to_validate, schema=request.expected_schema)
 
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             return {
                 "analysis": "Schema Validation Failed: Component did not output valid JSON",
                 "grade": "FAIL",
