@@ -22,10 +22,10 @@ from datetime import datetime
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from aurite.security.components.llm_security.llm_guard_basic import LLMGuardBasic
-from aurite.security.components.llm_security.llm_security_tester import LLMSecurityTester
-from aurite.security.core.security_config import create_default_security_config
-from aurite.security.core.security_engine import SecurityEngine
+from aurite.testing.security.components.llm_security.llm_guard_basic import LLMGuardBasic
+from aurite.testing.security.components.llm_security.llm_security_tester import LLMSecurityTester
+from aurite.testing.security.core.security_config import create_default_security_config
+from aurite.testing.security.core.security_engine import SecurityEngine
 
 
 def setup_logging():
@@ -110,7 +110,7 @@ async def test_llm_security_tester():
     print("=" * 60)
 
     # Create LLM security configuration
-    from aurite.security.core.security_config import create_default_llm_config
+    from aurite.testing.security.core.security_config import create_default_llm_config
 
     llm_config = create_default_llm_config()
     tester = LLMSecurityTester(llm_config)
@@ -250,7 +250,7 @@ async def test_configuration_management():
 
     # Test configuration from dictionary
     print("\n2. Testing Configuration from Dictionary:")
-    from aurite.security.core.security_config import load_security_config_from_dict
+    from aurite.testing.security.core.security_config import load_security_config_from_dict
 
     config_dict = {
         "mode": "production",
@@ -266,7 +266,7 @@ async def test_configuration_management():
 
     # Test production configuration
     print("\n3. Testing Production Configuration:")
-    from aurite.security.core.security_config import create_production_security_config
+    from aurite.testing.security.core.security_config import create_production_security_config
 
     prod_config = create_production_security_config()
     print(f"   Production mode: {prod_config.mode.value}")
