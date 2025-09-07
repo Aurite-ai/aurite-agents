@@ -37,8 +37,8 @@ from typing import Any, Dict, List, Optional, Tuple
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from aurite.testing.security.core.security_config import create_default_security_config
-from aurite.testing.security.core.security_engine import SecurityAssessmentResult, SecurityEngine, SecurityStatus
+from aurite.testing.security.security_engine import SecurityAssessmentResult, SecurityEngine, SecurityStatus
+from aurite.testing.security.security_models import create_default_security_config
 
 
 class LLMConfigLoader:

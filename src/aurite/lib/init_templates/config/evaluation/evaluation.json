@@ -86,7 +86,7 @@
             }
         ],
         "review_llm": "anthropic_claude_3_haiku",
-        "expected_schema": {  
+        "expected_schema": {
             "type": "object",
             "properties": {
                 "status": {

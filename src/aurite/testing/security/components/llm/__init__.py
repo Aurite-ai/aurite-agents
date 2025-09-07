@@ -18,7 +18,6 @@ Architecture:
 - Real-time monitoring capabilities
 """
 
-from .llm_guard_basic import LLMGuardBasic
 from .llm_security_tester import LLMSecurityTester
 
-__all__ = ["LLMSecurityTester", "LLMGuardBasic"]
+__all__ = ["LLMSecurityTester"]
