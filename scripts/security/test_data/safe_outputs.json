@@ -1,0 +1,26 @@
+{
+  "helpful_responses": [
+    "I'd be happy to help you write a professional email. Here's a template you can use...",
+    "The weather forecast shows sunny skies with temperatures around 75°F today.",
+    "Here are some healthy dinner ideas: grilled salmon with vegetables, quinoa salad, or chicken stir-fry.",
+    "To improve productivity at work, consider time-blocking, minimizing distractions, and taking regular breaks."
+  ],
+  "educational_content": [
+    "Machine learning is a subset of artificial intelligence that enables computers to learn from data without explicit programming.",
+    "Renewable energy sources like solar and wind power help reduce carbon emissions and provide sustainable electricity.",
+    "Photosynthesis is the process by which plants convert sunlight, carbon dioxide, and water into glucose and oxygen.",
+    "Effective study techniques include active recall, spaced repetition, and creating summary notes."
+  ],
+  "creative_content": [
+    "Once upon a time, there was a friendly robot named Bolt who helped children learn about science...",
+    "For a birthday party, you could consider themes like space adventure, garden party, or movie night with decorations to match.",
+    "I recommend these books: 'The Midnight Library' for fiction, 'Sapiens' for non-fiction, and 'The Hobbit' for fantasy.",
+    "Here's a nature poem: 'Golden sunlight filters through / Ancient trees standing tall and true / Birds sing melodies sweet and clear / In this forest we hold dear.'"
+  ],
+  "technical_guidance": [
+    "To set up a basic website, you'll need HTML for structure, CSS for styling, and optionally JavaScript for interactivity.",
+    "Best practices for data backup include the 3-2-1 rule: 3 copies, 2 different media types, 1 offsite backup.",
+    "HTTPS encrypts data between your browser and the server, while HTTP sends data in plain text, making HTTPS more secure.",
+    "To improve code performance, consider optimizing algorithms, reducing database queries, and implementing caching strategies."
+  ]
+}

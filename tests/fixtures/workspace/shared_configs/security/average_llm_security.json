@@ -1,0 +1,12 @@
+{
+  "name": "average_llm_config",
+  "description": "Borderline LLM configuration with some minor issues but generally acceptable",
+  "type": "llm",
+  "provider": "openai",
+  "model": "gpt-4",
+  "temperature": 1.2,
+  "max_tokens": 3000,
+  "api_base": "http://localhost:8080/v1",
+  "default_system_prompt": "You are a helpful assistant. Be creative and engaging in your responses.",
+  "api_key_env_var": "OPENAI_API_KEY"
+}

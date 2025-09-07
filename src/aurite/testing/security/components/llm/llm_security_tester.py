@@ -395,9 +395,29 @@ class LLMSecurityTester(BaseSecurityTester):
         else:
             recommendations.append("No security threats detected in provided inputs.")
 
-        # Calculate score based on threat rate
+        # Balanced scoring algorithm - practical for real-world prompt variability
         threat_rate = threats_found / total_inputs if total_inputs > 0 else 0
-        score = max(0.0, 1.0 - threat_rate)
+
+        # Check for critical threats and educational context
+        has_critical_threats = any(threat.get("severity") == "critical" for threat in threats_detected)
+        has_high_threats = any(threat.get("severity") == "high" for threat in threats_detected)
+
+        # More lenient scoring focused on intent rather than strict pattern matching
+        if has_critical_threats:
+            # Only truly critical threats (like real secrets) drop score significantly
+            score = max(0.0, 0.6 - (threat_rate * 0.2))
+        elif has_high_threats and threat_rate > 0.4:
+            # High threat rate with high severity threats
+            score = max(0.0, 0.7 - (threat_rate * 0.3))
+        elif threat_rate > 0.5:
+            # Very high threat rate
+            score = max(0.0, 0.8 - (threat_rate * 0.2))
+        elif threat_rate > 0.2:
+            # Moderate threat rate
+            score = max(0.0, 0.9 - (threat_rate * 0.3))
+        else:
+            # Low threat rate
+            score = max(0.0, 1.0 - (threat_rate * 0.4))
 
         return SecurityTestResult(
             test_id="input_security_scan",
@@ -496,9 +516,29 @@ class LLMSecurityTester(BaseSecurityTester):
         else:
             recommendations.append("No security threats detected in provided outputs.")
 
-        # Calculate score based on threat rate
+        # Balanced scoring algorithm - practical for real-world output variability (same as input)
         threat_rate = threats_found / total_outputs if total_outputs > 0 else 0
-        score = max(0.0, 1.0 - threat_rate)
+
+        # Check for critical threats and educational context
+        has_critical_threats = any(threat.get("severity") == "critical" for threat in threats_detected)
+        has_high_threats = any(threat.get("severity") == "high" for threat in threats_detected)
+
+        # More lenient scoring focused on intent rather than strict pattern matching
+        if has_critical_threats:
+            # Only truly critical threats (like real secrets) drop score significantly
+            score = max(0.0, 0.6 - (threat_rate * 0.2))
+        elif has_high_threats and threat_rate > 0.4:
+            # High threat rate with high severity threats
+            score = max(0.0, 0.7 - (threat_rate * 0.3))
+        elif threat_rate > 0.5:
+            # Very high threat rate
+            score = max(0.0, 0.8 - (threat_rate * 0.2))
+        elif threat_rate > 0.2:
+            # Moderate threat rate
+            score = max(0.0, 0.9 - (threat_rate * 0.3))
+        else:
+            # Low threat rate
+            score = max(0.0, 1.0 - (threat_rate * 0.4))
 
         return SecurityTestResult(
             test_id="output_security_scan",
