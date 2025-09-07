@@ -1,19 +1,97 @@
 """
-Aurite Security Framework - Security Configuration
+Aurite Security Framework - Security Models
 
-This module provides configuration management for the security framework.
-It defines configuration models for the overall security system and
-individual component security settings.
+This module provides all data models for the security framework,
+including configuration, assessment results, threats, and test definitions.
 
 Architecture Design:
-- Centralized configuration management
+- Centralized model definitions
 - Component-specific security settings
 - Validation and default value handling
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+# ============================================================================
+# Security Enums
+# ============================================================================
+
+__all__ = [
+    # Enums
+    "SecurityLevel",
+    "SecurityStatus",
+    "ThreatCategory",
+    "SecurityTestType",
+    "SecurityMode",
+    "LogLevel",
+    # Assessment Models
+    "SecurityThreat",
+    "SecurityTest",
+    "SecurityTestResult",
+    "SecurityAssessmentResult",
+    "ComponentSecurityAssessment",
+    # Configuration Models
+    "SecurityToolConfig",
+    "ComponentSecurityConfig",
+    "MonitoringConfig",
+    "StorageConfig",
+    "APIConfig",
+    "SecurityConfig",
+    # Factory/utility functions
+    "create_default_llm_config",
+    "create_default_mcp_config",
+    "create_default_agent_config",
+    "create_default_workflow_config",
+    "create_default_security_config",
+    "load_security_config_from_dict",
+    "create_production_security_config",
+]
+
+
+class SecurityLevel(Enum):
+    """Security assessment levels"""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class SecurityStatus(Enum):
+    """Security assessment status"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ThreatCategory(Enum):
+    """Categories of security threats"""
+
+    INJECTION = "injection"
+    PRIVILEGE_ESCALATION = "privilege_escalation"
+    DATA_LEAKAGE = "data_leakage"
+    UNAUTHORIZED_ACCESS = "unauthorized_access"
+    MALICIOUS_BEHAVIOR = "malicious_behavior"
+    CONFIGURATION_ERROR = "configuration_error"
+    PERFORMANCE_IMPACT = "performance_impact"
+    COMPLIANCE_VIOLATION = "compliance_violation"
+
+
+class SecurityTestType(Enum):
+    """Types of security tests"""
+
+    STATIC_ANALYSIS = "static_analysis"
+    DYNAMIC_ANALYSIS = "dynamic_analysis"
+    BEHAVIORAL_ANALYSIS = "behavioral_analysis"
+    CONFIGURATION_AUDIT = "configuration_audit"
+    PENETRATION_TEST = "penetration_test"
+    COMPLIANCE_CHECK = "compliance_check"
 
 
 class SecurityMode(Enum):
@@ -33,6 +111,128 @@ class LogLevel(Enum):
     WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
+
+
+# ============================================================================
+# Security Assessment Models
+# ============================================================================
+
+
+@dataclass
+class SecurityThreat:
+    """Represents a detected security threat"""
+
+    threat_id: str
+    threat_type: str
+    severity: SecurityLevel
+    component_type: str
+    component_id: str
+    description: str
+    details: Dict[str, Any]
+    mitigation_suggestions: List[str]
+    detected_at: datetime = field(default_factory=datetime.utcnow)
+    confidence_score: float = 0.0
+    false_positive_likelihood: float = 0.0
+
+
+@dataclass
+class SecurityTest:
+    """Represents a single security test"""
+
+    test_id: str
+    test_name: str
+    test_type: SecurityTestType
+    category: ThreatCategory
+    description: str
+    enabled: bool = True
+    severity_weight: float = 1.0
+    timeout_seconds: int = 30
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SecurityTestResult:
+    """Results of a single security test"""
+
+    test_id: str
+    test_name: str
+    passed: bool
+    score: float
+    threats_detected: List[Dict[str, Any]]
+    recommendations: List[str]
+    execution_time_seconds: float
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    error_message: Optional[str] = None
+
+
+@dataclass
+class SecurityAssessmentResult:
+    """Results of a security assessment (aligned with QAEvaluationResult)"""
+
+    assessment_id: str
+    component_type: str
+    component_id: str
+    status: SecurityStatus
+    overall_score: float
+    threats: List[SecurityThreat]
+    recommendations: List[str]
+    test_results: List[SecurityTestResult]
+    metadata: Dict[str, Any]
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+    duration_seconds: Optional[float] = None
+
+    def add_threat(self, threat: SecurityThreat) -> None:
+        """Add a threat to the assessment results"""
+        self.threats.append(threat)
+
+    def get_threats_by_severity(self, severity: SecurityLevel) -> List[SecurityThreat]:
+        """Get threats filtered by severity level"""
+        result = []
+        for threat in self.threats:
+            if isinstance(threat, SecurityThreat):
+                if threat.severity == severity:
+                    result.append(threat)
+            elif isinstance(threat, dict):
+                threat_severity = threat.get("severity", "unknown")
+                if threat_severity == severity.value:
+                    result.append(threat)
+        return result
+
+    def get_critical_threats(self) -> List[SecurityThreat]:
+        """Get all critical threats"""
+        return self.get_threats_by_severity(SecurityLevel.CRITICAL)
+
+    def has_critical_threats(self) -> bool:
+        """Check if assessment has critical threats"""
+        return len(self.get_critical_threats()) > 0
+
+    def to_legacy_format(self) -> Dict[str, Any]:
+        """Convert to legacy format for backward compatibility (if needed)"""
+        return {
+            "assessment_id": self.assessment_id,
+            "status": self.status.value,
+            "overall_score": self.overall_score,
+            "threats": [
+                {
+                    "threat_id": t.threat_id if isinstance(t, SecurityThreat) else t.get("threat_id"),
+                    "severity": t.severity.value if isinstance(t, SecurityThreat) else t.get("severity"),
+                    "description": t.description if isinstance(t, SecurityThreat) else t.get("description"),
+                }
+                for t in self.threats
+            ],
+            "recommendations": self.recommendations,
+            "metadata": self.metadata,
+        }
+
+
+# Alias for consistency with base_security_tester.py
+ComponentSecurityAssessment = SecurityAssessmentResult
+
+
+# ============================================================================
+# Configuration Models
+# ============================================================================
 
 
 @dataclass

@@ -13,92 +13,22 @@ Architecture Design:
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from .base_tester import BaseSecurityTester
-from .security_config import ComponentSecurityConfig, SecurityConfig
+from .base_security_tester import BaseSecurityTester
+from .security_models import (
+    ComponentSecurityConfig,
+    SecurityAssessmentResult,
+    SecurityConfig,
+    SecurityLevel,
+    SecurityStatus,
+    SecurityThreat,
+)
 
+# Models have been moved to security_models.py
 
-class SecurityLevel(Enum):
-    """Security assessment levels"""
-
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
-
-
-class SecurityStatus(Enum):
-    """Security assessment status"""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-@dataclass
-class SecurityThreat:
-    """Represents a detected security threat"""
-
-    threat_id: str
-    threat_type: str
-    severity: SecurityLevel
-    component_type: str
-    component_id: str
-    description: str
-    details: Dict[str, Any]
-    mitigation_suggestions: List[str]
-    detected_at: datetime = field(default_factory=datetime.utcnow)
-    confidence_score: float = 0.0
-    false_positive_likelihood: float = 0.0
-
-
-@dataclass
-class SecurityAssessmentResult:
-    """Results of a security assessment"""
-
-    assessment_id: str
-    component_type: str
-    component_id: str
-    status: SecurityStatus
-    overall_score: float
-    threats: List[SecurityThreat]
-    recommendations: List[str]
-    metadata: Dict[str, Any]
-    started_at: datetime
-    completed_at: Optional[datetime] = None
-    duration_seconds: Optional[float] = None
-
-    def add_threat(self, threat: SecurityThreat) -> None:
-        """Add a threat to the assessment results"""
-        self.threats.append(threat)
-
-    def get_threats_by_severity(self, severity: SecurityLevel) -> List[SecurityThreat]:
-        """Get threats filtered by severity level"""
-        # Handle both SecurityThreat objects and dict representations
-        result = []
-        for threat in self.threats:
-            if isinstance(threat, SecurityThreat):
-                if threat.severity == severity:
-                    result.append(threat)
-            elif isinstance(threat, dict):
-                threat_severity = threat.get("severity", "unknown")
-                if threat_severity == severity.value:
-                    result.append(threat)
-        return result
-
-    def get_critical_threats(self) -> List[SecurityThreat]:
-        """Get all critical threats"""
-        return self.get_threats_by_severity(SecurityLevel.CRITICAL)
-
-    def has_critical_threats(self) -> bool:
-        """Check if assessment has critical threats"""
-        return len(self.get_critical_threats()) > 0
+__all__ = ["SecurityEngine"]
 
 
 class SecurityEngine:
@@ -146,7 +76,7 @@ class SecurityEngine:
         # Import here to avoid circular dependencies
         try:
             if component_type == "llm":
-                from ..components.llm_security.llm_security_tester import LLMSecurityTester
+                from .components.llm.llm_security_tester import LLMSecurityTester
 
                 return LLMSecurityTester(config)
             elif component_type == "mcp":
@@ -158,8 +88,8 @@ class SecurityEngine:
 
                 return AgentSecurityTester(config)
             elif component_type == "workflow":
-                from ..components.workflow_security.workflow_security_tester import (
-                    WorkflowSecurityTester,  # type: ignore
+                from ..components.workflow_security.workflow_security_tester import (  # type: ignore
+                    WorkflowSecurityTester,
                 )
 
                 return WorkflowSecurityTester(config)
@@ -200,6 +130,7 @@ class SecurityEngine:
             overall_score=0.0,
             threats=[],
             recommendations=[],
+            test_results=[],
             metadata=assessment_options or {},
             started_at=datetime.utcnow(),
         )

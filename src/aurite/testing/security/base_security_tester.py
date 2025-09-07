@@ -14,80 +14,22 @@ Architecture Design:
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from .security_config import ComponentSecurityConfig
+from .security_models import (
+    ComponentSecurityConfig,
+    SecurityAssessmentResult,
+    SecurityStatus,
+    SecurityTest,
+    SecurityTestResult,
+    SecurityTestType,
+    ThreatCategory,
+)
 
+# Models have been moved to security_models.py
 
-class ThreatCategory(Enum):
-    """Categories of security threats"""
-
-    INJECTION = "injection"
-    PRIVILEGE_ESCALATION = "privilege_escalation"
-    DATA_LEAKAGE = "data_leakage"
-    UNAUTHORIZED_ACCESS = "unauthorized_access"
-    MALICIOUS_BEHAVIOR = "malicious_behavior"
-    CONFIGURATION_ERROR = "configuration_error"
-    PERFORMANCE_IMPACT = "performance_impact"
-    COMPLIANCE_VIOLATION = "compliance_violation"
-
-
-class SecurityTestType(Enum):
-    """Types of security tests"""
-
-    STATIC_ANALYSIS = "static_analysis"
-    DYNAMIC_ANALYSIS = "dynamic_analysis"
-    BEHAVIORAL_ANALYSIS = "behavioral_analysis"
-    CONFIGURATION_AUDIT = "configuration_audit"
-    PENETRATION_TEST = "penetration_test"
-    COMPLIANCE_CHECK = "compliance_check"
-
-
-@dataclass
-class SecurityTest:
-    """Represents a single security test"""
-
-    test_id: str
-    test_name: str
-    test_type: SecurityTestType
-    category: ThreatCategory
-    description: str
-    enabled: bool = True
-    severity_weight: float = 1.0
-    timeout_seconds: int = 30
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class SecurityTestResult:
-    """Results of a single security test"""
-
-    test_id: str
-    test_name: str
-    passed: bool
-    score: float
-    threats_detected: List[Dict[str, Any]]
-    recommendations: List[str]
-    execution_time_seconds: float
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    error_message: Optional[str] = None
-
-
-@dataclass
-class ComponentSecurityAssessment:
-    """Complete security assessment results for a component"""
-
-    component_id: str
-    component_type: str
-    overall_score: float
-    threats: List[Dict[str, Any]]
-    recommendations: List[str]
-    test_results: List[SecurityTestResult]
-    metadata: Dict[str, Any]
-    assessment_duration: float
+__all__ = ["BaseSecurityTester"]
 
 
 class BaseSecurityTester(ABC):
@@ -140,7 +82,7 @@ class BaseSecurityTester(ABC):
 
     async def assess_security(
         self, component_id: str, component_config: Dict[str, Any], options: Optional[Dict[str, Any]] = None
-    ) -> ComponentSecurityAssessment:
+    ) -> SecurityAssessmentResult:
         """
         Perform comprehensive security assessment on a component.
 
@@ -164,15 +106,19 @@ class BaseSecurityTester(ABC):
 
         if not enabled_tests:
             self.logger.warning(f"No enabled tests found for {component_id}")
-            return ComponentSecurityAssessment(
+            return SecurityAssessmentResult(
+                assessment_id=f"security_{component_id}_{datetime.utcnow().isoformat()}",
                 component_id=component_id,
                 component_type=self.get_component_type(),
+                status=SecurityStatus.COMPLETED,
                 overall_score=0.0,
                 threats=[],
                 recommendations=["No security tests were executed"],
                 test_results=[],
                 metadata={"warning": "No enabled tests found"},
-                assessment_duration=0.0,
+                started_at=start_time,
+                completed_at=datetime.utcnow(),
+                duration_seconds=0.0,
             )
 
         # Execute tests
@@ -224,7 +170,7 @@ class BaseSecurityTester(ABC):
             f"Completed security assessment for {component_id}: "
             f"Score={assessment.overall_score:.2f}, "
             f"Threats={len(assessment.threats)}, "
-            f"Duration={assessment.assessment_duration:.2f}s"
+            f"Duration={assessment.duration_seconds:.2f}s"
         )
 
         return assessment
@@ -257,7 +203,7 @@ class BaseSecurityTester(ABC):
 
     def _calculate_assessment_results(
         self, component_id: str, test_results: List[SecurityTestResult], start_time: datetime, options: Dict[str, Any]
-    ) -> ComponentSecurityAssessment:
+    ) -> SecurityAssessmentResult:
         """
         Calculate overall assessment results from individual test results.
 
@@ -322,15 +268,19 @@ class BaseSecurityTester(ABC):
             threat_severity_counts[severity] = threat_severity_counts.get(severity, 0) + 1
         metadata["threat_severity_breakdown"] = threat_severity_counts
 
-        return ComponentSecurityAssessment(
+        return SecurityAssessmentResult(
+            assessment_id=f"security_{component_id}_{start_time.isoformat()}",
             component_id=component_id,
             component_type=self.get_component_type(),
+            status=SecurityStatus.COMPLETED,
             overall_score=overall_score,
             threats=all_threats,
             recommendations=unique_recommendations,
             test_results=test_results,
             metadata=metadata,
-            assessment_duration=duration,
+            started_at=start_time,
+            completed_at=end_time,
+            duration_seconds=duration,
         )
 
     def _get_component_specific_recommendations(

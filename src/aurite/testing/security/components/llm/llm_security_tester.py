@@ -16,15 +16,15 @@ import asyncio
 from datetime import datetime
 from typing import Any, Dict, List
 
-from ...core.base_tester import (
-    BaseSecurityTester,
+from ....runners.llm_guard import LLMGuardBasic
+from ...base_security_tester import BaseSecurityTester
+from ...security_models import (
     ComponentSecurityConfig,
     SecurityTest,
     SecurityTestResult,
     SecurityTestType,
     ThreatCategory,
 )
-from .llm_guard_basic import LLMGuardBasic
 
 
 class LLMSecurityTester(BaseSecurityTester):
