@@ -14,7 +14,7 @@ Architecture Design:
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from .base_security_tester import BaseSecurityTester
 from .security_models import (
@@ -24,7 +24,12 @@ from .security_models import (
     SecurityLevel,
     SecurityStatus,
     SecurityThreat,
+    create_default_security_config,
+    load_security_config_from_dict,
 )
+
+if TYPE_CHECKING:
+    from aurite.lib.config.config_manager import ConfigManager
 
 # Models have been moved to security_models.py
 
@@ -39,14 +44,27 @@ class SecurityEngine:
     and provides a unified interface for security operations.
     """
 
-    def __init__(self, config: SecurityConfig):
+    def __init__(self, config: Optional[SecurityConfig] = None, config_manager: Optional["ConfigManager"] = None):
         """
         Initialize the Security Engine.
 
         Args:
-            config: Security configuration containing component settings
+            config: Security configuration containing component settings.
+                    If not provided, will try to load from ConfigManager or use defaults.
+            config_manager: Optional ConfigManager for accessing configurations
         """
+        # If config not provided, try to load from ConfigManager
+        if config is None and config_manager:
+            security_config_dict = config_manager.get_config("security", "default")
+            if security_config_dict and "config_dict" in security_config_dict:
+                config = load_security_config_from_dict(security_config_dict["config_dict"])
+
+        # Fall back to default if still no config
+        if config is None:
+            config = create_default_security_config()
+
         self.config = config
+        self.config_manager = config_manager  # Store for potential future use
         self.logger = logging.getLogger(__name__)
         self._component_testers: Dict[str, BaseSecurityTester] = {}
         self._active_assessments: Dict[str, SecurityAssessmentResult] = {}
@@ -80,15 +98,15 @@ class SecurityEngine:
 
                 return LLMSecurityTester(config)
             elif component_type == "mcp":
-                from ..components.mcp_security.mcp_security_tester import MCPSecurityTester  # type: ignore
+                from .components.mcp_security.mcp_security_tester import MCPSecurityTester  # type: ignore
 
                 return MCPSecurityTester(config)
             elif component_type == "agent":
-                from ..components.agent_security.agent_security_tester import AgentSecurityTester  # type: ignore
+                from .components.agent_security.agent_security_tester import AgentSecurityTester  # type: ignore
 
                 return AgentSecurityTester(config)
             elif component_type == "workflow":
-                from ..components.workflow_security.workflow_security_tester import (  # type: ignore
+                from .components.workflow_security.workflow_security_tester import (  # type: ignore
                     WorkflowSecurityTester,
                 )
 
@@ -230,14 +248,30 @@ class SecurityEngine:
         Returns:
             Dictionary mapping component IDs to their assessment results
         """
+        self.logger.info("SecurityEngine: Starting full configuration assessment")
+        self.logger.info(f"SecurityEngine: Available component testers: {list(self._component_testers.keys())}")
+        self.logger.info(f"SecurityEngine: Configuration has component types: {list(configuration.keys())}")
+
         results = {}
         assessment_tasks = []
 
         # Create assessment tasks for each component
         for component_type, components in configuration.items():
+            self.logger.info(f"SecurityEngine: Processing component type '{component_type}'")
+
             if component_type in self._component_testers:
+                self.logger.info(f"SecurityEngine: Found tester for component type '{component_type}'")
+
                 if isinstance(components, dict):
+                    self.logger.info(
+                        f"SecurityEngine: Component type '{component_type}' has {len(components)} components"
+                    )
+
                     for component_id, component_config in components.items():
+                        self.logger.info(
+                            f"SecurityEngine: Creating assessment task for {component_type}.{component_id}"
+                        )
+
                         task = self.assess_component_security(
                             component_type=component_type,
                             component_id=component_id,
@@ -245,28 +279,44 @@ class SecurityEngine:
                             assessment_options=assessment_options,
                         )
                         assessment_tasks.append((f"{component_type}_{component_id}", task))
+                else:
+                    self.logger.warning(
+                        f"SecurityEngine: Component type '{component_type}' is not a dict: {type(components)}"
+                    )
+            else:
+                self.logger.warning(f"SecurityEngine: No tester available for component type '{component_type}'")
 
         # Execute assessments concurrently
         if assessment_tasks:
-            self.logger.info(f"Starting {len(assessment_tasks)} concurrent security assessments")
+            self.logger.info(f"SecurityEngine: Starting {len(assessment_tasks)} concurrent security assessments")
 
             # Wait for all assessments to complete
             for component_key, task in assessment_tasks:
                 try:
+                    self.logger.info(f"SecurityEngine: Executing assessment for {component_key}")
                     result = await task
                     results[component_key] = result
+                    self.logger.info(
+                        f"SecurityEngine: Completed assessment for {component_key} with score {result.overall_score}"
+                    )
                 except Exception as e:
-                    self.logger.error(f"Failed to complete assessment for {component_key}: {e}")
+                    self.logger.error(f"SecurityEngine: Failed to complete assessment for {component_key}: {e}")
+        else:
+            self.logger.warning("SecurityEngine: No assessment tasks created - no matching component testers found")
 
         # Perform cross-component analysis
         if len(results) > 1:
+            self.logger.info(f"SecurityEngine: Performing cross-component analysis on {len(results)} results")
             cross_component_threats = await self._analyze_cross_component_threats(results)
             for threat in cross_component_threats:
                 # Add cross-component threats to relevant results
                 for result in results.values():
                     if result.component_type in threat.details.get("affected_components", []):
                         result.add_threat(threat)
+        else:
+            self.logger.info(f"SecurityEngine: Skipping cross-component analysis (only {len(results)} results)")
 
+        self.logger.info(f"SecurityEngine: Full configuration assessment completed with {len(results)} results")
         return results
 
     async def _analyze_cross_component_threats(

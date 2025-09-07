@@ -782,6 +782,7 @@ class ConfigManager:
             EvaluationConfig,
             GraphWorkflowConfig,
             LLMConfig,
+            SecurityConfig,
             WorkflowConfig,
         )
 
@@ -794,6 +795,7 @@ class ConfigManager:
             "custom_workflow": CustomWorkflowConfig,
             "evaluation": EvaluationConfig,
             "graph_workflow": GraphWorkflowConfig,
+            "security": SecurityConfig,
         }
 
         model_class = model_map.get(component_type)
