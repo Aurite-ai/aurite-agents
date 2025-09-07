@@ -103,6 +103,34 @@ except Exception as e:
     fi
 }
 
+# Function to export configurations to database
+export_configurations() {
+    # Check if auto-export is enabled (default is true unless explicitly disabled)
+    if [[ "${AURITE_AUTO_EXPORT}" == "false" ]]; then
+        log_info "AURITE_AUTO_EXPORT is disabled - skipping configuration export"
+        return 0
+    fi
+
+    if [[ "${AURITE_ENABLE_DB}" == "true" ]]; then
+        log_info "Auto-exporting configurations to database..."
+        log_debug "This will sync all configurations from files to the database"
+
+        # Run the export command
+        if python -m aurite.bin.cli.main export 2>&1 | while IFS= read -r line; do
+            # Log each line from the export command with [EXPORT] prefix
+            echo -e "${BLUE}[EXPORT]${NC} $line"
+        done; then
+            log_info "Configuration export completed successfully"
+        else
+            log_warn "Configuration export failed or partially completed"
+            log_warn "The API will continue but may use outdated configurations"
+            # Don't exit on failure - the API can still run
+        fi
+    else
+        log_debug "Database mode is disabled - skipping configuration export"
+    fi
+}
+
 # Function to display startup banner
 display_banner() {
     log_info "=============================================="
@@ -144,6 +172,7 @@ main() {
                         display_banner "API Server"
                         validate_api_requirements
                         wait_for_database
+                        export_configurations
                         exec "$@"
                         ;;
                     # Aurite CLI via module
@@ -168,6 +197,7 @@ main() {
             display_banner "API Server"
             validate_api_requirements
             wait_for_database
+            export_configurations
             exec "$@"
             ;;
 
