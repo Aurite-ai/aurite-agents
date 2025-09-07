@@ -134,7 +134,7 @@ export_configurations() {
 # Function to display startup banner
 display_banner() {
     log_info "=============================================="
-    log_info "Aurite Agents Framework v0.4.0"
+    log_info "Aurite Agents Framework v0.4.1"
     log_info "=============================================="
     log_info "Container mode: $1"
     log_info "Working directory: $(pwd)"
