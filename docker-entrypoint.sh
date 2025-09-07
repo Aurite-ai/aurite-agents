@@ -2,8 +2,8 @@
 # =============================================================================
 # Aurite Agents Framework - Docker Entrypoint Script
 # =============================================================================
-# This script handles initialization, project detection, and service startup
-# for the Aurite Agents Docker container.
+# This script provides a minimal, context-aware entrypoint for the Aurite
+# base Docker image. It only enforces requirements when actually needed.
 # =============================================================================
 
 set -e
@@ -34,121 +34,35 @@ log_debug() {
     fi
 }
 
-# Function to check if we're in a valid Aurite project
-check_aurite_project() {
-    log_debug "Checking for .aurite file in current directory: $(pwd)"
-
-    if [[ -f ".aurite" ]]; then
-        log_info "Found .aurite file - valid Aurite project detected"
-        return 0
-    fi
-
-    # Check parent directories (ConfigManager searches upward)
-    local current_dir="$(pwd)"
-    local parent_dir="$(dirname "$current_dir")"
-
-    while [[ "$parent_dir" != "/" && "$parent_dir" != "$current_dir" ]]; do
-        log_debug "Checking parent directory: $parent_dir"
-        if [[ -f "$parent_dir/.aurite" ]]; then
-            log_info "Found .aurite file in parent directory: $parent_dir"
-            return 0
-        fi
-        current_dir="$parent_dir"
-        parent_dir="$(dirname "$current_dir")"
-    done
-
-    log_warn "No .aurite file found in current directory or parent directories"
-    return 1
+# Function to set up Python path
+setup_python_path() {
+    export PYTHONPATH="/usr/local/lib/python3.12/site-packages:${PYTHONPATH}"
+    log_debug "Python path set: ${PYTHONPATH}"
 }
 
-# Function to initialize a new Aurite project
-init_aurite_project() {
-    log_info "Initializing new Aurite project..."
+# Function to validate API server requirements
+validate_api_requirements() {
+    log_info "Validating API server requirements..."
 
-    # Check if directory is empty (except for hidden files)
-    if [[ $(ls -A . 2>/dev/null | grep -v '^\.' | wc -l) -gt 0 ]]; then
-        log_error "Directory is not empty. Cannot initialize project in non-empty directory."
-        log_error "Please mount an empty directory or an existing Aurite project."
-        exit 1
-    fi
-
-    # Set up Python path for aurite CLI
-    export PYTHONPATH="/app/src:$PYTHONPATH"
-
-    # Create a default workspace in the current directory
-    log_info "Creating workspace 'default_workspace'..."
-    if python -m aurite.bin.cli.main init --workspace default_workspace; then
-        log_info "Workspace created successfully"
-    else
-        log_error "Failed to create workspace"
-        return 1
-    fi
-
-    # Create a default project within the workspace
-    log_info "Creating project 'default'..."
-    if python -m aurite.bin.cli.main init --project default; then
-        log_info "Project created successfully"
-    else
-        log_error "Failed to create project"
-        return 1
-    fi
-
-    log_info "Aurite initialization complete!"
-
-    # Change to the project directory so the API server can find the .aurite file
-    log_info "Changing to project directory: default"
-    cd default
-
-    return 0
-}
-
-# Function to validate required environment variables
-validate_environment() {
-    log_debug "Validating environment variables..."
-
-    # Check for API_KEY (required for API server)
+    # API_KEY is required for API server
     if [[ -z "${API_KEY}" ]]; then
-        log_error "API_KEY environment variable is required"
-        log_error "Please set API_KEY to a secure value for API authentication"
-        exit 1
+        log_warn "API_KEY environment variable is not set"
+        log_warn "The API server requires authentication. Please set API_KEY to a secure value."
+        log_warn "Example: -e API_KEY=$(openssl rand -hex 32)"
+        # Don't exit - let the API server handle the missing key
     fi
 
-    # Validate database configuration if enabled
-    if [[ "${AURITE_ENABLE_DB}" == "true" ]]; then
-        log_info "Database mode enabled - validating database configuration..."
-
-        if [[ "${AURITE_DB_TYPE}" == "postgres" ]]; then
-            local missing_vars=()
-            [[ -z "${AURITE_DB_HOST}" ]] && missing_vars+=("AURITE_DB_HOST")
-            [[ -z "${AURITE_DB_USER}" ]] && missing_vars+=("AURITE_DB_USER")
-            [[ -z "${AURITE_DB_PASSWORD}" ]] && missing_vars+=("AURITE_DB_PASSWORD")
-            [[ -z "${AURITE_DB_NAME}" ]] && missing_vars+=("AURITE_DB_NAME")
-
-            if [[ ${#missing_vars[@]} -gt 0 ]]; then
-                log_error "PostgreSQL database configuration incomplete"
-                log_error "Missing required environment variables: ${missing_vars[*]}"
-                exit 1
-            fi
-
-            log_info "PostgreSQL configuration validated"
-        elif [[ "${AURITE_DB_TYPE}" == "sqlite" ]]; then
-            log_info "SQLite configuration - using path: ${AURITE_DB_PATH}"
-            # Ensure the directory exists
-            mkdir -p "$(dirname "${AURITE_DB_PATH}")"
-        else
-            log_error "Invalid AURITE_DB_TYPE: ${AURITE_DB_TYPE}"
-            log_error "Supported values: sqlite, postgres"
-            exit 1
-        fi
-    else
-        log_info "File-based mode enabled - no database configuration needed"
+    # Check for .aurite file (optional for API, just warn)
+    if [[ ! -f ".aurite" && ! -f "../.aurite" && ! -f "../../.aurite" ]]; then
+        log_warn "No .aurite file found - API may not have access to project configurations"
+        log_info "To create a project: aurite init --project myproject"
     fi
 }
 
 # Function to wait for database (if using PostgreSQL)
 wait_for_database() {
     if [[ "${AURITE_ENABLE_DB}" == "true" && "${AURITE_DB_TYPE}" == "postgres" ]]; then
-        log_info "Waiting for PostgreSQL database to be ready..."
+        log_info "Database mode enabled - waiting for PostgreSQL..."
 
         local max_attempts=30
         local attempt=1
@@ -177,128 +91,93 @@ except Exception as e:
                 break
             fi
 
-            log_info "Database not ready yet (attempt $attempt/$max_attempts), waiting 2 seconds..."
+            log_debug "Database not ready (attempt $attempt/$max_attempts), waiting..."
             sleep 2
             ((attempt++))
         done
 
         if [[ $attempt -gt $max_attempts ]]; then
             log_error "Database failed to become ready after $max_attempts attempts"
-            exit 1
+            log_error "Continuing anyway - API may fail to connect to database"
         fi
     fi
 }
 
-# Function to export configurations to database
-export_configurations() {
-    # Check if auto-export is enabled (default is true unless explicitly disabled)
-    if [[ "${AURITE_AUTO_EXPORT}" == "false" ]]; then
-        log_info "AURITE_AUTO_EXPORT is disabled - skipping configuration export"
-        return 0
-    fi
-
-    if [[ "${AURITE_ENABLE_DB}" == "true" ]]; then
-        log_info "Checking if configurations need to be exported to database..."
-
-        # Set up Python path for aurite CLI
-        export PYTHONPATH="/app/src:${PYTHONPATH}"
-
-        # Run aurite export to sync file-based configs to database
-        log_info "Running 'aurite export' to sync configurations to database..."
-        log_info "This will sync all configurations from /app/project/config to the database"
-
-        # Run the export command
-        if python -m aurite.bin.cli.main export 2>&1 | while IFS= read -r line; do
-            # Log each line from the export command
-            echo "[EXPORT] $line"
-        done; then
-            log_info "Configuration export completed successfully"
-        else
-            log_warn "Configuration export failed or partially completed"
-            log_warn "The API will continue with file-based configurations if database sync failed"
-            # Don't exit on failure - the API can still run with file-based configs
-        fi
-    else
-        log_debug "Database mode is disabled - skipping configuration export"
-    fi
-}
-
-# Function to display startup information
-display_startup_info() {
+# Function to display startup banner
+display_banner() {
     log_info "=============================================="
-    log_info "Aurite Agents Framework v0.3.28"
+    log_info "Aurite Agents Framework v0.4.0"
     log_info "=============================================="
+    log_info "Container mode: $1"
     log_info "Working directory: $(pwd)"
-    log_info "Python path: ${PYTHONPATH}"
-    log_info "API server: http://0.0.0.0:${AURITE_API_PORT}"
-    log_info "Database mode: ${AURITE_ENABLE_DB}"
     if [[ "${AURITE_ENABLE_DB}" == "true" ]]; then
-        log_info "Database type: ${AURITE_DB_TYPE}"
+        log_info "Database: ${AURITE_DB_TYPE}"
     fi
-    log_info "Log level: ${LOG_LEVEL}"
     log_info "=============================================="
 }
 
-# Main execution
+# Main execution logic
 main() {
-    log_info "Starting Aurite Agents container..."
+    # Always set up Python path
+    setup_python_path
 
-    # Display startup information
-    display_startup_info
+    # Determine what we're running based on the command
+    case "$1" in
+        # Interactive shells - just pass through
+        bash|sh|/bin/bash|/bin/sh)
+            log_info "Starting interactive shell..."
+            exec "$@"
+            ;;
 
-    # Validate environment variables
-    validate_environment
+        # Aurite CLI - minimal setup
+        aurite)
+            display_banner "CLI"
+            exec python -m aurite.bin.cli.main "${@:2}"
+            ;;
 
-    # Check if we have a valid Aurite project
-    if ! check_aurite_project; then
-        if [[ "${AURITE_AUTO_INIT}" == "true" ]]; then
-            log_info "AURITE_AUTO_INIT is enabled - initializing new project"
-            init_aurite_project
-        else
-            log_error "No Aurite project found and auto-initialization is disabled"
-            log_error ""
-            log_error "To fix this issue, you can:"
-            log_error "1. Mount an existing Aurite project directory to /app/project"
-            log_error "2. Enable auto-initialization with -e AURITE_AUTO_INIT=true"
-            log_error "3. Initialize manually: docker exec -it <container> aurite init"
-            log_error ""
-            log_error "Example with existing project:"
-            log_error "  docker run -v /path/to/my-project:/app/project aurite/aurite-agents"
-            log_error ""
-            log_error "Example with auto-init:"
-            log_error "  docker run -v /path/to/empty-dir:/app/project -e AURITE_AUTO_INIT=true aurite/aurite-agents"
-            exit 1
-        fi
-    fi
+        # Python module execution
+        python)
+            if [[ "$2" == "-m" ]]; then
+                case "$3" in
+                    # API server via module
+                    uvicorn*|aurite.bin.api*)
+                        display_banner "API Server"
+                        validate_api_requirements
+                        wait_for_database
+                        exec "$@"
+                        ;;
+                    # Aurite CLI via module
+                    aurite.bin.cli*)
+                        display_banner "CLI"
+                        exec "$@"
+                        ;;
+                    # Other Python modules
+                    *)
+                        log_debug "Running Python module: $3"
+                        exec "$@"
+                        ;;
+                esac
+            else
+                # Regular Python execution
+                exec "$@"
+            fi
+            ;;
 
-    # Wait for database if needed
-    wait_for_database
+        # Direct uvicorn execution (API server)
+        uvicorn*)
+            display_banner "API Server"
+            validate_api_requirements
+            wait_for_database
+            exec "$@"
+            ;;
 
-    # Export configurations to database if enabled
-    export_configurations
-
-    # Set up Python path
-    export PYTHONPATH="/app/src:${PYTHONPATH}"
-
-    log_info "Starting application with command: $*"
-
-    # Execute the provided command
-    exec "$@"
+        # Any other command - just pass through
+        *)
+            log_debug "Executing command: $1"
+            exec "$@"
+            ;;
+    esac
 }
 
-# Handle special cases for direct command execution
-if [[ "$1" == "bash" || "$1" == "sh" || "$1" == "/bin/bash" || "$1" == "/bin/sh" ]]; then
-    log_info "Starting interactive shell..."
-    exec "$@"
-elif [[ "$1" == "aurite" ]]; then
-    log_info "Running aurite CLI command..."
-    export PYTHONPATH="/app/src:${PYTHONPATH}"
-    exec python -c "from aurite.bin.cli import app; import sys; sys.argv = ['aurite'] + sys.argv[1:]; app()" "${@:2}"
-elif [[ "$1" == "python" && "$2" == "-m" && "$3" == "aurite"* ]]; then
-    log_info "Running aurite Python module..."
-    export PYTHONPATH="/app/src:${PYTHONPATH}"
-    exec "$@"
-else
-    # Run main initialization logic
-    main "$@"
-fi
+# Run main logic with all arguments (including those from CMD if no args provided)
+main "$@"

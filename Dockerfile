@@ -5,10 +5,20 @@
 # framework, installing it as a proper Python package.
 #
 # Build:
-#   docker build -f Dockerfile.public -t aurite/aurite-agents:latest .
+#   docker build -t aurite/aurite-agents:latest .
+#   docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+#                --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+#                -t aurite/aurite-agents:latest .
 #
 # Usage:
-#   docker run -v /path/to/project:/app/project -p 8000:8000 aurite/aurite-agents
+#   docker run -v /path/to/project:/app/project -p 8000:8000 \
+#              -e API_KEY=your-secure-key aurite/aurite-agents
+#
+# Security Notes:
+#   - Container runs as non-root user (appuser, UID 1000)
+#   - API_KEY environment variable is required for API authentication
+#   - Use reverse proxy with TLS in production
+#   - Consider using Docker secrets for sensitive data
 #
 # For more examples, see: https://github.com/Aurite-ai/aurite-agents
 # =============================================================================
@@ -51,6 +61,10 @@ RUN pip install --no-cache-dir --no-deps /wheels/*.whl
 # =============================================================================
 FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047
 
+# Build arguments for metadata
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
+
 # Add metadata labels for DockerHub
 LABEL org.opencontainers.image.title="Aurite Agents Framework" \
       org.opencontainers.image.description="A Python framework for building, testing, and running AI agents with MCP integration" \
@@ -59,9 +73,12 @@ LABEL org.opencontainers.image.title="Aurite Agents Framework" \
       org.opencontainers.image.documentation="https://github.com/Aurite-ai/aurite-agents/blob/main/README.md" \
       org.opencontainers.image.vendor="Aurite AI" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version="0.3.28" \
+      org.opencontainers.image.version="0.4.0" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="Ryan W <ryan@aurite.ai>, Blake R <blake@aurite.ai>, Jiten Oswal <jiten@aurite.ai>" \
       maintainer="Aurite AI <hello@aurite.ai>"
+
 
 # Install runtime dependencies
 RUN apt-get update && \
@@ -70,8 +87,8 @@ RUN apt-get update && \
         libpq5 && \
     rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
+# Create non-root user for security with explicit home directory
+RUN useradd -m -u 1000 -d /home/appuser appuser
 
 # Create application directories
 RUN mkdir -p /app/project /app/cache && \
