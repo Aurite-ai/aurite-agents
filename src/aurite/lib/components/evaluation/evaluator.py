@@ -95,12 +95,14 @@ async def _evaluate_case(
     output = case.output
     if not output:
         if request.run_agent:
-            if type(request.run_agent) is str:
+            if isinstance(request.run_agent, str):
+                # Use isinstance for better type narrowing
                 runner = AgentRunner(request.run_agent)
                 output = await runner.execute(case.input, **request.run_agent_kwargs)
             elif inspect.iscoroutinefunction(request.run_agent):
                 output = await request.run_agent(case.input, **request.run_agent_kwargs)
             else:
+                # This must be a regular callable
                 output = request.run_agent(case.input, **request.run_agent_kwargs)
         elif request.eval_type and request.eval_name and executor:
             match request.eval_type:
@@ -185,6 +187,10 @@ Format your output as JSON. IMPORTANT: Do not include any other text before or a
     )
 
     analysis_text_output = analysis_output.content
+
+    # Handle None case
+    if analysis_text_output is None:
+        raise ValueError("Evaluation agent returned no content")
 
     try:
         analysis_json = json.loads(_clean_thinking_output(analysis_text_output))

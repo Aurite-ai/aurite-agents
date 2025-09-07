@@ -1,3 +1,4 @@
 [aurite]
 type = "workspace"
 projects = ["./src/aurite/lib/init_templates"]
+include_configs=["./tests/fixtures/workspace/shared_configs"]

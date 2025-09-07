@@ -150,15 +150,17 @@ class SecurityEngine:
 
                 return LLMSecurityTester(config)
             elif component_type == "mcp":
-                from ..components.mcp_security.mcp_security_tester import MCPSecurityTester
+                from ..components.mcp_security.mcp_security_tester import MCPSecurityTester  # type: ignore
 
                 return MCPSecurityTester(config)
             elif component_type == "agent":
-                from ..components.agent_security.agent_security_tester import AgentSecurityTester
+                from ..components.agent_security.agent_security_tester import AgentSecurityTester  # type: ignore
 
                 return AgentSecurityTester(config)
             elif component_type == "workflow":
-                from ..components.workflow_security.workflow_security_tester import WorkflowSecurityTester
+                from ..components.workflow_security.workflow_security_tester import (
+                    WorkflowSecurityTester,  # type: ignore
+                )
 
                 return WorkflowSecurityTester(config)
             else:
@@ -221,7 +223,36 @@ class SecurityEngine:
             )
 
             # Update result with assessment findings
-            result.threats = assessment_result.threats
+            # Convert threats from dicts to SecurityThreat objects if needed
+            converted_threats = []
+            for threat in assessment_result.threats:
+                if isinstance(threat, SecurityThreat):
+                    converted_threats.append(threat)
+                elif isinstance(threat, dict):
+                    # Convert dict to SecurityThreat object
+                    # Handle severity conversion
+                    severity = threat.get("severity", "LOW")
+                    if isinstance(severity, str):
+                        severity = SecurityLevel[severity.upper()]
+                    elif not isinstance(severity, SecurityLevel):
+                        severity = SecurityLevel.LOW
+
+                    converted_threats.append(
+                        SecurityThreat(
+                            threat_id=threat.get("threat_id", ""),
+                            threat_type=threat.get("threat_type", ""),
+                            severity=severity,
+                            component_type=threat.get("component_type", ""),
+                            component_id=threat.get("component_id", ""),
+                            description=threat.get("description", ""),
+                            details=threat.get("details", {}),
+                            mitigation_suggestions=threat.get("mitigation_suggestions", []),
+                            detected_at=threat.get("detected_at", datetime.utcnow()),
+                            confidence_score=threat.get("confidence_score", 0.0),
+                            false_positive_likelihood=threat.get("false_positive_likelihood", 0.0),
+                        )
+                    )
+            result.threats = converted_threats
             result.recommendations = assessment_result.recommendations
             result.overall_score = assessment_result.overall_score
             result.metadata.update(assessment_result.metadata)
