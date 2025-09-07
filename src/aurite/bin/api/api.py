@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse  # Add JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 # Adjust imports for new location (src/bin -> src)
 from ...aurite import (  # Corrected relative import (up two levels from src/bin/api)
@@ -150,6 +151,17 @@ app.openapi = custom_openapi  # type: ignore[no-redef]
 
 # --- Custom Exception Handlers ---
 # Define handlers before endpoints that might raise these exceptions
+
+
+# Handler for Pydantic ValidationErrors
+@app.exception_handler(ValidationError)
+async def validation_error_exception_handler(request: Request, exc: ValidationError):
+    logger.error(f"Pydantic validation error for request {request.url.path}: {exc}")
+    logger.error(f"Request body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,  # Unprocessable Entity
+        content={"detail": "Validation error", "errors": exc.errors(), "body": str(exc)},
+    )
 
 
 # Handler for ConfigurationErrors

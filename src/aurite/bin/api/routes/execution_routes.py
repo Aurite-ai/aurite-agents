@@ -8,13 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ....execution.aurite_engine import AuriteEngine
-from ....lib.components.evaluation.evaluator import evaluate
 from ....lib.components.llm.litellm_client import LiteLLMClient
 from ....lib.config.config_manager import ConfigManager
 from ....lib.models import (
     AgentConfig,
     AgentRunRequest,
-    EvaluationRequest,
     ExecutionHistoryResponse,
     LLMConfig,
     SessionListResponse,
@@ -201,44 +199,7 @@ async def test_agent(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/evaluate")
-async def evaluate_component(
-    request: EvaluationRequest,
-    api_key: str = Security(get_api_key),
-    engine: AuriteEngine = Depends(get_execution_facade),
-):
-    try:
-        eval_result = await evaluate(request, engine)
-        return eval_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.post("/evaluate/{evaluation_config_id}")
-async def evaluate_component_by_config(
-    evaluation_config_id: str,
-    api_key: str = Security(get_api_key),
-    engine: AuriteEngine = Depends(get_execution_facade),
-    config_manager: ConfigManager = Depends(get_config_manager),
-):
-    try:
-        eval_config = config_manager.get_config("evaluation", evaluation_config_id)
-
-        if not eval_config:
-            raise HTTPException(status_code=404, detail=f"Evaluation configuration '{evaluation_config_id}' not found.")
-
-        logging.info(eval_config)
-
-        shared_fields = set(EvaluationRequest.model_fields.keys())
-        request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
-        request = EvaluationRequest(**request_data)
-
-        eval_result = await evaluate(request, engine)
-        return eval_result
-    except Exception as e:
-        if type(e) is HTTPException:
-            raise e
-        raise HTTPException(status_code=500, detail=str(e)) from e
+# Evaluation endpoints have been moved to testing_routes.py
 
 
 def _validate_agent(agent_name: str, config_manager: ConfigManager):

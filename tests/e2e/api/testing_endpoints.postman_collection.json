@@ -1,0 +1,528 @@
+{
+	"info": {
+		"_postman_id": "testing-endpoints-collection",
+		"name": "Aurite Testing & Security Endpoints",
+		"description": "Collection for testing QA evaluation and security assessment endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{api_key}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "X-API-Key",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "QA Evaluation",
+			"item": [
+				{
+					"name": "Evaluate Component - Inline",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has evaluation results\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('result');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"eval_name\": \"test_agent\",\n    \"eval_type\": \"agent\",\n    \"review_llm\": \"test_llm\",\n    \"test_cases\": [\n        {\n            \"input\": \"What's the weather?\",\n            \"output\": \"The weather is sunny\",\n            \"expectations\": [\n                \"The output mentions weather conditions\"\n            ]\n        },\n        {\n            \"input\": \"Calculate 2+2\",\n            \"output\": \"2+2 equals 4\",\n            \"expectations\": [\n                \"The output contains the correct answer\",\n                \"The answer is 4\"\n            ]\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/testing/evaluate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"evaluate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Evaluate Component - From Config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response has evaluation results\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('status');",
+									"        pm.expect(jsonData).to.have.property('result');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/evaluate/Eval Weather Agent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"evaluate",
+								"Eval Weather Agent"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Security Assessment",
+			"item": [
+				{
+					"name": "Assess Component Security - Inline",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has security assessment results\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('assessment_id');",
+									"    pm.expect(jsonData).to.have.property('component_type');",
+									"    pm.expect(jsonData).to.have.property('component_id');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('overall_score');",
+									"    pm.expect(jsonData).to.have.property('threats_count');",
+									"    pm.expect(jsonData).to.have.property('critical_threats_count');",
+									"    pm.expect(jsonData).to.have.property('recommendations');",
+									"    pm.expect(jsonData).to.have.property('duration_seconds');",
+									"});",
+									"",
+									"pm.test(\"Overall score is between 0 and 10\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.overall_score).to.be.at.least(0);",
+									"    pm.expect(jsonData.overall_score).to.be.at.most(10);",
+									"});",
+									"",
+									"// Store assessment_id for later tests",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"assessment_id\", jsonData.assessment_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"component_type\": \"llm\",\n    \"component_id\": \"test_llm_security\",\n    \"component_config\": {\n        \"provider\": \"openai\",\n        \"model\": \"gpt-3.5-turbo\",\n        \"temperature\": 0.7,\n        \"max_tokens\": 1000\n    },\n    \"assessment_options\": {\n        \"tests\": [\"prompt_injection_basic\", \"llm_config_audit\", \"token_limit_check\"]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/testing/security/assess",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"assess"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assess Component Security - From Config",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response has security assessment results\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('assessment_id');",
+									"        pm.expect(jsonData).to.have.property('overall_score');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/security/assess/default?component_type=llm&component_id=gemini_latest",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"assess",
+								"default"
+							],
+							"query": [
+								{
+									"key": "component_type",
+									"value": "llm"
+								},
+								{
+									"key": "component_id",
+									"value": "gemini_latest"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assess Full Configuration",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has full configuration assessment structure\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('total_components');",
+									"    pm.expect(jsonData).to.have.property('overall_security_score');",
+									"    pm.expect(jsonData).to.have.property('total_threats');",
+									"    pm.expect(jsonData).to.have.property('critical_threats');",
+									"    pm.expect(jsonData).to.have.property('component_assessments');",
+									"    pm.expect(jsonData).to.have.property('assessment_summary');",
+									"});",
+									"",
+									"pm.test(\"Component assessments contain valid data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_components).to.be.greaterThan(0);",
+									"    pm.expect(jsonData.overall_security_score).to.be.at.least(0);",
+									"    pm.expect(jsonData.overall_security_score).to.be.at.most(10);",
+									"    ",
+									"    // Check component assessments structure",
+									"    var componentKeys = Object.keys(jsonData.component_assessments);",
+									"    if (componentKeys.length > 0) {",
+									"        var firstComponent = jsonData.component_assessments[componentKeys[0]];",
+									"        pm.expect(firstComponent).to.have.property('assessment_id');",
+									"        pm.expect(firstComponent).to.have.property('overall_score');",
+									"        pm.expect(firstComponent).to.have.property('status');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"configuration\": {\n        \"llm\": {\n            \"primary_llm\": {\n                \"provider\": \"openai\",\n                \"model\": \"gpt-4\",\n                \"temperature\": 0.5,\n                \"max_tokens\": 2000\n            },\n            \"secondary_llm\": {\n                \"provider\": \"anthropic\",\n                \"model\": \"claude-3\",\n                \"temperature\": 0.3,\n                \"max_tokens\": 1500\n            }\n        }\n    },\n    \"assessment_options\": {\n        \"tests\": [\"llm_config_audit\", \"token_limit_check\"]\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/testing/security/assess-full",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"assess-full"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Assessment Status",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response has assessment status\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('assessment_id');",
+									"        pm.expect(jsonData).to.have.property('status');",
+									"        pm.expect(jsonData).to.have.property('component_type');",
+									"        pm.expect(jsonData).to.have.property('component_id');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use the assessment_id from previous test or a default",
+									"if (!pm.environment.get(\"assessment_id\")) {",
+									"    pm.environment.set(\"assessment_id\", \"test_assessment_id\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/security/status/{{assessment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"status",
+								"{{assessment_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Active Assessments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has active assessments list\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('active_assessments');",
+									"    pm.expect(jsonData.active_assessments).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/security/active",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"active"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Assessment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response confirms cancellation\", function () {",
+									"        var jsonData = pm.response.json();",
+									"        pm.expect(jsonData).to.have.property('message');",
+									"        pm.expect(jsonData.message).to.include('cancelled');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use the assessment_id from previous test or a default",
+									"if (!pm.environment.get(\"assessment_id\")) {",
+									"    pm.environment.set(\"assessment_id\", \"test_assessment_id\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/security/cancel/{{assessment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"cancel",
+								"{{assessment_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cleanup Old Assessments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response confirms cleanup\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData).to.have.property('max_age_hours');",
+									"    pm.expect(jsonData.message).to.include('Cleaned up');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/testing/security/cleanup?max_age_hours=24",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"testing",
+								"security",
+								"cleanup"
+							],
+							"query": [
+								{
+									"key": "max_age_hours",
+									"value": "24"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "your-api-key-here",
+			"type": "string"
+		}
+	]
+}
