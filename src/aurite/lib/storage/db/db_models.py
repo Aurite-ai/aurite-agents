@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     Index,
     Integer,
     String,
@@ -84,6 +85,37 @@ class SessionDB(Base):
 
     def __repr__(self):
         return f"<SessionDB(session_id='{self.session_id}', name='{self.name}', type='{self.result_type}')>"
+
+
+class QATestResultDB(Base):
+    """SQLAlchemy model for storing QA test results."""
+
+    __tablename__ = "qa_test_results"
+
+    # Primary key
+    result_id = Column(String, primary_key=True, index=True)
+
+    # Link to evaluation config (references ComponentDB where component_type='evaluation')
+    evaluation_config_id = Column(String, index=True, nullable=False)
+
+    # Store the entire QAEvaluationResult as JSON (similar to ComponentDB.config)
+    result = Column(JSON, nullable=False)
+
+    # Minimal metadata for querying (extracted from result for performance)
+    component_type = Column(String, index=True, nullable=True)
+    overall_score = Column(Float, index=True, nullable=True)
+    status = Column(String, index=True, nullable=True)  # success/failed/partial
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("ix_qa_config_created", "evaluation_config_id", "created_at"),
+        Index("ix_qa_component_score", "component_type", "overall_score"),
+    )
+
+    def __repr__(self):
+        return f"<QATestResultDB(result_id='{self.result_id}', evaluation_config_id='{self.evaluation_config_id}', status='{self.status}')>"
 
 
 # Legacy model - kept for backward compatibility but deprecated

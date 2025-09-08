@@ -6,5 +6,5 @@
   "llm_config_id": "anthropic_claude_3_haiku",
   "mcp_servers": [],
   "max_iterations": 10,
-  "include_history": false
+  "include_history": true
 }

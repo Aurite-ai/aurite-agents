@@ -118,7 +118,7 @@ class QAEngine:
                 except Exception as e:
                     self.logger.warning(f"QAEngine: Could not load component config: {e}")
 
-        # Create QATestRequest with support for custom execution
+        # Create QATestRequest with support for custom execution and caching
         qa_request = QATestRequest(
             component_type=component_type,
             component_config=component_config,
@@ -130,6 +130,11 @@ class QAEngine:
             eval_type=component_type,
             run_agent=getattr(request, "run_agent", None),
             run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
+            # Caching configuration - use defaults from QATestRequest
+            use_cache=getattr(request, "use_cache", True),
+            cache_ttl=getattr(request, "cache_ttl", 3600),
+            force_refresh=getattr(request, "force_refresh", False),
+            evaluation_config_id=component_name,  # Use component name as config ID for now
         )
 
         self.logger.info("QAEngine: Delegating to unified ComponentQATester")
@@ -141,6 +146,20 @@ class QAEngine:
         self.logger.info(
             f"QAEngine: Passed/Failed/Total: {result.passed_cases}/{result.failed_cases}/{result.total_cases}"
         )
+
+        # Save result to storage if we have a session manager
+        if executor and hasattr(executor, "_session_manager") and executor._session_manager:
+            try:
+                # For single component results, save the result
+                # Use component_name as evaluation_config_id if available, otherwise "unknown"
+                config_id = component_name or "unknown"
+                result_id = executor._session_manager.save_qa_test_result(result.model_dump(), config_id)
+                if result_id:
+                    self.logger.info(f"QAEngine: Saved test result with ID: {result_id}")
+                else:
+                    self.logger.warning("QAEngine: Failed to save test result")
+            except Exception as e:
+                self.logger.error(f"QAEngine: Error saving test result: {e}")
 
         # Return single result in dictionary format for consistency
         return {component_name or "component": result}
@@ -247,7 +266,7 @@ class QAEngine:
             except Exception as e:
                 self.logger.warning(f"QAEngine: Could not load component config for {component_name}: {e}")
 
-        # Create QATestRequest
+        # Create QATestRequest with caching configuration
         qa_request = QATestRequest(
             component_type=component_type,
             component_config=component_config,
@@ -259,6 +278,11 @@ class QAEngine:
             eval_type=component_type,
             run_agent=getattr(request, "run_agent", None),
             run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
+            # Caching configuration - use defaults from QATestRequest
+            use_cache=getattr(request, "use_cache", True),
+            cache_ttl=getattr(request, "cache_ttl", 3600),
+            force_refresh=getattr(request, "force_refresh", True),
+            evaluation_config_id=f"{component_name}_individual",  # Unique ID for individual component evaluations
         )
 
         # Execute the evaluation
