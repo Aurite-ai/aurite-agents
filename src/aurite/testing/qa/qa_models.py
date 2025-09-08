@@ -45,6 +45,15 @@ class QATestRequest(BaseModel):
         default_factory=dict,
         description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
     )
+    # Caching configuration
+    use_cache: bool = Field(
+        default=True, description="Whether to use cached results for test cases that have been evaluated before"
+    )
+    cache_ttl: int = Field(default=3600, description="Time-to-live for cached results in seconds (default: 1 hour)")
+    force_refresh: bool = Field(default=False, description="Force re-execution of all test cases, bypassing cache")
+    evaluation_config_id: Optional[str] = Field(
+        default=None, description="ID of the evaluation configuration (used for cache key generation)"
+    )
 
 
 class SchemaValidationResult(BaseModel):

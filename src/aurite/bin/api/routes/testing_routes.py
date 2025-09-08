@@ -408,3 +408,67 @@ async def cleanup_old_assessments(
     except Exception as e:
         logger.error(f"Failed to cleanup assessments: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- QA Test Result Endpoints ---
+
+
+@router.get("/qa/results/{result_id}")
+async def get_qa_test_result(
+    result_id: str,
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+):
+    """
+    Get a specific QA test result by ID.
+
+    This endpoint retrieves the complete QA test result including
+    all test case details and analysis.
+    """
+    try:
+        if not hasattr(engine, "_session_manager") or not engine._session_manager:
+            raise HTTPException(status_code=500, detail="Session manager not available")
+
+        result_data = engine._session_manager.get_qa_test_result(result_id)
+
+        if not result_data:
+            raise HTTPException(status_code=404, detail=f"QA test result '{result_id}' not found")
+
+        return result_data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get QA test result: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/qa/results")
+async def list_qa_test_results(
+    evaluation_config_id: Optional[str] = Query(None, description="Filter by evaluation config ID"),
+    component_type: Optional[str] = Query(None, description="Filter by component type"),
+    limit: int = Query(50, description="Maximum number of results to return", ge=1, le=100),
+    api_key: str = Security(get_api_key),
+    engine: AuriteEngine = Depends(get_execution_facade),
+):
+    """
+    List QA test results with optional filtering.
+
+    This endpoint returns a list of QA test result metadata.
+    Use the specific result endpoint to get full details.
+    """
+    try:
+        if not hasattr(engine, "_session_manager") or not engine._session_manager:
+            raise HTTPException(status_code=500, detail="Session manager not available")
+
+        results = engine._session_manager.get_qa_test_results(
+            evaluation_config_id=evaluation_config_id, component_type=component_type, limit=limit
+        )
+
+        return {
+            "results": results,
+            "total": len(results),
+            "filters": {"evaluation_config_id": evaluation_config_id, "component_type": component_type, "limit": limit},
+        }
+    except Exception as e:
+        logger.error(f"Failed to list QA test results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e

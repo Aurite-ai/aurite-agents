@@ -21,7 +21,13 @@ from .qa_models import (
 from .qa_utils import (
     analyze_expectations,
     execute_component,
+    generate_cache_key,
+    generate_evaluation_cache_key,
+    get_cached_case_result,
+    get_cached_evaluation_result,
     get_llm_client,
+    store_cached_case_result,
+    store_cached_evaluation_result,
     validate_schema,
 )
 
@@ -112,6 +118,38 @@ class ComponentQATester:
         if validation_errors:
             raise ValueError(f"Invalid request: {'; '.join(validation_errors)}")
 
+        # Check for cached evaluation result first (if caching is enabled and not forced refresh)
+        if request.use_cache and not request.force_refresh and request.evaluation_config_id:
+            evaluation_cache_key = generate_evaluation_cache_key(
+                evaluation_config_id=request.evaluation_config_id,
+                component_config=request.component_config,
+                test_cases=request.test_cases,
+                review_llm=request.review_llm,
+            )
+
+            session_manager = None
+            if executor and hasattr(executor, "_session_manager"):
+                session_manager = executor._session_manager
+
+            cached_evaluation = await get_cached_evaluation_result(
+                cache_key=evaluation_cache_key,
+                session_manager=session_manager,
+                cache_ttl=request.cache_ttl,
+            )
+
+            if cached_evaluation:
+                self.logger.info(
+                    f"Using cached evaluation result for {request.component_config.get('name', 'unknown')}"
+                )
+                # Update timing to reflect cache hit
+                cached_evaluation.started_at = started_at
+                cached_evaluation.completed_at = datetime.utcnow()
+                cached_evaluation.duration_seconds = (cached_evaluation.completed_at - started_at).total_seconds()
+                return cached_evaluation
+
+        # No cached evaluation found or caching disabled - proceed with execution
+        self.logger.debug("No cached evaluation found, executing component tests")
+
         # Set up testing
         await self.setup()
 
@@ -181,7 +219,7 @@ class ComponentQATester:
 
             completed_at = datetime.utcnow()
 
-            return QAEvaluationResult(
+            evaluation_result = QAEvaluationResult(
                 evaluation_id=evaluation_id,
                 status=status,
                 component_type=request.component_type,
@@ -202,6 +240,27 @@ class ComponentQATester:
                 completed_at=completed_at,
                 duration_seconds=(completed_at - started_at).total_seconds(),
             )
+
+            # Store evaluation result in cache if caching is enabled
+            if request.use_cache and request.evaluation_config_id:
+                evaluation_cache_key = generate_evaluation_cache_key(
+                    evaluation_config_id=request.evaluation_config_id,
+                    component_config=request.component_config,
+                    test_cases=request.test_cases,
+                    review_llm=request.review_llm,
+                )
+
+                session_manager = None
+                if executor and hasattr(executor, "_session_manager"):
+                    session_manager = executor._session_manager
+
+                await store_cached_evaluation_result(
+                    cache_key=evaluation_cache_key,
+                    result=evaluation_result,
+                    session_manager=session_manager,
+                )
+
+            return evaluation_result
 
         finally:
             await self.teardown()
@@ -228,6 +287,38 @@ class ComponentQATester:
         start_time = datetime.utcnow()
 
         try:
+            # Check for cached result first (if caching is enabled and not forced refresh)
+            cached_result = None
+            if request.use_cache and not request.force_refresh:
+                # Generate cache key for this test case
+                cache_key = generate_cache_key(
+                    case_input=str(case.input),
+                    component_config=request.component_config,
+                    evaluation_config_id=request.evaluation_config_id,
+                    review_llm=request.review_llm,
+                    expectations=case.expectations,
+                )
+
+                # Try to get cached result
+                session_manager = None
+                if executor and hasattr(executor, "_session_manager"):
+                    session_manager = executor._session_manager
+
+                cached_result = await get_cached_case_result(
+                    cache_key=cache_key,
+                    session_manager=session_manager,
+                    cache_ttl=request.cache_ttl,
+                )
+
+                if cached_result:
+                    self.logger.info(f"Using cached result for case {case.id}")
+                    # Update execution time to reflect cache hit (very fast)
+                    cached_result.execution_time = (datetime.utcnow() - start_time).total_seconds()
+                    return cached_result
+
+            # No cached result found or caching disabled - proceed with execution
+            self.logger.debug(f"No cached result found for case {case.id}, executing component")
+
             # Get the output using the utility function (supports custom execution)
             output = await execute_component(case, request, executor)
 
@@ -237,7 +328,7 @@ class ComponentQATester:
                 schema_result = validate_schema(output, request.expected_schema)
                 if not schema_result.is_valid:
                     # Schema validation failed
-                    return CaseEvaluationResult(
+                    result = CaseEvaluationResult(
                         case_id=str(case.id),
                         input=case.input,
                         output=output,
@@ -248,6 +339,8 @@ class ComponentQATester:
                         schema_errors=schema_result.validation_errors,
                         execution_time=(datetime.utcnow() - start_time).total_seconds(),
                     )
+                    # Don't cache failed schema validation results
+                    return result
 
             # Analyze expectations using utility function with component context
             if case.expectations:
@@ -256,7 +349,7 @@ class ComponentQATester:
 
                 grade = "PASS" if not expectation_result.expectations_broken else "FAIL"
 
-                return CaseEvaluationResult(
+                result = CaseEvaluationResult(
                     case_id=str(case.id),
                     input=case.input,
                     output=output,
@@ -268,7 +361,7 @@ class ComponentQATester:
                 )
             else:
                 # No expectations to check, just schema validation
-                return CaseEvaluationResult(
+                result = CaseEvaluationResult(
                     case_id=str(case.id),
                     input=case.input,
                     output=output,
@@ -278,6 +371,28 @@ class ComponentQATester:
                     schema_valid=schema_result.is_valid if schema_result else True,
                     execution_time=(datetime.utcnow() - start_time).total_seconds(),
                 )
+
+            # Store result in cache if caching is enabled and result is successful
+            if request.use_cache and result.grade == "PASS":
+                cache_key = generate_cache_key(
+                    case_input=str(case.input),
+                    component_config=request.component_config,
+                    evaluation_config_id=request.evaluation_config_id,
+                    review_llm=request.review_llm,
+                    expectations=case.expectations,
+                )
+
+                session_manager = None
+                if executor and hasattr(executor, "_session_manager"):
+                    session_manager = executor._session_manager
+
+                await store_cached_case_result(
+                    cache_key=cache_key,
+                    result=result,
+                    session_manager=session_manager,
+                )
+
+            return result
 
         except Exception as e:
             self.logger.error(f"Error evaluating {request.component_type} case {case.id}: {e}")
