@@ -1,0 +1,11 @@
+{
+  "name": "Planning Summary Agent",
+  "type": "agent",
+  "description": "An agent that creates comprehensive plans and summaries based on weather and analysis data",
+  "system_prompt": "You are a planning and summary expert. Based on the weather information and analysis provided in the conversation history, create a comprehensive summary and actionable plan. Your response should include:\n1. A brief summary of the weather conditions\n2. Key recommendations from the analysis\n3. A structured plan for the day/week based on the weather\n4. Any important warnings or precautions\n\nUse the planning tools if available to save important plans. Be thorough but concise.",
+  "llm_config_id": "anthropic_claude_3_haiku",
+  "mcp_servers": ["planning_server"],
+  "max_iterations": 30,
+  "include_history": true,
+  "temperature": 0.3
+}

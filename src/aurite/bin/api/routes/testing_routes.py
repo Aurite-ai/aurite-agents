@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Security
 from pydantic import BaseModel, Field
 
 from ....execution.aurite_engine import AuriteEngine
-from ....lib.components.evaluation.evaluator import evaluate
 from ....lib.config.config_manager import ConfigManager
 from ....lib.models import EvaluationRequest
 from ....testing.qa.qa_engine import QAEngine
@@ -21,13 +20,13 @@ from ....testing.security.security_engine import SecurityEngine
 from ....testing.security.security_models import (
     SecurityAssessmentResult,
     SecurityStatus,
-    create_default_security_config,
-    load_security_config_from_dict,
 )
 from ...dependencies import (
     get_api_key,
     get_config_manager,
     get_execution_facade,
+    get_qa_engine,
+    get_security_engine,
 )
 
 # Configure logging
@@ -130,53 +129,6 @@ class FullConfigurationAssessmentResponse(BaseModel):
         )
 
 
-# --- Dependency Functions ---
-
-_qa_engine_instance: Optional[QAEngine] = None
-_security_engine_instance: Optional[SecurityEngine] = None
-
-
-async def get_qa_engine(
-    config_manager: ConfigManager = Depends(get_config_manager),
-) -> QAEngine:
-    """Get or create QAEngine instance."""
-    global _qa_engine_instance
-
-    if _qa_engine_instance is None:
-        _qa_engine_instance = QAEngine()
-        logger.info("QAEngine instance created")
-
-    return _qa_engine_instance
-
-
-async def get_security_engine(
-    config_manager: ConfigManager = Depends(get_config_manager),
-) -> SecurityEngine:
-    """Get or create SecurityEngine instance."""
-    global _security_engine_instance
-
-    if _security_engine_instance is None:
-        # Try to load security config from ConfigManager
-        security_config = None
-        try:
-            security_config_dict = config_manager.get_config("security", "default")
-            if security_config_dict and "config_dict" in security_config_dict:
-                security_config = load_security_config_from_dict(security_config_dict["config_dict"])
-                logger.info("Loaded security configuration from ConfigManager")
-        except Exception as e:
-            logger.warning(f"Could not load security config from ConfigManager: {e}")
-
-        # Fall back to default if no config found
-        if security_config is None:
-            security_config = create_default_security_config()
-            logger.info("Using default security configuration")
-
-        _security_engine_instance = SecurityEngine(security_config, config_manager)
-        logger.info("SecurityEngine instance created")
-
-    return _security_engine_instance
-
-
 # --- QA/Evaluation Endpoints ---
 
 
@@ -184,6 +136,7 @@ async def get_security_engine(
 async def evaluate_component(
     request: EvaluationRequest,
     api_key: str = Security(get_api_key),
+    qa_engine: QAEngine = Depends(get_qa_engine),
     engine: AuriteEngine = Depends(get_execution_facade),
 ):
     """
@@ -193,8 +146,10 @@ async def evaluate_component(
     by providing test cases with expected outputs and validation criteria.
     """
     try:
-        eval_result = await evaluate(request, engine)
-        return eval_result
+        # Use QAEngine directly and return the full result
+        result = await qa_engine.evaluate_component(request, engine)
+        # Return the full QAEvaluationResult as a dict
+        return result.model_dump()
     except Exception as e:
         logger.error(f"Evaluation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -204,6 +159,7 @@ async def evaluate_component(
 async def evaluate_component_by_config(
     evaluation_config_id: str,
     api_key: str = Security(get_api_key),
+    qa_engine: QAEngine = Depends(get_qa_engine),
     engine: AuriteEngine = Depends(get_execution_facade),
     config_manager: ConfigManager = Depends(get_config_manager),
 ):
@@ -226,8 +182,10 @@ async def evaluate_component_by_config(
         request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
         request = EvaluationRequest(**request_data)
 
-        eval_result = await evaluate(request, engine)
-        return eval_result
+        # Use QAEngine directly and return the full result
+        result = await qa_engine.evaluate_component(request, engine)
+        # Return the full QAEvaluationResult as a dict
+        return result.model_dump()
     except HTTPException:
         raise
     except Exception as e:

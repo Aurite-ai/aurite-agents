@@ -1,0 +1,10 @@
+{
+  "name": "Poor Weather Agent",
+  "type": "agent",
+  "description": "A poorly configured agent with no tools and minimal system prompt - for testing failure scenarios",
+  "system_prompt": "You help with weather.",
+  "llm_config_id": "anthropic_claude_3_haiku",
+  "mcp_servers": [],
+  "max_iterations": 10,
+  "include_history": false
+}

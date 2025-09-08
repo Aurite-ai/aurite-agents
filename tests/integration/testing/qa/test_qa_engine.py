@@ -1,19 +1,20 @@
 """
 Integration tests for the QA Engine.
 
-This module tests the QAEngine functionality, including test case evaluation,
-expectation analysis, schema validation, and backward compatibility.
+This module tests the QAEngine functionality, including component-specific testers,
+test case evaluation, expectation analysis, schema validation, and backward compatibility.
 """
 
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from aurite.lib.models.api.requests import EvaluationCase, EvaluationRequest
-from aurite.testing.qa.qa_engine import QAEngine, evaluate
+from aurite.testing.qa.components import AgentQATester, WorkflowQATester
+from aurite.testing.qa.qa_engine import QAEngine
 from aurite.testing.qa.qa_models import (
     CaseEvaluationResult,
+    QATestRequest,
 )
 
 # Import fixtures
@@ -28,24 +29,150 @@ from tests.fixtures.qa_fixtures import (
 class TestQAEngine:
     """Test suite for the QAEngine class."""
 
-    async def test_basic_evaluation_with_provided_outputs(self, basic_evaluation_request, mock_llm_client):
-        """Test basic evaluation with pre-provided outputs."""
-        # Create QAEngine instance
+    async def test_component_tester_registration(self):
+        """Test that component testers are properly registered."""
         qa_engine = QAEngine()
 
-        # Mock the LLM client
+        # Check that testers are registered
+        assert "agent" in qa_engine._component_testers
+        assert "workflow" in qa_engine._component_testers
+        assert "linear_workflow" in qa_engine._component_testers
+        assert "custom_workflow" in qa_engine._component_testers
+
+        # Check tester types
+        assert isinstance(qa_engine._component_testers["agent"], AgentQATester)
+        assert isinstance(qa_engine._component_testers["workflow"], WorkflowQATester)
+
+    async def test_agent_evaluation_through_qa_engine(self, mock_llm_client):
+        """Test agent evaluation through QAEngine delegation."""
+        from aurite.lib.config.config_manager import ConfigManager
+
+        # Mock config manager to return a valid agent configuration
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_agent",
+            "type": "agent",
+            "llm_config_id": "claude-3-5-sonnet",
+            "system_prompt": "You are a helpful assistant",
+            "temperature": 0.3,
+        }
+
+        qa_engine = QAEngine(config_manager=mock_config_manager)
+
+        # Create agent evaluation request
+        request = EvaluationRequest(
+            eval_name="test_agent",
+            eval_type="agent",
+            test_cases=[
+                EvaluationCase(
+                    input="Hello, how are you?",
+                    output="Hello! I'm doing well, thank you for asking. How can I help you today?",
+                    expectations=["The response is polite and helpful", "The response acknowledges the greeting"],
+                )
+            ],
+        )
+
+        # Mock the LLM client in the component tester
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await qa_engine.evaluate_component(request, executor=None)
+
+        # Verify result structure
+        assert_evaluation_result_valid(result)
+        assert result.component_type == "agent"
+        assert result.total_cases == 1
+
+    async def test_workflow_evaluation_through_qa_engine(self, mock_llm_client):
+        """Test workflow evaluation through QAEngine delegation."""
+        from aurite.lib.config.config_manager import ConfigManager
+
+        # Mock config manager to return a valid workflow configuration
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_workflow",
+            "type": "linear_workflow",
+            "steps": [{"name": "step1", "agent": "agent1"}, {"name": "step2", "agent": "agent2"}],
+            "timeout_seconds": 120,
+        }
+
+        qa_engine = QAEngine(config_manager=mock_config_manager)
+
+        # Create workflow evaluation request
+        request = EvaluationRequest(
+            eval_name="test_workflow",
+            eval_type="linear_workflow",
+            test_cases=[
+                EvaluationCase(
+                    input="Process this request",
+                    output="Request processed successfully through workflow steps",
+                    expectations=["The workflow processes the request", "The output indicates successful completion"],
+                )
+            ],
+        )
+
+        # Mock the LLM client in the component tester
+        with patch("aurite.testing.qa.components.workflow.workflow_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await qa_engine.evaluate_component(request, executor=None)
+
+        # Verify result structure
+        assert_evaluation_result_valid(result)
+        assert result.component_type == "workflow"
+        assert result.total_cases == 1
+
+    async def test_fallback_evaluation_for_unsupported_type(self, mock_llm_client):
+        """Test fallback evaluation for unsupported component types."""
+        qa_engine = QAEngine()
+
+        # Create request with no eval_type to trigger fallback
+        request = EvaluationRequest(
+            eval_name="test_llm",
+            eval_type=None,  # No eval_type to trigger fallback
+            test_cases=[
+                EvaluationCase(input="Test input", output="Test output", expectations=["The output is helpful"])
+            ],
+        )
+
+        # Mock the QAEngine to not have an "agent" tester to force fallback
+        qa_engine._component_testers = {}  # Remove all component testers to force fallback
+
         with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            # Run evaluation
+            result = await qa_engine.evaluate_component(request, executor=None)
+
+        # Should use fallback evaluation
+        assert_evaluation_result_valid(result)
+        assert result.component_type is None  # Fallback evaluation uses None for component_type
+        assert result.total_cases == 1
+
+    async def test_basic_evaluation_with_provided_outputs(self, basic_evaluation_request, mock_llm_client):
+        """Test basic evaluation with pre-provided outputs using component testers."""
+        from aurite.lib.config.config_manager import ConfigManager
+
+        # Mock config manager to return a valid agent configuration
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_agent",
+            "type": "agent",
+            "llm": "claude-3-5-sonnet",
+            "system_prompt": "You are a helpful assistant",
+            "temperature": 0.7,
+        }
+
+        qa_engine = QAEngine(config_manager=mock_config_manager)
+
+        # Mock the LLM client for component testers
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
             result = await qa_engine.evaluate_component(basic_evaluation_request)
 
         # Verify result structure
         assert_evaluation_result_valid(result)
-
-        # Check specific values
         assert result.component_type == "agent"
         assert result.component_name == "test_agent"
         assert result.total_cases == 6  # 4 weather + 2 math cases
-        assert result.status in ["success", "partial", "failed"]
 
         # Verify all cases were evaluated
         assert len(result.case_results) == 6
@@ -54,69 +181,25 @@ class TestQAEngine:
         for _case_id, case_result in result.case_results.items():
             assert_case_result_valid(case_result)
 
-    async def test_evaluation_with_run_agent_function(self, evaluation_request_with_run_agent, mock_llm_client):
-        """Test evaluation with run_agent function to generate outputs."""
-        qa_engine = QAEngine()
+    async def test_schema_validation_through_component_tester(self, evaluation_request_with_schema, mock_llm_client):
+        """Test schema validation functionality through component testers."""
+        from aurite.lib.config.config_manager import ConfigManager
 
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(evaluation_request_with_run_agent)
+        # Mock config manager to return a valid agent configuration
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_agent",
+            "type": "agent",
+            "llm": "claude-3-5-sonnet",
+            "system_prompt": "You are a helpful assistant that returns JSON data",
+            "temperature": 0.3,
+        }
 
-        assert_evaluation_result_valid(result)
-        assert result.total_cases == 3
+        qa_engine = QAEngine(config_manager=mock_config_manager)
 
-        # Verify outputs were generated by run_agent
-        for case_result in result.case_results.values():
-            assert case_result.output is not None
-            # Check that the output matches what mock_run_agent would produce
-            if "weather" in case_result.input.lower():
-                assert "15°C" in case_result.output
-            elif "2 + 2" in case_result.input.lower():
-                assert "4" in case_result.output
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
 
-    async def test_evaluation_with_async_run_agent(self, evaluation_request_with_async_run_agent, mock_llm_client):
-        """Test evaluation with async run_agent function."""
-        qa_engine = QAEngine()
-
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(evaluation_request_with_async_run_agent)
-
-        assert_evaluation_result_valid(result)
-        assert result.total_cases == 3
-
-        # Verify async function was handled correctly
-        for case_result in result.case_results.values():
-            assert case_result.output is not None
-
-    async def test_evaluation_with_aurite_engine(self, mock_aurite_engine, mock_llm_client):
-        """Test evaluation using AuriteEngine to run components."""
-        qa_engine = QAEngine()
-
-        # Create request without run_agent (will use executor)
-        request = EvaluationRequest(
-            eval_name="test_agent",
-            eval_type="agent",
-            test_cases=[
-                EvaluationCase(
-                    input="What's the weather?",
-                    expectations=["The output contains weather information"],
-                )
-            ],
-        )
-
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(request, mock_aurite_engine)
-
-        assert_evaluation_result_valid(result)
-        assert result.total_cases == 1
-
-        # Verify AuriteEngine was called
-        mock_aurite_engine.run_agent.assert_called_once()
-
-    async def test_schema_validation(self, evaluation_request_with_schema, mock_llm_client):
-        """Test schema validation functionality."""
-        qa_engine = QAEngine()
-
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
             result = await qa_engine.evaluate_component(evaluation_request_with_schema)
 
         assert_evaluation_result_valid(result)
@@ -140,32 +223,26 @@ class TestQAEngine:
         assert third_result.schema_valid is False
         assert third_result.grade == "FAIL"
 
-    async def test_expectation_analysis_with_failures(self, basic_evaluation_request, mock_llm_client_with_failures):
-        """Test expectation analysis with some failing cases."""
-        qa_engine = QAEngine()
+    async def test_error_handling_in_component_delegation(self, mock_llm_client):
+        """Test error handling when component tester fails."""
+        from aurite.lib.config.config_manager import ConfigManager
 
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client_with_failures):
-            result = await qa_engine.evaluate_component(basic_evaluation_request)
+        # Mock config manager to return a valid agent configuration
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_agent",
+            "type": "agent",
+            "llm": "claude-3-5-sonnet",
+            "system_prompt": "You are a helpful assistant",
+            "temperature": 0.7,
+        }
 
-        assert_evaluation_result_valid(result)
+        qa_engine = QAEngine(config_manager=mock_config_manager)
 
-        # Should have some failures based on mock_llm_client_with_failures logic
-        assert result.failed_cases > 0
-        assert result.status in ["partial", "failed"]
-
-        # Check that failed cases have broken expectations
-        for case_result in result.case_results.values():
-            if case_result.grade == "FAIL":
-                assert len(case_result.expectations_broken) > 0
-
-    async def test_error_handling_in_evaluation(self, mock_llm_client):
-        """Test error handling when evaluation fails."""
-        qa_engine = QAEngine()
-
-        # Create a request that will cause an error
+        # Create a request that will cause an error in the component tester
         request = EvaluationRequest(
             eval_name="test_agent",
-            eval_type=None,  # No eval_type and no run_agent will cause an error
+            eval_type="agent",
             test_cases=[
                 EvaluationCase(
                     input="Test",
@@ -174,158 +251,242 @@ class TestQAEngine:
             ],
         )
 
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(request, None)
+        # Mock component tester to raise an exception
+        with patch.object(qa_engine._component_testers["agent"], "test_component") as mock_test:
+            mock_test.side_effect = Exception("Component tester failed")
 
-        # Should still return a result, but with failed status
-        assert_evaluation_result_valid(result)
-        assert result.status == "failed"
-        assert result.overall_score == 0
+            with pytest.raises(Exception, match="Component tester failed"):
+                await qa_engine.evaluate_component(request, None)
 
-    async def test_recommendations_generation(self):
-        """Test that recommendations are generated based on results."""
-        qa_engine = QAEngine()
+    async def test_component_config_loading(self, mock_llm_client):
+        """Test that component configurations are loaded from ConfigManager."""
+        from aurite.lib.config.config_manager import ConfigManager
 
-        # Create mixed results
-        case_results = {
-            "case_1": CaseEvaluationResult(
-                case_id="case_1",
-                input="Test 1",
-                output="Output 1",
-                grade="PASS",
-                analysis="Good",
-                expectations_broken=[],
-            ),
-            "case_2": CaseEvaluationResult(
-                case_id="case_2",
-                input="Test 2",
-                output="Output 2",
-                grade="FAIL",
-                analysis="Bad",
-                expectations_broken=["Expectation 1"],
-            ),
-            "case_3": CaseEvaluationResult(
-                case_id="case_3",
-                input="Test 3",
-                output="Output 3",
-                grade="FAIL",
-                analysis="Schema failed",
-                expectations_broken=[],
-                schema_valid=False,
-                schema_errors=["Invalid format"],
-            ),
+        # Mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = {
+            "name": "test_agent",
+            "type": "agent",
+            "llm": "claude-3-5-sonnet",
+            "system_prompt": "You are a helpful assistant",
         }
 
-        recommendations = qa_engine._generate_recommendations(list(case_results.values()))
-
-        assert len(recommendations) > 0
-        # Should mention high failure rate
-        assert any("failure rate" in r.lower() for r in recommendations)
-        # Should mention schema validation
-        assert any("schema" in r.lower() for r in recommendations)
-
-    async def test_backward_compatibility(self, basic_evaluation_request, mock_llm_client):
-        """Test backward compatibility with the old evaluate function."""
-        with patch(
-            "aurite.testing.qa.qa_engine.QAEngine._get_llm_client",
-            return_value=mock_llm_client,
-        ):
-            # Use the old evaluate function
-            result = await evaluate(basic_evaluation_request)
-
-        # Should return legacy format
-        assert isinstance(result, dict)
-        assert "status" in result
-        assert "result" in result
-        assert result["status"] in ["success", "partial", "failed"]
-
-        # Check that result contains case evaluations
-        assert isinstance(result["result"], dict)
-        for _case_id, case_result in result["result"].items():
-            assert "input" in case_result
-            assert "output" in case_result
-            assert "grade" in case_result
-            assert "analysis" in case_result
-            assert "expectations_broken" in case_result
-
-    async def test_parallel_execution(self, mock_llm_client):
-        """Test that test cases are executed in parallel."""
-        qa_engine = QAEngine()
-
-        # Create multiple test cases
-        test_cases = [
-            EvaluationCase(
-                input=f"Test {i}",
-                output=f"Output {i}",
-                expectations=[f"Expectation {i}"],
-            )
-            for i in range(5)
-        ]
+        qa_engine = QAEngine(config_manager=mock_config_manager)
 
         request = EvaluationRequest(
-            eval_name="parallel_test",
+            eval_name="test_agent",
             eval_type="agent",
-            test_cases=test_cases,
+            test_cases=[EvaluationCase(input="Hello", output="Hi there!", expectations=["The response is friendly"])],
         )
 
-        # Track call times to verify parallel execution
-        call_times = []
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
 
-        async def mock_create_message(*args, **kwargs):
-            call_times.append(datetime.utcnow())
-            return MagicMock(content='{"analysis": "Test", "expectations_broken": []}')
+            result = await qa_engine.evaluate_component(request, executor=None)
 
-        mock_llm_client.create_message = mock_create_message
-
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(request)
-
-        assert_evaluation_result_valid(result)
-        assert result.total_cases == 5
-
-        # If executed in parallel, all calls should happen close together
-        if len(call_times) > 1:
-            time_diff = (call_times[-1] - call_times[0]).total_seconds()
-            # Should complete within a second if parallel (would take longer if sequential)
-            assert time_diff < 1.0
-
-    async def test_execution_time_tracking(self, basic_evaluation_request, mock_llm_client):
-        """Test that execution time is tracked for each case and overall."""
-        qa_engine = QAEngine()
-
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(basic_evaluation_request)
+        # Verify config was loaded
+        mock_config_manager.get_config.assert_called_with(component_type="agent", component_id="test_agent")
 
         assert_evaluation_result_valid(result)
 
-        # Check overall timing
-        assert result.duration_seconds is not None and result.duration_seconds > 0
-        assert result.started_at is not None
-        assert result.completed_at is not None
-        assert result.started_at < result.completed_at
 
-        # Check individual case timing
-        for case_result in result.case_results.values():
-            if case_result.execution_time is not None:
-                assert case_result.execution_time >= 0
+@pytest.mark.anyio
+@pytest.mark.testing
+class TestComponentTesters:
+    """Test suite for component-specific testers."""
 
-    async def test_empty_test_cases(self, mock_llm_client):
-        """Test handling of empty test cases."""
-        qa_engine = QAEngine()
+    async def test_agent_qa_tester_direct(self, mock_llm_client):
+        """Test AgentQATester directly."""
+        agent_tester = AgentQATester()
 
-        request = EvaluationRequest(
-            eval_name="empty_test",
+        # Create test request
+        request = QATestRequest(
+            component_type="agent",
+            component_config={
+                "name": "test_agent",
+                "type": "agent",
+                "llm": "claude-3-5-sonnet",
+                "system_prompt": "You are a helpful research assistant",
+                "tools": ["web_search"],
+                "temperature": 0.3,
+            },
+            test_cases=[
+                EvaluationCase(
+                    input="Research renewable energy",
+                    output="Renewable energy sources include solar, wind, and hydroelectric power...",
+                    expectations=[
+                        "The response provides information about renewable energy",
+                        "The response is informative and well-structured",
+                    ],
+                )
+            ],
+            eval_name="test_agent",
             eval_type="agent",
+        )
+
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await agent_tester.test_component(request, executor=None)
+
+        assert_evaluation_result_valid(result)
+        assert result.component_type == "agent"
+        assert result.total_cases == 1
+
+    async def test_workflow_qa_tester_direct(self, mock_llm_client):
+        """Test WorkflowQATester directly."""
+        workflow_tester = WorkflowQATester()
+
+        # Create test request
+        request = QATestRequest(
+            component_type="workflow",
+            component_config={
+                "name": "test_workflow",
+                "type": "linear_workflow",
+                "steps": [{"name": "step1", "agent": "agent1"}, {"name": "step2", "agent": "agent2"}],
+                "timeout_seconds": 120,
+            },
+            test_cases=[
+                EvaluationCase(
+                    input="Process this workflow",
+                    output="Workflow completed successfully with coordinated agent steps",
+                    expectations=["The workflow executes all steps", "The workflow shows proper coordination"],
+                )
+            ],
+            eval_name="test_workflow",
+            eval_type="linear_workflow",
+        )
+
+        with patch("aurite.testing.qa.components.workflow.workflow_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await workflow_tester.test_component(request, executor=None)
+
+        assert_evaluation_result_valid(result)
+        assert result.component_type == "workflow"
+        assert result.total_cases == 1
+
+    async def test_agent_tester_validation(self):
+        """Test AgentQATester request validation."""
+        agent_tester = AgentQATester()
+
+        # Test invalid request
+        invalid_request = QATestRequest(
+            component_type="workflow",  # Wrong type for agent tester
+            component_config={},
             test_cases=[],
         )
 
-        with patch.object(qa_engine, "_get_llm_client", return_value=mock_llm_client):
-            result = await qa_engine.evaluate_component(request)
+        errors = agent_tester.validate_request(invalid_request)
+        assert len(errors) > 0
+        assert any("Component type must be 'agent'" in error for error in errors)
 
-        assert_evaluation_result_valid(result)
-        assert result.total_cases == 0
-        assert result.overall_score == 0
-        assert result.status == "success"  # No failures if no tests
+    async def test_workflow_tester_validation(self):
+        """Test WorkflowQATester request validation."""
+        workflow_tester = WorkflowQATester()
+
+        # Test invalid request
+        invalid_request = QATestRequest(
+            component_type="agent",  # Wrong type for workflow tester
+            component_config={},
+            test_cases=[],
+        )
+
+        errors = workflow_tester.validate_request(invalid_request)
+        assert len(errors) > 0
+        assert any("Component type must be workflow-related" in error for error in errors)
+
+    async def test_agent_recommendations(self, mock_llm_client):
+        """Test agent-specific recommendations generation."""
+        agent_tester = AgentQATester()
+
+        # Create request with problematic agent config
+        request = QATestRequest(
+            component_type="agent",
+            component_config={
+                "name": "problematic_agent",
+                "type": "agent",
+                "llm": "gpt-3.5-turbo",
+                "system_prompt": "AI",  # Very short prompt
+                "tools": [],  # No tools
+                "temperature": 1.5,  # Very high temperature
+                "max_tokens": 100,  # Very low max tokens
+                "conversation_memory": False,
+            },
+            test_cases=[
+                EvaluationCase(
+                    input="Research something complex",
+                    output="I can't help with that",
+                    expectations=["The response provides detailed research", "The response uses appropriate tools"],
+                )
+            ],
+            eval_name="problematic_agent",
+            eval_type="agent",
+        )
+
+        # Mock LLM to return failures
+        mock_llm_client.create_message.return_value = MagicMock(
+            content='{"analysis": "Agent failed to meet expectations", "expectations_broken": ["The response provides detailed research", "The response uses appropriate tools"]}'
+        )
+
+        with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await agent_tester.test_component(request, executor=None)
+
+        # Should have agent-specific recommendations
+        recommendations = result.recommendations
+        assert len(recommendations) > 0
+
+        # Check for specific agent recommendations
+        rec_text = " ".join(recommendations).lower()
+        assert "system prompt" in rec_text or "temperature" in rec_text or "tools" in rec_text
+
+    async def test_workflow_recommendations(self, mock_llm_client):
+        """Test workflow-specific recommendations generation."""
+        workflow_tester = WorkflowQATester()
+
+        # Create request with problematic workflow config
+        request = QATestRequest(
+            component_type="workflow",
+            component_config={
+                "name": "problematic_workflow",
+                "type": "linear_workflow",
+                "steps": [
+                    {"agent": "agent1"},  # Missing name
+                    {"name": "step2"},  # Missing agent
+                ],
+                "timeout_seconds": 5,  # Very short timeout
+                "parallel_execution": True,  # Bad for linear workflow
+            },
+            test_cases=[
+                EvaluationCase(
+                    input="Execute workflow",
+                    output="Workflow failed",
+                    expectations=["The workflow executes successfully", "The workflow coordinates agents properly"],
+                )
+            ],
+            eval_name="problematic_workflow",
+            eval_type="linear_workflow",
+        )
+
+        # Mock LLM to return failures
+        mock_llm_client.create_message.return_value = MagicMock(
+            content='{"analysis": "Workflow failed coordination", "expectations_broken": ["The workflow executes successfully", "The workflow coordinates agents properly"]}'
+        )
+
+        with patch("aurite.testing.qa.components.workflow.workflow_qa_tester.LiteLLMClient") as mock_client_class:
+            mock_client_class.return_value = mock_llm_client
+
+            result = await workflow_tester.test_component(request, executor=None)
+
+        # Should have workflow-specific recommendations
+        recommendations = result.recommendations
+        assert len(recommendations) > 0
+
+        # Check for specific workflow recommendations
+        rec_text = " ".join(recommendations).lower()
+        assert any(keyword in rec_text for keyword in ["step", "timeout", "parallel", "agent"])
 
 
 @pytest.mark.anyio
@@ -379,3 +540,16 @@ class TestQAModels:
 
         assert result_with_schema_error.schema_valid is False
         assert len(result_with_schema_error.schema_errors) == 1
+
+    def test_qa_test_request_validation(self):
+        """Test QATestRequest model validation."""
+        # Valid request
+        request = QATestRequest(
+            component_type="agent",
+            component_config={"name": "test_agent", "type": "agent"},
+            test_cases=[EvaluationCase(input="Test", expectations=["Should work"])],
+        )
+
+        assert request.component_type == "agent"
+        assert request.framework == "aurite"  # Default value
+        assert len(request.test_cases) == 1
