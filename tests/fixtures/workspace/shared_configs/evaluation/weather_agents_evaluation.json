@@ -1,0 +1,59 @@
+{
+  "name": "weather_agents_evaluation",
+  "type": "evaluation",
+  "component_type": "agent",
+  "component_refs": [
+    "Good Weather Agent",
+    "Average Weather Agent",
+    "Poor Weather Agent"
+  ],
+  "review_llm": null,
+  "test_cases": [
+    {
+      "name": "weather_planning_sf",
+      "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+      "expectations": [
+        "The response uses the weather_lookup tool to get San Francisco weather",
+        "The response provides temperature information",
+        "The response creates a structured plan based on weather conditions",
+        "The response uses planning tools to save the plan"
+      ]
+    },
+    {
+      "name": "weather_comparison",
+      "input": "Check the weather in London and Tokyo, then compare them",
+      "expectations": [
+        "The response uses weather_lookup for both London and Tokyo",
+        "The response provides temperature for both cities",
+        "The response compares the weather conditions between cities",
+        "The response is well-structured and informative"
+      ]
+    },
+    {
+      "name": "time_weather_planning",
+      "input": "What time is it in New York and plan my day based on the weather",
+      "expectations": [
+        "The response uses the current_time tool for New York timezone",
+        "The response uses weather_lookup to get New York weather",
+        "The response creates a day plan considering both time and weather",
+        "The response provides actionable recommendations"
+      ]
+    },
+    {
+      "name": "comprehensive_travel",
+      "input": "Create a comprehensive travel plan based on weather in three cities",
+      "expectations": [
+        "The response uses weather tools to get weather data for multiple cities",
+        "The response uses planning tools to create and save a structured plan",
+        "The response provides detailed recommendations for all three cities",
+        "The response demonstrates coordination between weather and planning tools"
+      ]
+    }
+  ],
+  "metadata": {
+    "description": "Unified evaluation for all weather agents - tests good, average, and poor quality agents with the same test cases",
+    "expected_performance": "varied",
+    "tool_requirements": ["weather_lookup", "current_time", "create_plan", "save_plan"],
+    "notes": "This configuration tests multiple agents in parallel to compare their performance on identical tasks"
+  }
+}

@@ -6,24 +6,13 @@ including requests, results, and validation structures.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 # Import the existing EvaluationCase from the API requests
 # We'll keep using this for backward compatibility
 from aurite.lib.models.api.requests import EvaluationCase
-
-__all__ = [
-    "EvaluationCase",
-    "QATestRequest",
-    "SchemaValidationResult",
-    "ExpectationAnalysisResult",
-    "CaseEvaluationResult",
-    "QAEvaluationResult",
-    "QATestCategory",
-    "ComponentQAConfig",
-]
 
 
 class QATestRequest(BaseModel):
@@ -41,9 +30,20 @@ class QATestRequest(BaseModel):
     expected_schema: Optional[Dict[str, Any]] = Field(
         default=None, description="JSON schema to validate output against"
     )
-    eval_name: Optional[str] = Field(default=None, description="Name of the component being evaluated")
+    component_refs: Optional[List[str]] = Field(
+        default=None, description="List of component names to evaluate (for multi-component testing)"
+    )
     eval_type: Optional[str] = Field(
         default=None, description="Type of evaluation (agent, linear_workflow, custom_workflow)"
+    )
+    run_agent: Optional[Callable[..., Any] | Callable[..., Awaitable[Any]] | str] = Field(
+        default=None,
+        description="""A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.
+        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'""",
+    )
+    run_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
     )
 
 
@@ -99,31 +99,6 @@ class QAEvaluationResult(BaseModel):
     started_at: datetime = Field(description="Timestamp when the evaluation started")
     completed_at: Optional[datetime] = Field(default=None, description="Timestamp when the evaluation completed")
     duration_seconds: Optional[float] = Field(default=None, description="Total duration of the evaluation in seconds")
-
-    def to_legacy_format(self) -> Dict[str, Any]:
-        """
-        Convert to the legacy evaluation format for backward compatibility.
-
-        Returns:
-            Dictionary in the format expected by the old evaluation system
-        """
-        # Convert case results to the old format
-        legacy_results = {}
-        for case_id, result in self.case_results.items():
-            legacy_results[case_id] = {
-                "input": result.input,
-                "output": result.output,
-                "grade": result.grade,
-                "analysis": result.analysis,
-                "expectations_broken": result.expectations_broken,
-            }
-
-        return {
-            "status": self.status,
-            "result": legacy_results,
-            # Include the original request data if available in metadata
-            "request": self.metadata.get("original_request"),
-        }
 
 
 class QATestCategory(BaseModel):

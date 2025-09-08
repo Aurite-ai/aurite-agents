@@ -36,6 +36,7 @@ class WorkflowRunRequest(BaseModel):
 
 class EvaluationCase(BaseModel):
     id: UUID = Field(default_factory=uuid4, description="A unique id for this evaluation test case")
+    name: Optional[str] = Field(default=None, description="User-friendly name for this test case")
     input: str = Field(description="The user input supplied in this case")
     output: Optional[Any] = Field(default=None, description="The response from the component")
     expectations: list[str] = Field(
@@ -54,9 +55,9 @@ class EvaluationRequest(BaseModel):
         default_factory=dict,
         description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
     )
-    eval_name: Optional[str] = Field(
+    component_refs: Optional[List[str]] = Field(
         default=None,
-        description="The name of the component being evaluated, if testing an Aurite component. Will be automatically ran if no run_agent is supplied",
+        description="List of component names to evaluate. If provided, each component will be tested with the same test cases. Optional for manual output evaluations.",
     )
     eval_type: Optional[Literal["agent", "linear_workflow", "custom_workflow"]] = Field(
         default=None, description="The type of component being evaluated, if testing an Aurite component."
