@@ -1,0 +1,35 @@
+{
+  "type": "evaluation",
+  "name": "Good Agent QA Evaluation",
+  "eval_name": "Good Weather Agent",
+  "eval_type": "agent",
+  "test_cases": [
+    {
+      "input": "What's the weather in London and what time is it there?",
+      "expectations": [
+        "The response provides accurate weather information for London",
+        "The response includes current time in London timezone",
+        "The response uses both weather_lookup and current_time tools effectively"
+      ]
+    },
+    {
+      "input": "Compare the weather between New York and San Francisco, then create a packing list for a trip to both cities",
+      "expectations": [
+        "The response provides weather information for both New York and San Francisco",
+        "The response compares the weather conditions between the two cities",
+        "The response creates a comprehensive packing list based on weather conditions",
+        "The response uses the planning tools to organize recommendations"
+      ]
+    },
+    {
+      "input": "I'm planning a week-long outdoor conference in Tokyo. What's the weather forecast and what should we prepare?",
+      "expectations": [
+        "The response provides detailed weather information for Tokyo",
+        "The response creates a comprehensive preparation plan for the conference",
+        "The response considers weather conditions in planning recommendations",
+        "The response demonstrates use of multiple tools in coordination"
+      ]
+    }
+  ],
+  "review_llm": "anthropic_claude_3_haiku"
+}

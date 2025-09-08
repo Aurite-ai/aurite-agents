@@ -186,7 +186,8 @@ class ConfigManager:
 
     def _parse_and_index_file(self, config_file: Path, context_root: Path):
         """
-        Parses a config file containing a list of components and adds them to the index.
+        Parses a config file containing either a list of components or a single component
+        and adds them to the index.
         """
         try:
             with config_file.open("r", encoding="utf-8") as f:
@@ -198,11 +199,22 @@ class ConfigManager:
             logger.error(f"Failed to load or parse config file {config_file}: {e}")
             return
 
-        if not isinstance(content, list):
-            logger.warning(f"Skipping config file {config_file}: root is not a list of components.")
+        # Handle both list and single object formats
+        components_to_process = []
+        if isinstance(content, list):
+            components_to_process = content
+        elif isinstance(content, dict):
+            # Check if it's a single component (has 'type' and 'name' fields)
+            if content.get("type") and content.get("name"):
+                components_to_process = [content]
+            else:
+                logger.warning(f"Skipping config file {config_file}: root object missing 'type' or 'name' fields.")
+                return
+        else:
+            logger.warning(f"Skipping config file {config_file}: root is neither a list nor a valid component object.")
             return
 
-        for component_data in content:
+        for component_data in components_to_process:
             if not isinstance(component_data, dict):
                 continue
 

@@ -68,6 +68,10 @@ class EvaluationRequest(BaseModel):
         default=None,
         description="The JSON schema the component output is expected to have.",
     )
+    component_config: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Optional component configuration to use for testing instead of loading from ConfigManager",
+    )
 
 
 # --- Component Configuration Request Models ---

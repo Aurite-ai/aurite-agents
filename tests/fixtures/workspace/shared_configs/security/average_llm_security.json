@@ -1,4 +1,4 @@
-{
+[{
   "name": "average_llm_config",
   "description": "Borderline LLM configuration with some minor issues but generally acceptable",
   "type": "llm",
@@ -10,3 +10,4 @@
   "default_system_prompt": "You are a helpful assistant. Be creative and engaging in your responses.",
   "api_key_env_var": "OPENAI_API_KEY"
 }
+]

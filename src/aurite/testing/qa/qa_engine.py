@@ -62,9 +62,15 @@ class QAEngine:
 
     def _initialize_component_testers(self) -> None:
         """Initialize component-specific testers (Level 3)."""
-        # TODO: Initialize specific testers when they are implemented
-        # For now, we'll add them as they're created
-        pass
+        from .components import AgentQATester, WorkflowQATester
+
+        # Register component-specific testers
+        self.register_component_tester("agent", AgentQATester())
+        self.register_component_tester("workflow", WorkflowQATester())
+        self.register_component_tester("linear_workflow", WorkflowQATester())
+        self.register_component_tester("custom_workflow", WorkflowQATester())
+
+        self.logger.info("Initialized component-specific QA testers")
 
     async def evaluate_component(
         self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
@@ -72,8 +78,92 @@ class QAEngine:
         """
         Main entry point for component evaluation.
 
-        This method replaces the old `evaluate` function and provides
-        the same functionality with improved structure and error handling.
+        This method delegates to component-specific testers for specialized evaluation
+        while maintaining backward compatibility with the original interface.
+
+        Args:
+            request: The evaluation request containing test cases
+            executor: Optional AuriteEngine for component execution
+
+        Returns:
+            QAEvaluationResult containing the evaluation results
+        """
+        self.logger.info(f"QAEngine: Starting QA evaluation for component type: {request.eval_type}")
+        self.logger.info(f"QAEngine: Component name: {request.eval_name}")
+        self.logger.info(f"QAEngine: Test cases count: {len(request.test_cases)}")
+        self.logger.info(f"QAEngine: Review LLM: {request.review_llm}")
+
+        # Determine component type for tester selection
+        component_type = request.eval_type or "agent"  # Default to agent if not specified
+        self.logger.info(f"QAEngine: Resolved component type: {component_type}")
+
+        # Check if we have a component-specific tester
+        if component_type in self._component_testers:
+            self.logger.info(f"QAEngine: Using component-specific tester for: {component_type}")
+
+            # Convert EvaluationRequest to QATestRequest for the component tester
+            from .qa_models import QATestRequest
+
+            # Get component config - prefer provided config over loading from ConfigManager
+            component_config = {}
+            if hasattr(request, "component_config") and request.component_config:
+                # Use the provided component configuration
+                component_config = request.component_config
+                self.logger.info(f"QAEngine: Using provided component config for {request.eval_name}")
+            elif self.config_manager and request.eval_name:
+                # Try to load from ConfigManager as fallback
+                try:
+                    self.logger.info(f"QAEngine: Loading component config for {component_type}.{request.eval_name}")
+                    config = self.config_manager.get_config(
+                        component_type=component_type, component_id=request.eval_name
+                    )
+                    if config:
+                        component_config = config
+                        self.logger.info("QAEngine: Successfully loaded component config")
+                    else:
+                        self.logger.warning(f"QAEngine: No config found for {component_type}.{request.eval_name}")
+                except Exception as e:
+                    self.logger.warning(f"QAEngine: Could not load component config: {e}")
+
+            # Create QATestRequest
+            qa_request = QATestRequest(
+                component_type=component_type,
+                component_config=component_config,
+                test_cases=request.test_cases,
+                framework="aurite",
+                review_llm=request.review_llm,
+                expected_schema=request.expected_schema,
+                eval_name=request.eval_name,
+                eval_type=component_type,
+            )
+
+            self.logger.info(f"QAEngine: Delegating to {component_type} tester")
+            # Delegate to the component-specific tester
+            tester = self._component_testers[component_type]
+            result = await tester.test_component(qa_request, executor)
+
+            self.logger.info(f"QAEngine: Component tester completed with status: {result.status}")
+            self.logger.info(f"QAEngine: Overall score: {result.overall_score:.2f}%")
+            self.logger.info(
+                f"QAEngine: Passed/Failed/Total: {result.passed_cases}/{result.failed_cases}/{result.total_cases}"
+            )
+
+            return result
+
+        else:
+            # Fall back to the original evaluation logic for unsupported component types
+            self.logger.warning(
+                f"QAEngine: No component-specific tester found for: {component_type}. Using fallback evaluation."
+            )
+            return await self._fallback_evaluate_component(request, executor)
+
+    async def _fallback_evaluate_component(
+        self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
+    ) -> QAEvaluationResult:
+        """
+        Fallback evaluation method for component types without specific testers.
+
+        This maintains the original evaluation logic for backward compatibility.
 
         Args:
             request: The evaluation request containing test cases
@@ -85,7 +175,7 @@ class QAEngine:
         evaluation_id = f"qa_{uuid.uuid4().hex[:8]}"
         started_at = datetime.utcnow()
 
-        self.logger.info(f"Starting QA evaluation {evaluation_id}")
+        self.logger.info(f"Starting fallback QA evaluation {evaluation_id}")
 
         try:
             # Get or create LLM client for evaluation

@@ -1,0 +1,21 @@
+{
+  "name": "Good Weather Planning Workflow",
+  "type": "linear_workflow",
+  "description": "A well-designed workflow with three steps - weather lookup, analysis, and planning with proper data flow",
+  "steps": [
+    {
+      "name": "Good Weather Planning Agent",
+      "type": "agent"
+    },
+    {
+      "name": "Weather Analysis Agent",
+      "type": "agent"
+    },
+    {
+      "name": "Planning Summary Agent",
+      "type": "agent"
+    }
+  ],
+  "include_history": true,
+  "timeout_seconds": 120
+}

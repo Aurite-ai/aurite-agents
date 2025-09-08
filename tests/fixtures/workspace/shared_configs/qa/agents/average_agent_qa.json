@@ -1,0 +1,11 @@
+{
+  "name": "Average Weather Agent",
+  "type": "agent",
+  "description": "An average agent with weather tools but limited capabilities - for testing partial success scenarios",
+  "system_prompt": "You are a weather assistant. Use the weather_lookup tool to get current weather information for locations. Provide clear and informative responses about weather conditions.",
+  "llm_config_id": "anthropic_claude_3_haiku",
+  "mcp_servers": ["weather_server"],
+  "max_iterations": 25,
+  "include_history": true,
+  "temperature": 0.5
+}

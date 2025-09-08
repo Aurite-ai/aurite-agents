@@ -1,0 +1,11 @@
+{
+  "name": "Weather Analysis Agent",
+  "type": "agent",
+  "description": "An agent that analyzes weather data and provides recommendations",
+  "system_prompt": "You are a weather analysis expert. Based on the weather information provided in the conversation history, analyze the conditions and provide recommendations for activities, clothing, and any weather-related precautions. Be specific and practical in your suggestions.",
+  "llm_config_id": "anthropic_claude_3_haiku",
+  "mcp_servers": [],
+  "max_iterations": 20,
+  "include_history": true,
+  "temperature": 0.4
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Average Weather Analysis Workflow",
+  "type": "linear_workflow",
+  "description": "An average workflow with two steps - weather lookup followed by basic analysis",
+  "steps": [
+    {
+      "name": "Average Weather Agent",
+      "type": "agent"
+    },
+    {
+      "name": "Weather Analysis Agent",
+      "type": "agent"
+    }
+  ],
+  "include_history": true
+}

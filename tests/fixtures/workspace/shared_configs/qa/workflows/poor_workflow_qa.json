@@ -1,0 +1,7 @@
+{
+  "name": "Poor Weather Workflow",
+  "type": "linear_workflow",
+  "description": "A poorly designed workflow with only one step - defeats the purpose of a workflow",
+  "steps": ["Poor Weather Agent"],
+  "include_history": false
+}

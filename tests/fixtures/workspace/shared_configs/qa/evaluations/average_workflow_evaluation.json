@@ -1,0 +1,36 @@
+{
+  "type": "evaluation",
+  "name": "Average Workflow QA Evaluation",
+  "eval_name": "Average Weather Workflow",
+  "eval_type": "linear_workflow",
+  "test_cases": [
+    {
+      "input": "What's the weather in New York and how should I dress?",
+      "expectations": [
+        "The workflow completes all steps successfully",
+        "The first step provides weather information for New York",
+        "The second step analyzes the weather data",
+        "The workflow provides clothing recommendations based on weather"
+      ]
+    },
+    {
+      "input": "Analyze the weather conditions in Tokyo for outdoor sports",
+      "expectations": [
+        "The workflow executes both weather retrieval and analysis steps",
+        "The workflow provides weather data for Tokyo",
+        "The workflow analyzes suitability for outdoor sports",
+        "The workflow shows proper data flow between the two steps"
+      ]
+    },
+    {
+      "input": "Compare weather between London and Paris for travel planning",
+      "expectations": [
+        "The workflow retrieves weather for both cities",
+        "The workflow provides comparative analysis",
+        "The workflow offers travel recommendations",
+        "The workflow demonstrates agent coordination"
+      ]
+    }
+  ],
+  "review_llm": "anthropic_claude_3_haiku"
+}

@@ -1,0 +1,25 @@
+{
+  "type": "evaluation",
+  "name": "Poor Workflow QA Evaluation",
+  "eval_name": "Poor Weather Workflow",
+  "eval_type": "linear_workflow",
+  "test_cases": [
+    {
+      "input": "What's the weather in Paris?",
+      "expectations": [
+        "The workflow completes execution",
+        "The workflow provides weather information",
+        "The workflow demonstrates multi-step processing"
+      ]
+    },
+    {
+      "input": "I need weather analysis and planning for my trip to London",
+      "expectations": [
+        "The workflow executes all defined steps",
+        "The workflow provides comprehensive analysis",
+        "The workflow shows proper data flow between steps"
+      ]
+    }
+  ],
+  "review_llm": "anthropic_claude_3_haiku"
+}

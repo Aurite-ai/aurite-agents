@@ -16,6 +16,8 @@ from ..lib.config.config_manager import ConfigManager
 # Import config/models needed by dependencies
 from ..lib.models.api.server import ServerConfig
 from ..lib.storage.sessions.session_manager import SessionManager
+from ..testing.qa.qa_engine import QAEngine
+from ..testing.security.security_engine import SecurityEngine
 
 logger = logging.getLogger(__name__)
 
@@ -272,3 +274,58 @@ async def get_current_project_root(
             detail="Project context is not fully initialized or no project is active. Cannot determine project root.",
         )
     return aurite.kernel.project_root
+
+
+# --- QA Engine Dependency ---
+_qa_engine_instance: Optional[QAEngine] = None
+
+
+async def get_qa_engine(
+    config_manager: ConfigManager = Depends(get_config_manager),
+) -> QAEngine:
+    """
+    Dependency function to get or create QAEngine instance.
+    """
+    global _qa_engine_instance
+
+    if _qa_engine_instance is None:
+        _qa_engine_instance = QAEngine(config_manager=config_manager)
+        logger.info("QAEngine instance created with ConfigManager")
+
+    return _qa_engine_instance
+
+
+# --- Security Engine Dependency ---
+_security_engine_instance: Optional[SecurityEngine] = None
+
+
+async def get_security_engine(
+    config_manager: ConfigManager = Depends(get_config_manager),
+) -> SecurityEngine:
+    """
+    Dependency function to get or create SecurityEngine instance.
+    """
+    global _security_engine_instance
+
+    if _security_engine_instance is None:
+        from ..testing.security.security_models import create_default_security_config, load_security_config_from_dict
+
+        # Try to load security config from ConfigManager
+        security_config = None
+        try:
+            security_config_dict = config_manager.get_config("security", "default")
+            if security_config_dict and "config_dict" in security_config_dict:
+                security_config = load_security_config_from_dict(security_config_dict["config_dict"])
+                logger.info("Loaded security configuration from ConfigManager")
+        except Exception as e:
+            logger.warning(f"Could not load security config from ConfigManager: {e}")
+
+        # Fall back to default if no config found
+        if security_config is None:
+            security_config = create_default_security_config()
+            logger.info("Using default security configuration")
+
+        _security_engine_instance = SecurityEngine(security_config, config_manager)
+        logger.info("SecurityEngine instance created")
+
+    return _security_engine_instance
