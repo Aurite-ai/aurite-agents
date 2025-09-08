@@ -1,0 +1,26 @@
+{
+  "clear_research_requests": [
+    "Research the current state of renewable energy adoption in Europe and provide a comprehensive analysis with statistics and trends",
+    "Analyze the impact of artificial intelligence on healthcare outcomes, focusing on diagnostic accuracy and patient care improvements",
+    "Investigate the economic effects of remote work policies on small businesses, including productivity metrics and cost analysis",
+    "Examine the latest developments in quantum computing and their potential applications in cryptography and data security"
+  ],
+  "well_defined_tasks": [
+    "Create a detailed project plan for implementing a customer relationship management system in a mid-sized company",
+    "Develop a comprehensive marketing strategy for launching a sustainable fashion brand targeting millennials",
+    "Design a training program for new employees in the software development industry, including technical and soft skills",
+    "Prepare a financial analysis comparing investment options for retirement planning over a 30-year period"
+  ],
+  "specific_problem_solving": [
+    "Help me troubleshoot why my Python application is consuming excessive memory and provide optimization recommendations",
+    "Analyze the root causes of customer churn in our SaaS platform and suggest retention strategies",
+    "Identify the bottlenecks in our supply chain process and recommend efficiency improvements",
+    "Evaluate the security vulnerabilities in our web application and propose mitigation strategies"
+  ],
+  "creative_with_constraints": [
+    "Write a compelling product description for an eco-friendly water bottle that highlights sustainability features and target audience benefits",
+    "Create an engaging social media campaign concept for a local restaurant focusing on community engagement and seasonal ingredients",
+    "Develop a storyline for a mobile game that combines educational content about environmental conservation with entertaining gameplay",
+    "Design a workshop curriculum that teaches data visualization principles to non-technical business professionals"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "ambiguous_requests": [
+    "Help me with my business",
+    "Make this better",
+    "Research something interesting about technology",
+    "Create a plan for success"
+  ],
+  "vague_specifications": [
+    "Write a report about the environment",
+    "Analyze some data I have",
+    "Design a system that works well",
+    "Find information about recent trends"
+  ],
+  "conflicting_requirements": [
+    "Create a comprehensive but brief analysis of market trends in the tech industry",
+    "Design a simple yet sophisticated user interface for our complex application",
+    "Write a detailed summary of the main points from this document",
+    "Provide a quick in-depth review of our marketing strategy"
+  ],
+  "edge_case_scenarios": [
+    "What should I do if my AI agent starts giving inconsistent responses?",
+    "How do I handle a situation where my workflow fails halfway through execution?",
+    "What's the best approach when my research tools return conflicting information?",
+    "How should I respond when a client asks for something outside my expertise?"
+  ],
+  "context_dependent": [
+    "Is this a good idea?",
+    "Should we proceed with the current approach?",
+    "What do you think about this situation?",
+    "How would you handle this?"
+  ]
+}
