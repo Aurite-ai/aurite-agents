@@ -89,7 +89,7 @@ class MCPHost:
             raise KeyError(f"Tool '{name}' not found or its server is not registered.")
 
         # Security check: Ensure agent has access to this tool's server
-        if agent_config and agent_config.mcp_servers:
+        if agent_config and agent_config.mcp_servers is not None:
             # Extract server name from tool name (format: "server_name-tool_name")
             server_name = name.split("-", 1)[0] if "-" in name else None
             if server_name and server_name not in agent_config.mcp_servers:
@@ -271,7 +271,7 @@ class MCPHost:
         all_tools = list(self.tools.values())
 
         # Filter tools based on agent's allowed MCP servers
-        if agent_config and agent_config.mcp_servers:
+        if agent_config and agent_config.mcp_servers is not None:
             # Only include tools from servers the agent has access to
             filtered_tools = []
             for tool in all_tools:

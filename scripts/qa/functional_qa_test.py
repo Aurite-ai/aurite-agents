@@ -32,8 +32,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 from aurite.lib.models.api.requests import EvaluationCase
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
+
+
+# Color codes for better output formatting
+class Colors:
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    MAGENTA = "\033[95m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    END = "\033[0m"
 
 
 class QAFunctionalTester:
@@ -132,6 +145,7 @@ class QAFunctionalTester:
         async with httpx.AsyncClient(timeout=60.0) as client:
             for config_file in agent_configs:
                 config_name = config_file.replace(".json", "")
+
                 logger.info(f"\n  📋 Testing {config_name}...")
 
                 try:
@@ -178,6 +192,7 @@ class QAFunctionalTester:
                             "failed_cases": result.get("failed_cases", 0),
                             "total_cases": result.get("total_cases", 0),
                             "recommendations": result.get("recommendations", []),
+                            "case_results": result.get("case_results", {}),  # Store case results for detailed analysis
                         }
                         logger.info(
                             f"    ✅ {config_name}: {result.get('status')} (Score: {result.get('overall_score', 0):.1f}%)"
@@ -205,7 +220,8 @@ class QAFunctionalTester:
         async with httpx.AsyncClient(timeout=60.0) as client:
             for config_file in workflow_configs:
                 config_name = config_file.replace(".json", "")
-                logger.info(f"\n  📋 Testing {config_name}...")
+
+                logger.info(f"\n  � Testing {config_name}...")
 
                 try:
                     # Load workflow configuration
@@ -245,6 +261,7 @@ class QAFunctionalTester:
                             "failed_cases": result.get("failed_cases", 0),
                             "total_cases": result.get("total_cases", 0),
                             "recommendations": result.get("recommendations", []),
+                            "case_results": result.get("case_results", {}),  # Store case results for detailed analysis
                         }
                         logger.info(
                             f"    ✅ {config_name}: {result.get('status')} (Score: {result.get('overall_score', 0):.1f}%)"
@@ -356,87 +373,58 @@ class QAFunctionalTester:
 
     def _create_agent_test_cases(self, config_name: str) -> List[EvaluationCase]:
         """
-        Create test cases appropriate for the given agent configuration.
+        Create standardized test cases for all agents to ensure fair comparison.
+
+        All agents get the same challenging test cases to see how they perform
+        against the same criteria, rather than getting easier/harder tests
+        based on their expected performance level.
 
         Args:
             config_name: Name of the agent configuration being tested
 
         Returns:
-            List of EvaluationCase objects
+            List of EvaluationCase objects (same for all agents)
         """
-        if "good" in config_name:
-            # Good agent should handle complex weather and planning tasks well
-            return [
-                EvaluationCase(
-                    input="What's the weather in San Francisco and create a plan for outdoor activities",
-                    expectations=[
-                        "The response uses the weather_lookup tool to get San Francisco weather",
-                        "The response provides temperature information",
-                        "The response creates a structured plan based on weather conditions",
-                        "The response uses planning tools to save the plan",
-                    ],
-                ),
-                EvaluationCase(
-                    input="Check the weather in London and Tokyo, then compare them",
-                    expectations=[
-                        "The response uses weather_lookup for both London and Tokyo",
-                        "The response provides temperature for both cities",
-                        "The response compares the weather conditions between cities",
-                        "The response is well-structured and informative",
-                    ],
-                ),
-                EvaluationCase(
-                    input="What time is it in New York and plan my day based on the weather",
-                    expectations=[
-                        "The response uses the current_time tool for New York timezone",
-                        "The response uses weather_lookup to get New York weather",
-                        "The response creates a day plan considering both time and weather",
-                        "The response provides actionable recommendations",
-                    ],
-                ),
-            ]
-        elif "average" in config_name:
-            # Average agent should handle basic weather tasks but may struggle with planning
-            return [
-                EvaluationCase(
-                    input="What's the weather in London?",
-                    expectations=[
-                        "The response uses the weather_lookup tool",
-                        "The response provides temperature information",
-                        "The response mentions London specifically",
-                    ],
-                ),
-                EvaluationCase(
-                    input="Tell me about the weather in Tokyo using Fahrenheit",
-                    expectations=[
-                        "The response uses weather_lookup with imperial units",
-                        "The response provides temperature in Fahrenheit",
-                        "The response mentions Tokyo",
-                    ],
-                ),
-                EvaluationCase(
-                    input="Create a plan for tomorrow based on the weather",
-                    expectations=[
-                        "The response attempts to create a plan",
-                        "The response considers weather conditions",
-                    ],
-                ),
-            ]
-        else:  # poor
-            # Poor agent should struggle with tool usage
-            return [
-                EvaluationCase(
-                    input="What's the weather in San Francisco?",
-                    expectations=["The response attempts to address the weather question", "The response is coherent"],
-                ),
-                EvaluationCase(
-                    input="Create a weather-based plan for the week",
-                    expectations=[
-                        "The response attempts to create some form of plan",
-                        "The response mentions weather considerations",
-                    ],
-                ),
-            ]
+        # Use the same challenging test cases for ALL agents
+        # This allows us to see how good/average/poor agents perform on the same tasks
+        return [
+            EvaluationCase(
+                input="What's the weather in San Francisco and create a plan for outdoor activities",
+                expectations=[
+                    "The response uses the weather_lookup tool to get San Francisco weather",
+                    "The response provides temperature information",
+                    "The response creates a structured plan based on weather conditions",
+                    "The response uses planning tools to save the plan",
+                ],
+            ),
+            EvaluationCase(
+                input="Check the weather in London and Tokyo, then compare them",
+                expectations=[
+                    "The response uses weather_lookup for both London and Tokyo",
+                    "The response provides temperature for both cities",
+                    "The response compares the weather conditions between cities",
+                    "The response is well-structured and informative",
+                ],
+            ),
+            EvaluationCase(
+                input="What time is it in New York and plan my day based on the weather",
+                expectations=[
+                    "The response uses the current_time tool for New York timezone",
+                    "The response uses weather_lookup to get New York weather",
+                    "The response creates a day plan considering both time and weather",
+                    "The response provides actionable recommendations",
+                ],
+            ),
+            EvaluationCase(
+                input="Create a comprehensive travel plan based on weather in three cities",
+                expectations=[
+                    "The response uses weather tools to get weather data for multiple cities",
+                    "The response uses planning tools to create and save a structured plan",
+                    "The response provides detailed recommendations for all three cities",
+                    "The response demonstrates coordination between weather and planning tools",
+                ],
+            ),
+        ]
 
     def _create_workflow_test_cases(self, config_name: str) -> List[EvaluationCase]:
         """
@@ -495,15 +483,34 @@ class QAFunctionalTester:
                 ),
             ]
         else:  # poor
-            # Poor workflow with single step should have coordination issues
+            # Poor workflow with single step should fail multi-step coordination expectations
             return [
                 EvaluationCase(
-                    input="Create a weather report",
-                    expectations=["The workflow attempts to execute", "Some form of output is produced"],
+                    input="Get weather for Paris and create a detailed activity plan",
+                    expectations=[
+                        "The workflow demonstrates multi-step processing",
+                        "Weather data flows properly between workflow steps",
+                        "The workflow shows coordination between multiple agents",
+                        "The final output shows evidence of step-by-step refinement",
+                    ],
                 ),
                 EvaluationCase(
-                    input="What should I do today?",
-                    expectations=["The workflow processes the request", "The response attempts to be helpful"],
+                    input="Compare weather in three cities and recommend the best for vacation",
+                    expectations=[
+                        "The workflow processes multiple cities through separate steps",
+                        "Analysis step compares data from weather retrieval step",
+                        "Planning step creates recommendations based on analysis",
+                        "The workflow demonstrates proper data flow between agents",
+                    ],
+                ),
+                EvaluationCase(
+                    input="Create a comprehensive weather-based travel itinerary",
+                    expectations=[
+                        "The workflow executes multiple coordinated steps",
+                        "Each step builds upon the previous step's output",
+                        "The workflow shows proper agent coordination",
+                        "The final output demonstrates multi-step processing",
+                    ],
                 ),
             ]
 
@@ -535,67 +542,268 @@ class QAFunctionalTester:
             ]
 
     def _generate_summary_report(self) -> None:
-        """Generate and display a summary report of all test results."""
-        logger.info("\n" + "=" * 80)
-        logger.info("QA FUNCTIONAL TESTING SUMMARY")
-        logger.info("=" * 80)
+        """Generate and display a comprehensive summary report of all test results."""
+        from datetime import datetime
 
-        total_tests = 0
-        passed_tests = 0
-        failed_tests = 0
-
-        for test_category, category_results in self.results.items():
-            logger.info(f"\n📊 {test_category.upper()}:")
-
+        # Show detailed case results first
+        for _test_category, category_results in self.results.items():
             if isinstance(category_results, dict) and "error" not in category_results:
                 for test_name, test_result in category_results.items():
                     if isinstance(test_result, dict):
-                        status = test_result.get("status", "unknown")
-                        score = test_result.get("overall_score", 0)
+                        # Show detailed case results
+                        self._print_detailed_case_results(test_name, test_result)
 
-                        if status == "success":
-                            logger.info(f"  ✅ {test_name}: {status} (Score: {score:.1f}%)")
-                            passed_tests += 1
-                        elif status == "partial":
-                            logger.info(f"  ⚠️  {test_name}: {status} (Score: {score:.1f}%)")
-                            passed_tests += 1  # Count partial as passed for summary
-                        else:
-                            # Handle None score gracefully
-                            if score is not None:
-                                logger.info(f"  ❌ {test_name}: {status} (Score: {score:.1f}%)")
-                            else:
-                                logger.info(f"  ❌ {test_name}: {status}")
-                            failed_tests += 1
+        # Then show comprehensive summary
+        logger.info("\n" + "📊" * 30 + " QA TESTING SUMMARY " + "📊" * 30)
+        logger.info(f"🕐 Completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-                        total_tests += 1
+        logger.info("\n📈 Agent Performance Analysis:")
+        logger.info("-" * 60)
 
-                        # Show recommendations if verbose
-                        if self.verbose and test_result.get("recommendations"):
-                            for rec in test_result["recommendations"]:
-                                logger.info(f"    💡 {rec}")
+        # Agent QA Results
+        agent_results = self.results.get("agent_qa", {})
+        if agent_results and "error" not in agent_results:
+            logger.info("\n🤖 Agent QA Results (Same Test Cases for All Agents):")
+
+            good_agent = agent_results.get("good_agent_qa", {})
+            average_agent = agent_results.get("average_agent_qa", {})
+            poor_agent = agent_results.get("poor_agent_qa", {})
+
+            if "error" not in good_agent:
+                score = good_agent.get("overall_score", 0)
+                passed = good_agent.get("passed_cases", 0)
+                total = good_agent.get("total_cases", 0)
+                status_emoji = "✅" if score > 75 else "⚠️" if score > 50 else "❌"
+                logger.info(f"   {status_emoji} Good Agent: {score:.1f}% ({passed}/{total} passed)")
             else:
-                logger.info(f"  ❌ Category failed: {category_results.get('error', 'Unknown error')}")
-                failed_tests += 1
-                total_tests += 1
+                logger.info(f"   ❌ Good Agent: FAILED - {good_agent['error']}")
 
-        # Overall summary
-        logger.info("\n📈 OVERALL RESULTS:")
-        logger.info(f"  Total Tests: {total_tests}")
-        logger.info(f"  Passed: {passed_tests}")
-        logger.info(f"  Failed: {failed_tests}")
+            if "error" not in average_agent:
+                score = average_agent.get("overall_score", 0)
+                passed = average_agent.get("passed_cases", 0)
+                total = average_agent.get("total_cases", 0)
+                status_emoji = "✅" if score > 50 else "⚠️" if score > 25 else "❌"
+                logger.info(f"   {status_emoji} Average Agent: {score:.1f}% ({passed}/{total} passed)")
+            else:
+                logger.info(f"   ❌ Average Agent: FAILED - {average_agent['error']}")
+
+            if "error" not in poor_agent:
+                score = poor_agent.get("overall_score", 0)
+                passed = poor_agent.get("passed_cases", 0)
+                total = poor_agent.get("total_cases", 0)
+                status_emoji = "✅" if score > 25 else "⚠️" if score > 10 else "❌"
+                logger.info(f"   {status_emoji} Poor Agent: {score:.1f}% ({passed}/{total} passed)")
+            else:
+                logger.info(f"   ❌ Poor Agent: FAILED - {poor_agent['error']}")
+
+        # Workflow QA Results
+        workflow_results = self.results.get("workflow_qa", {})
+        if workflow_results and "error" not in workflow_results:
+            logger.info("\n🔄 Workflow QA Results:")
+
+            good_workflow = workflow_results.get("good_workflow_qa", {})
+            average_workflow = workflow_results.get("average_workflow_qa", {})
+            poor_workflow = workflow_results.get("poor_workflow_qa", {})
+
+            if "error" not in good_workflow:
+                score = good_workflow.get("overall_score", 0)
+                passed = good_workflow.get("passed_cases", 0)
+                total = good_workflow.get("total_cases", 0)
+                status_emoji = "✅" if score > 75 else "⚠️" if score > 50 else "❌"
+                logger.info(f"   {status_emoji} Good Workflow: {score:.1f}% ({passed}/{total} passed)")
+            else:
+                logger.info(f"   ❌ Good Workflow: FAILED - {good_workflow['error']}")
+
+            if "error" not in average_workflow:
+                score = average_workflow.get("overall_score", 0)
+                passed = average_workflow.get("passed_cases", 0)
+                total = average_workflow.get("total_cases", 0)
+                status_emoji = "✅" if score > 50 else "⚠️" if score > 25 else "❌"
+                logger.info(f"   {status_emoji} Average Workflow: {score:.1f}% ({passed}/{total} passed)")
+            else:
+                logger.info(f"   ❌ Average Workflow: FAILED - {average_workflow['error']}")
+
+            if "error" not in poor_workflow:
+                score = poor_workflow.get("overall_score", 0)
+                passed = poor_workflow.get("passed_cases", 0)
+                total = poor_workflow.get("total_cases", 0)
+                status_emoji = "✅" if score > 25 else "⚠️" if score > 10 else "❌"
+                logger.info(f"   {status_emoji} Poor Workflow: {score:.1f}% ({passed}/{total} passed)")
+            else:
+                logger.info(f"   ❌ Poor Workflow: FAILED - {poor_workflow['error']}")
+
+        # QA Engine Integration Results
+        integration_results = self.results.get("qa_engine_integration", {})
+        if integration_results and "error" not in integration_results:
+            logger.info("\n🔧 QA Engine Integration:")
+
+            agent_integration = integration_results.get("agent_through_engine", {})
+            workflow_integration = integration_results.get("workflow_through_engine", {})
+
+            if "error" not in agent_integration:
+                score = agent_integration.get("overall_score", 0)
+                status_emoji = "✅" if score > 75 else "⚠️" if score > 50 else "❌"
+                logger.info(f"   {status_emoji} Agent Integration: {score:.1f}%")
+            else:
+                logger.info(f"   ❌ Agent Integration: FAILED - {agent_integration['error']}")
+
+            if "error" not in workflow_integration:
+                score = workflow_integration.get("overall_score", 0)
+                status_emoji = "✅" if score > 75 else "⚠️" if score > 50 else "❌"
+                logger.info(f"   {status_emoji} Workflow Integration: {score:.1f}%")
+            else:
+                logger.info(f"   ❌ Workflow Integration: FAILED - {workflow_integration['error']}")
+
+        # Analysis and Insights
+        logger.info("\n🔍 QA System Analysis:")
+
+        if agent_results and "error" not in agent_results:
+            good_score = good_agent.get("overall_score", 0) if "error" not in good_agent else 0
+            average_score = average_agent.get("overall_score", 0) if "error" not in average_agent else 0
+            poor_score = poor_agent.get("overall_score", 0) if "error" not in poor_agent else 0
+
+            logger.info("🤖 Agent Performance Differentiation:")
+            if good_score > average_score > poor_score:
+                logger.info("✅ Agent quality properly differentiated: Good > Average > Poor")
+                score_spread = good_score - poor_score
+                if score_spread > 40:
+                    logger.info(f"✅ Excellent score spread ({score_spread:.1f}%) - clear differentiation")
+                elif score_spread > 20:
+                    logger.info(f"⚠️  Moderate score spread ({score_spread:.1f}%) - some differentiation")
+                else:
+                    logger.info(f"❌ Low score spread ({score_spread:.1f}%) - poor differentiation")
+            else:
+                logger.info("⚠️  Agent quality differentiation needs review")
+                logger.info(f"   Scores: Good={good_score:.1f}%, Average={average_score:.1f}%, Poor={poor_score:.1f}%")
+
+        # Test Case Analysis
+        logger.info("\n📋 Test Case Analysis:")
+        logger.info("✅ All agents tested with identical challenging test cases")
+        logger.info("✅ Fair comparison - no agent-specific test case bias")
+        logger.info("✅ Standardized expectations across all agent types")
+
+        # Security Fix Validation
+        logger.info("\n🔒 Security Validation:")
+        if poor_agent and "error" not in poor_agent:
+            poor_case_results = poor_agent.get("case_results", {})
+            security_validated = False
+            for case_result in poor_case_results.values():
+                analysis = case_result.get("analysis", "")
+                if "no tools" in analysis.lower() or "empty mcp_servers" in analysis.lower():
+                    security_validated = True
+                    break
+
+            if security_validated:
+                logger.info("✅ Security fix validated - poor agent properly blocked from unauthorized tools")
+            else:
+                logger.info("⚠️  Security validation inconclusive - check poor agent tool access")
+        else:
+            logger.info("⚠️  Could not validate security fix - poor agent test failed")
+
+        # Overall Assessment
+        logger.info("\n🎯 Overall QA System Assessment:")
+
+        total_tests = 0
+        passed_tests = 0
+
+        for category_results in self.results.values():
+            if isinstance(category_results, dict) and "error" not in category_results:
+                for test_result in category_results.values():
+                    if isinstance(test_result, dict) and "status" in test_result:
+                        total_tests += 1
+                        if test_result.get("status") in ["success", "partial"]:
+                            passed_tests += 1
 
         if total_tests > 0:
             success_rate = (passed_tests / total_tests) * 100
-            logger.info(f"  Success Rate: {success_rate:.1f}%")
+            logger.info(f"📊 Overall Success Rate: {success_rate:.1f}% ({passed_tests}/{total_tests})")
 
             if success_rate >= 80:
-                logger.info("  🎉 QA system is functioning well!")
+                logger.info("🎉 QA system is functioning excellently!")
             elif success_rate >= 60:
-                logger.info("  ⚠️  QA system has some issues that should be addressed")
+                logger.info("✅ QA system is functioning well with minor issues")
+            elif success_rate >= 40:
+                logger.info("⚠️  QA system has some issues that should be addressed")
             else:
-                logger.info("  🚨 QA system has significant issues requiring attention")
+                logger.info("🚨 QA system has significant issues requiring immediate attention")
 
-        logger.info("=" * 80)
+        logger.info("\n" + "=" * 80)
+
+    def _print_detailed_case_results(self, test_name: str, test_result: Dict[str, Any]) -> None:
+        """
+        Print detailed case results for debugging.
+
+        Args:
+            test_name: Name of the test being analyzed
+            test_result: Test result dictionary containing case_results
+        """
+        # Add colored header based on test quality
+        if "good" in test_name:
+            header = f"\n{Colors.GREEN}{'🟢' * 20} DETAILED RESULTS: {test_name.upper()} {'🟢' * 20}{Colors.END}"
+        elif "average" in test_name:
+            header = f"\n{Colors.YELLOW}{'🟡' * 20} DETAILED RESULTS: {test_name.upper()} {'🟡' * 20}{Colors.END}"
+        else:  # poor
+            header = f"\n{Colors.RED}{'🔴' * 20} DETAILED RESULTS: {test_name.upper()} {'🔴' * 20}{Colors.END}"
+
+        logger.info(header)
+
+        # Get the full API response if available
+        if "case_results" in test_result:
+            case_results = test_result["case_results"]
+
+            for i, (case_id, case_result) in enumerate(case_results.items(), 1):
+                grade = case_result.get("grade", "N/A")
+
+                # Color code the grade
+                if grade == "PASS":
+                    grade_colored = f"{Colors.GREEN}✅ PASS{Colors.END}"
+                elif grade == "FAIL":
+                    grade_colored = f"{Colors.RED}❌ FAIL{Colors.END}"
+                else:
+                    grade_colored = f"{Colors.YELLOW}⚠️ {grade}{Colors.END}"
+
+                logger.info(f"\n{Colors.BOLD}📝 Test Case {i} ({case_id[:8]}){Colors.END}")
+
+                # Make the input text purple
+                input_text = case_result.get("input", "N/A")
+                logger.info(f"   Input: {Colors.MAGENTA}{input_text}{Colors.END}")
+
+                logger.info(f"   {Colors.BOLD}Grade:{Colors.END} {grade_colored}")
+                exec_time = case_result.get("execution_time", "N/A")
+                logger.info(f"   {Colors.BLUE}Execution Time:{Colors.END} {exec_time}s")
+
+                logger.info(f"   {Colors.CYAN}Analysis:{Colors.END} {case_result.get('analysis', 'N/A')}")
+
+                # Show broken expectations with color
+                broken_expectations = case_result.get("expectations_broken", [])
+                if broken_expectations:
+                    logger.info(f"   {Colors.RED}Broken Expectations:{Colors.END}")
+                    for expectation in broken_expectations:
+                        logger.info(f"     {Colors.RED}❌{Colors.END} {expectation}")
+
+                output = case_result.get("output", "N/A")
+                if output and output != "N/A":
+                    if isinstance(output, str):
+                        # Split output into conversation and final response
+                        if "=== FINAL RESPONSE ===" in output:
+                            conversation, final_response = output.split("=== FINAL RESPONSE ===", 1)
+                            # Remove any old header from conversation
+                            conversation = conversation.replace(
+                                "========================== FULL CONVERSATION HISTORY ==========================\n", ""
+                            ).strip()
+                            logger.info(f"\n{Colors.BLUE}{'=' * 15} FULL CONVERSATION HISTORY {'=' * 15}{Colors.END}")
+                            logger.info(conversation)
+                            logger.info(f"{Colors.BLUE}{'*' * 50}{Colors.END}")
+                        else:
+                            # No final response marker, print as is
+                            cleaned_output = output.replace(
+                                "========================== FULL CONVERSATION HISTORY ==========================\n", ""
+                            ).strip()
+                            logger.info(f"\n{Colors.BLUE}{'=' * 15} FULL CONVERSATION HISTORY {'=' * 15}{Colors.END}")
+                            logger.info(cleaned_output)
+                            logger.info(f"{Colors.BLUE}{'*' * 50}{Colors.END}")
+                    else:
+                        logger.info(str(output))
 
 
 def main():
