@@ -144,12 +144,13 @@ async def evaluate_component(
 
     This endpoint allows you to evaluate agents, workflows, or other components
     by providing test cases with expected outputs and validation criteria.
+    Supports both single and multiple component evaluations.
     """
     try:
         # Use QAEngine directly and return the full result
-        result = await qa_engine.evaluate_component(request, engine)
-        # Return the full QAEvaluationResult as a dict
-        return result.model_dump()
+        results = await qa_engine.evaluate_component(request, engine)
+        # Convert dictionary of QAEvaluationResult objects to dictionary of dicts
+        return {component_name: result.model_dump() for component_name, result in results.items()}
     except Exception as e:
         logger.error(f"Evaluation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -161,33 +162,22 @@ async def evaluate_component_by_config(
     api_key: str = Security(get_api_key),
     qa_engine: QAEngine = Depends(get_qa_engine),
     engine: AuriteEngine = Depends(get_execution_facade),
-    config_manager: ConfigManager = Depends(get_config_manager),
 ):
     """
     Run QA evaluation using a saved evaluation configuration.
 
     This endpoint loads an evaluation configuration by ID and executes
     the evaluation based on the saved test cases and settings.
+    Supports both single and multiple component evaluations.
     """
     try:
-        eval_config = config_manager.get_config("evaluation", evaluation_config_id)
-
-        if not eval_config:
-            raise HTTPException(status_code=404, detail=f"Evaluation configuration '{evaluation_config_id}' not found.")
-
-        logger.info(f"Loading evaluation config: {evaluation_config_id}")
-
-        # Convert config to EvaluationRequest
-        shared_fields = set(EvaluationRequest.model_fields.keys())
-        request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
-        request = EvaluationRequest(**request_data)
-
-        # Use QAEngine directly and return the full result
-        result = await qa_engine.evaluate_component(request, engine)
-        # Return the full QAEvaluationResult as a dict
-        return result.model_dump()
-    except HTTPException:
-        raise
+        # Use the new QAEngine method that handles everything
+        results = await qa_engine.evaluate_by_config_id(evaluation_config_id, engine)
+        # Convert dictionary of QAEvaluationResult objects to dictionary of dicts
+        return {component_name: result.model_dump() for component_name, result in results.items()}
+    except ValueError as e:
+        # Handle configuration not found or other value errors
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Evaluation by config failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e)) from e

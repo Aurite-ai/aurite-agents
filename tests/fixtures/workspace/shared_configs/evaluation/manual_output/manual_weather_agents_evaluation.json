@@ -1,0 +1,80 @@
+{
+  "name": "manual_weather_agents_evaluation",
+  "type": "evaluation",
+  "component_type": "agent",
+  "review_llm": null,
+  "test_cases": [
+    {
+      "name": "weather_planning_sf_good",
+      "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: What's the weather in San Francisco and create a plan for outdoor activities\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"San Francisco, CA\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"San Francisco, CA\", \"temperature\": 68, \"condition\": \"Partly Cloudy\", \"humidity\": 65, \"wind_speed\": 12}\n\nTOOL CALL: create_plan\nARGUMENTS: {\"title\": \"San Francisco Outdoor Activities Plan\", \"activities\": [\"Golden Gate Park walk\", \"Pier 39 visit\", \"Outdoor lunch at Dolores Park\"]}\n\nTOOL RESPONSE (create_plan): {\"plan_id\": \"sf_outdoor_123\", \"status\": \"created\"}\n\nTOOL CALL: save_plan\nARGUMENTS: {\"plan_id\": \"sf_outdoor_123\"}\n\nTOOL RESPONSE (save_plan): {\"status\": \"saved\", \"plan_id\": \"sf_outdoor_123\"}\n\nASSISTANT: Great! I've checked the weather in San Francisco and created a perfect outdoor activity plan for you.\n\n**Current Weather in San Francisco:**\n- Temperature: 68°F\n- Condition: Partly Cloudy\n- Humidity: 65%\n- Wind Speed: 12 mph\n\nThe weather is ideal for outdoor activities! I've created and saved a comprehensive plan that includes:\n\n1. **Golden Gate Park Walk** - Perfect for the mild temperature and partly cloudy skies\n2. **Pier 39 Visit** - Great for sightseeing with good visibility\n3. **Outdoor Lunch at Dolores Park** - Enjoy the pleasant weather while dining outside\n\nThe plan has been saved with ID: sf_outdoor_123 for your reference. Have a wonderful time exploring San Francisco!\n\n=== FINAL RESPONSE ===\nGreat! I've checked the weather in San Francisco and created a perfect outdoor activity plan for you.\n\n**Current Weather in San Francisco:**\n- Temperature: 68°F\n- Condition: Partly Cloudy\n- Humidity: 65%\n- Wind Speed: 12 mph\n\nThe weather is ideal for outdoor activities! I've created and saved a comprehensive plan that includes:\n\n1. **Golden Gate Park Walk** - Perfect for the mild temperature and partly cloudy skies\n2. **Pier 39 Visit** - Great for sightseeing with good visibility\n3. **Outdoor Lunch at Dolores Park** - Enjoy the pleasant weather while dining outside\n\nThe plan has been saved with ID: sf_outdoor_123 for your reference. Have a wonderful time exploring San Francisco!",
+      "expectations": [
+        "The response uses the weather_lookup tool to get San Francisco weather",
+        "The response provides temperature information",
+        "The response creates a structured plan based on weather conditions",
+        "The response uses planning tools to save the plan"
+      ]
+    },
+    {
+      "name": "weather_planning_sf_average",
+      "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: What's the weather in San Francisco and create a plan for outdoor activities\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"San Francisco\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"San Francisco, CA\", \"temperature\": 68, \"condition\": \"Partly Cloudy\", \"humidity\": 65, \"wind_speed\": 12}\n\nASSISTANT: I checked the weather in San Francisco and it's 68°F and partly cloudy. Here's a plan for outdoor activities:\n\n1. Go to Golden Gate Park\n2. Visit the pier\n3. Have lunch outside\n\nThe weather looks good for being outdoors today!\n\n=== FINAL RESPONSE ===\nI checked the weather in San Francisco and it's 68°F and partly cloudy. Here's a plan for outdoor activities:\n\n1. Go to Golden Gate Park\n2. Visit the pier\n3. Have lunch outside\n\nThe weather looks good for being outdoors today!",
+      "expectations": [
+        "The response uses the weather_lookup tool to get San Francisco weather",
+        "The response provides temperature information",
+        "The response creates a structured plan based on weather conditions",
+        "The response uses planning tools to save the plan"
+      ]
+    },
+    {
+      "name": "weather_planning_sf_poor",
+      "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: What's the weather in San Francisco and create a plan for outdoor activities\n\nASSISTANT: San Francisco usually has nice weather. You could go outside and do some activities like walking or sightseeing. There are many parks and attractions in the city that would be good for outdoor activities.\n\n=== FINAL RESPONSE ===\nSan Francisco usually has nice weather. You could go outside and do some activities like walking or sightseeing. There are many parks and attractions in the city that would be good for outdoor activities.",
+      "expectations": [
+        "The response uses the weather_lookup tool to get San Francisco weather",
+        "The response provides temperature information",
+        "The response creates a structured plan based on weather conditions",
+        "The response uses planning tools to save the plan"
+      ]
+    },
+    {
+      "name": "weather_comparison_good",
+      "input": "Check the weather in London and Tokyo, then compare them",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: Check the weather in London and Tokyo, then compare them\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"London, UK\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"London, UK\", \"temperature\": 45, \"condition\": \"Rainy\", \"humidity\": 85, \"wind_speed\": 15}\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"Tokyo, Japan\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"Tokyo, Japan\", \"temperature\": 72, \"condition\": \"Sunny\", \"humidity\": 55, \"wind_speed\": 8}\n\nASSISTANT: I've checked the weather in both cities. Here's a detailed comparison:\n\n**London, UK:**\n- Temperature: 45°F\n- Condition: Rainy\n- Humidity: 85%\n- Wind Speed: 15 mph\n\n**Tokyo, Japan:**\n- Temperature: 72°F\n- Condition: Sunny\n- Humidity: 55%\n- Wind Speed: 8 mph\n\n**Comparison:**\nTokyo is significantly warmer than London (72°F vs 45°F - a 27°F difference). Tokyo is enjoying sunny weather while London is experiencing rain. Tokyo also has much lower humidity (55% vs 85%) and calmer winds (8 mph vs 15 mph). Overall, Tokyo has much more pleasant weather conditions today compared to London's cold and wet conditions.\n\n=== FINAL RESPONSE ===\nI've checked the weather in both cities. Here's a detailed comparison:\n\n**London, UK:**\n- Temperature: 45°F\n- Condition: Rainy\n- Humidity: 85%\n- Wind Speed: 15 mph\n\n**Tokyo, Japan:**\n- Temperature: 72°F\n- Condition: Sunny\n- Humidity: 55%\n- Wind Speed: 8 mph\n\n**Comparison:**\nTokyo is significantly warmer than London (72°F vs 45°F - a 27°F difference). Tokyo is enjoying sunny weather while London is experiencing rain. Tokyo also has much lower humidity (55% vs 85%) and calmer winds (8 mph vs 15 mph). Overall, Tokyo has much more pleasant weather conditions today compared to London's cold and wet conditions.",
+      "expectations": [
+        "The response uses weather_lookup for both London and Tokyo",
+        "The response provides temperature for both cities",
+        "The response compares the weather conditions between cities",
+        "The response is well-structured and informative"
+      ]
+    },
+    {
+      "name": "weather_comparison_average",
+      "input": "Check the weather in London and Tokyo, then compare them",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: Check the weather in London and Tokyo, then compare them\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"London\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"London, UK\", \"temperature\": 45, \"condition\": \"Rainy\", \"humidity\": 85, \"wind_speed\": 15}\n\nTOOL CALL: weather_lookup\nARGUMENTS: {\"location\": \"Tokyo\"}\n\nTOOL RESPONSE (weather_lookup): {\"location\": \"Tokyo, Japan\", \"temperature\": 72, \"condition\": \"Sunny\", \"humidity\": 55, \"wind_speed\": 8}\n\nASSISTANT: London is 45°F and rainy. Tokyo is 72°F and sunny. Tokyo is warmer and has better weather than London.\n\n=== FINAL RESPONSE ===\nLondon is 45°F and rainy. Tokyo is 72°F and sunny. Tokyo is warmer and has better weather than London.",
+      "expectations": [
+        "The response uses weather_lookup for both London and Tokyo",
+        "The response provides temperature for both cities",
+        "The response compares the weather conditions between cities",
+        "The response is well-structured and informative"
+      ]
+    },
+    {
+      "name": "weather_comparison_poor",
+      "input": "Check the weather in London and Tokyo, then compare them",
+      "output": "=== FULL CONVERSATION HISTORY ===\nUSER: Check the weather in London and Tokyo, then compare them\n\nASSISTANT: London and Tokyo are both major cities with different climates. London tends to be cooler and rainier while Tokyo can be warmer. The weather varies by season in both places.\n\n=== FINAL RESPONSE ===\nLondon and Tokyo are both major cities with different climates. London tends to be cooler and rainier while Tokyo can be warmer. The weather varies by season in both places.",
+      "expectations": [
+        "The response uses weather_lookup for both London and Tokyo",
+        "The response provides temperature for both cities",
+        "The response compares the weather conditions between cities",
+        "The response is well-structured and informative"
+      ]
+    }
+  ],
+  "metadata": {
+    "description": "Manual output evaluation for weather agents - tests pre-recorded outputs without execution",
+    "evaluation_type": "manual_output",
+    "quality_levels": ["good", "average", "poor"],
+    "notes": "This configuration uses pre-recorded outputs to test the evaluation system without requiring live component execution"
+  }
+}
