@@ -11,12 +11,13 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional
 
+from aurite.lib.models.api.requests import EvaluationRequest
+
 from .qa_models import (
     CaseEvaluationResult,
     ComponentQAConfig,
     QAEvaluationResult,
     QATestCategory,
-    QATestRequest,
 )
 from .qa_utils import (
     analyze_expectations,
@@ -94,7 +95,7 @@ class ComponentQATester:
         ]
 
     async def test_component(
-        self, request: QATestRequest, executor: Optional["AuriteEngine"] = None
+        self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
     ) -> QAEvaluationResult:
         """
         Execute QA tests for any component type.
@@ -106,12 +107,10 @@ class ComponentQATester:
         Returns:
             QAEvaluationResult containing the test results
         """
-        evaluation_id = f"{request.component_type}_qa_{uuid.uuid4().hex[:8]}"
+        evaluation_id = f"qa_{uuid.uuid4().hex[:8]}"
         started_at = datetime.utcnow()
 
-        self.logger.info(
-            f"Starting {request.component_type} QA testing {evaluation_id} for component: {request.component_config.get('name', 'unknown')}"
-        )
+        self.logger.info(f"Starting QA testing {evaluation_id}")
 
         # Validate the request
         validation_errors = self.validate_request(request)
@@ -138,9 +137,7 @@ class ComponentQATester:
             )
 
             if cached_evaluation:
-                self.logger.info(
-                    f"Using cached evaluation result for {request.component_config.get('name', 'unknown')}"
-                )
+                self.logger.info(f"Using cached evaluation result for {evaluation_id}")
                 # Update timing to reflect cache hit
                 cached_evaluation.started_at = started_at
                 cached_evaluation.completed_at = datetime.utcnow()
@@ -223,7 +220,7 @@ class ComponentQATester:
                 evaluation_id=evaluation_id,
                 status=status,
                 component_type=request.component_type,
-                component_name=request.component_config.get("name", "unknown"),
+                component_name=request.component_config.get("name", "unknown") if request.component_config else None,
                 overall_score=overall_score,
                 total_cases=len(processed_results),
                 passed_cases=passed_count,
@@ -269,7 +266,7 @@ class ComponentQATester:
         self,
         case,
         llm_client,
-        request: QATestRequest,
+        request: EvaluationRequest,
         executor: Optional["AuriteEngine"] = None,
     ) -> CaseEvaluationResult:
         """
@@ -407,7 +404,7 @@ class ComponentQATester:
                 execution_time=(datetime.utcnow() - start_time).total_seconds(),
             )
 
-    def _build_component_context(self, request: QATestRequest) -> Dict:
+    def _build_component_context(self, request: EvaluationRequest) -> Dict:
         """
         Build component-specific context for expectation analysis.
 
@@ -422,59 +419,60 @@ class ComponentQATester:
 
         base_context = {
             "type": component_type,
-            "name": component_config.get("name", "Unknown"),
+            "name": component_config.get("name", "Unknown") if component_config else None,
         }
 
         # Add component-specific context
-        if component_type == "agent":
-            base_context.update(
-                {
-                    "system_prompt": component_config.get("system_prompt", ""),
-                    "tools": component_config.get("tools", []),
-                    "temperature": component_config.get("temperature", 0.7),
-                    "max_tokens": component_config.get("max_tokens"),
-                    "conversation_memory": component_config.get("conversation_memory", True),
-                }
-            )
-
-        elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
-            steps = component_config.get("steps", [])
-            base_context.update(
-                {
-                    "steps": steps,
-                    "timeout_seconds": component_config.get("timeout_seconds", 60),
-                    "parallel_execution": component_config.get("parallel_execution", False),
-                    "error_handling": component_config.get("error_handling", {}),
-                }
-            )
-
-            # Add workflow type specific context
-            if component_type == "custom_workflow":
+        if component_config:
+            if component_type == "agent":
                 base_context.update(
                     {
-                        "module_path": component_config.get("module_path"),
-                        "class_name": component_config.get("class_name"),
+                        "system_prompt": component_config.get("system_prompt", ""),
+                        "tools": component_config.get("tools", []),
+                        "temperature": component_config.get("temperature", 0.7),
+                        "max_tokens": component_config.get("max_tokens"),
+                        "conversation_memory": component_config.get("conversation_memory", True),
                     }
                 )
 
-        elif component_type == "llm":
-            base_context.update(
-                {
-                    "model": component_config.get("model", "Unknown"),
-                    "provider": component_config.get("provider", "Unknown"),
-                    "temperature": component_config.get("temperature", 0.7),
-                    "max_tokens": component_config.get("max_tokens"),
-                }
-            )
+            elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
+                steps = component_config.get("steps", [])
+                base_context.update(
+                    {
+                        "steps": steps,
+                        "timeout_seconds": component_config.get("timeout_seconds", 60),
+                        "parallel_execution": component_config.get("parallel_execution", False),
+                        "error_handling": component_config.get("error_handling", {}),
+                    }
+                )
 
-        elif component_type == "mcp_server":
-            base_context.update(
-                {
-                    "command": component_config.get("command", []),
-                    "tools": component_config.get("tools", []),
-                    "resources": component_config.get("resources", []),
-                }
-            )
+                # Add workflow type specific context
+                if component_type == "custom_workflow":
+                    base_context.update(
+                        {
+                            "module_path": component_config.get("module_path"),
+                            "class_name": component_config.get("class_name"),
+                        }
+                    )
+
+            elif component_type == "llm":
+                base_context.update(
+                    {
+                        "model": component_config.get("model", "Unknown"),
+                        "provider": component_config.get("provider", "Unknown"),
+                        "temperature": component_config.get("temperature", 0.7),
+                        "max_tokens": component_config.get("max_tokens"),
+                    }
+                )
+
+            elif component_type == "mcp_server":
+                base_context.update(
+                    {
+                        "command": component_config.get("command", []),
+                        "tools": component_config.get("tools", []),
+                        "resources": component_config.get("resources", []),
+                    }
+                )
 
         return base_context
 
@@ -495,7 +493,7 @@ class ComponentQATester:
         # Most other components can be tested in parallel
         return True
 
-    async def _get_llm_client(self, request: QATestRequest, executor: Optional["AuriteEngine"] = None):
+    async def _get_llm_client(self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None):
         """
         Get or create an LLM client for evaluation using utility function.
 
@@ -510,7 +508,7 @@ class ComponentQATester:
         return await get_llm_client(request.review_llm, config_manager)
 
     def _generate_component_recommendations(
-        self, results: List[CaseEvaluationResult], request: QATestRequest
+        self, results: List[CaseEvaluationResult], request: EvaluationRequest
     ) -> List[str]:
         """
         Generate component-specific recommendations based on test results.
@@ -554,10 +552,12 @@ class ComponentQATester:
         return recommendations
 
     def _generate_agent_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Dict, all_results: List[CaseEvaluationResult]
+        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
     ) -> List[str]:
         """Generate agent-specific recommendations."""
         recommendations = []
+        if not config:
+            config = {}
 
         # Analyze system prompt issues
         system_prompt = config.get("system_prompt", "")
@@ -594,10 +594,12 @@ class ComponentQATester:
         return recommendations
 
     def _generate_workflow_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Dict, all_results: List[CaseEvaluationResult]
+        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
     ) -> List[str]:
         """Generate workflow-specific recommendations."""
         recommendations = []
+        if not config:
+            config = {}
 
         # Analyze workflow structure
         steps = config.get("steps", [])
@@ -631,10 +633,12 @@ class ComponentQATester:
         return recommendations
 
     def _generate_llm_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Dict, all_results: List[CaseEvaluationResult]
+        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
     ) -> List[str]:
         """Generate LLM-specific recommendations."""
         recommendations = []
+        if not config:
+            config = {}
 
         model = config.get("model", "")
         provider = config.get("provider", "")
@@ -655,10 +659,12 @@ class ComponentQATester:
         return recommendations
 
     def _generate_mcp_server_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Dict, all_results: List[CaseEvaluationResult]
+        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
     ) -> List[str]:
         """Generate MCP server-specific recommendations."""
         recommendations = []
+        if not config:
+            config = {}
 
         command = config.get("command", [])
         if not command:
@@ -723,7 +729,7 @@ class ComponentQATester:
         # Add any component-specific cleanup here
         pass
 
-    def validate_request(self, request: QATestRequest) -> List[str]:
+    def validate_request(self, request: EvaluationRequest) -> List[str]:
         """
         Validate the test request for component-specific requirements.
 
@@ -738,9 +744,6 @@ class ComponentQATester:
         # Basic validations
         if not request.test_cases:
             errors.append("No test cases provided")
-
-        if not request.component_type:
-            errors.append("Component type not specified")
 
         # Validate test cases have required fields
         for i, case in enumerate(request.test_cases):
@@ -763,8 +766,11 @@ class ComponentQATester:
             self.logger.info("Skipping component-specific validations for function-based evaluation")
             return errors
 
+        if not request.component_type:
+            errors.append("Component type not specified")
+
         # Component-specific validations (only for live component evaluations)
-        component_config = request.component_config
+        component_config = request.component_config or {}
         component_type = request.component_type
 
         if not component_config.get("name"):

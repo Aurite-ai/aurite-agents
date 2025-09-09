@@ -65,7 +65,7 @@ class QAEngine:
         self.logger.info(f"QAEngine: Review LLM: {request.review_llm}")
 
         # Determine component type
-        component_type = request.eval_type or "agent"  # Default to agent if not specified
+        component_type = request.component_type or "agent"  # Default to agent if not specified
         self.logger.info(f"QAEngine: Resolved component type: {component_type}")
 
         # Check if this is a manual output evaluation (all test cases have outputs)
@@ -171,6 +171,12 @@ class QAEngine:
             # Create a single-component request for each component
             single_request = request.model_copy(deep=True)
             single_request.component_refs = [component_name]
+            single_request.component_config = self.config_manager.get_config(
+                component_type=component_type, component_id=component_name
+            )
+            if not single_request.component_config:
+                self.logger.info(f"Component {component_name} not found for evaluation, skipping")
+                continue
 
             # Create task for this component
             task = self._component_tester.test_component(single_request, executor)
