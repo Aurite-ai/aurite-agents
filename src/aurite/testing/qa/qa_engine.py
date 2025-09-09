@@ -14,7 +14,7 @@ from aurite.lib.config.config_manager import ConfigManager
 from aurite.lib.models.api.requests import EvaluationRequest
 
 from .component_qa_tester import ComponentQATester
-from .qa_models import QAEvaluationResult, QATestRequest
+from .qa_models import QAEvaluationResult
 
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
@@ -59,7 +59,7 @@ class QAEngine:
         Returns:
             Dictionary mapping component names to QAEvaluationResult objects
         """
-        self.logger.info(f"QAEngine: Starting QA evaluation for component type: {request.eval_type}")
+        self.logger.info(f"QAEngine: Starting QA evaluation for component type: {request.component_type}")
         self.logger.info(f"QAEngine: Component refs: {request.component_refs}")
         self.logger.info(f"QAEngine: Test cases count: {len(request.test_cases)}")
         self.logger.info(f"QAEngine: Review LLM: {request.review_llm}")
@@ -118,27 +118,9 @@ class QAEngine:
                 except Exception as e:
                     self.logger.warning(f"QAEngine: Could not load component config: {e}")
 
-        # Create QATestRequest with support for custom execution and caching
-        qa_request = QATestRequest(
-            component_type=component_type,
-            component_config=component_config,
-            test_cases=request.test_cases,
-            framework="aurite",
-            review_llm=request.review_llm,
-            expected_schema=request.expected_schema,
-            component_refs=request.component_refs,
-            run_agent=getattr(request, "run_agent", None),
-            run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
-            # Caching configuration - use defaults from QATestRequest
-            use_cache=getattr(request, "use_cache", True),
-            cache_ttl=getattr(request, "cache_ttl", 3600),
-            force_refresh=getattr(request, "force_refresh", False),
-            evaluation_config_id=component_name,  # Use component name as config ID for now
-        )
-
         self.logger.info("QAEngine: Delegating to unified ComponentQATester")
         # Delegate to the unified component tester
-        result = await self._component_tester.test_component(qa_request, executor)
+        result = await self._component_tester.test_component(request, executor)
 
         self.logger.info(f"QAEngine: Component tester completed with status: {result.status}")
         self.logger.info(f"QAEngine: Overall score: {result.overall_score:.2f}%")
@@ -183,23 +165,15 @@ class QAEngine:
 
         # Create individual evaluation tasks for each component
         tasks = []
-        component_type = request.eval_type or "agent"
+        component_type = request.component_type or "agent"
 
         for component_name in request.component_refs:
             # Create a single-component request for each component
-            single_request = EvaluationRequest(
-                test_cases=request.test_cases,
-                run_agent=request.run_agent,
-                run_agent_kwargs=request.run_agent_kwargs,
-                component_refs=[component_name],  # Single component
-                eval_type=request.eval_type,
-                review_llm=request.review_llm,
-                expected_schema=request.expected_schema,
-                component_config=None,  # Will be loaded from ConfigManager
-            )
+            single_request = request.model_copy(deep=True)
+            single_request.component_refs = [component_name]
 
             # Create task for this component
-            task = self._evaluate_single_component_internal(single_request, executor, component_name)
+            task = self._component_tester.test_component(single_request, executor)
             tasks.append((component_name, task))
 
         # Execute all tasks in parallel
@@ -238,55 +212,6 @@ class QAEngine:
         self.logger.info(f"QAEngine: Completed parallel evaluation of {len(final_results)} components")
         return final_results
 
-    async def _evaluate_single_component_internal(
-        self,
-        request: EvaluationRequest,
-        executor: Optional["AuriteEngine"] = None,
-        component_name: Optional[str] = None,
-    ) -> QAEvaluationResult:
-        """
-        Internal method to evaluate a single component and return the result directly.
-
-        This is used by the multi-component evaluation to avoid the dictionary wrapping.
-        """
-        component_type = request.eval_type or "agent"
-        component_config = {}
-
-        # Load component config from ConfigManager
-        if self.config_manager and component_name:
-            try:
-                self.logger.debug(f"QAEngine: Loading component config for {component_type}.{component_name}")
-                config = self.config_manager.get_config(component_type=component_type, component_id=component_name)
-                if config:
-                    component_config = config
-                    self.logger.debug(f"QAEngine: Successfully loaded component config for {component_name}")
-                else:
-                    self.logger.warning(f"QAEngine: No config found for {component_type}.{component_name}")
-            except Exception as e:
-                self.logger.warning(f"QAEngine: Could not load component config for {component_name}: {e}")
-
-        # Create QATestRequest with caching configuration
-        qa_request = QATestRequest(
-            component_type=component_type,
-            component_config=component_config,
-            test_cases=request.test_cases,
-            framework="aurite",
-            review_llm=request.review_llm,
-            expected_schema=request.expected_schema,
-            component_refs=[component_name] if component_name else None,
-            run_agent=getattr(request, "run_agent", None),
-            run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
-            # Caching configuration - use defaults from QATestRequest
-            use_cache=getattr(request, "use_cache", True),
-            cache_ttl=getattr(request, "cache_ttl", 3600),
-            force_refresh=getattr(request, "force_refresh", True),
-            evaluation_config_id=f"{component_name}_individual",  # Unique ID for individual component evaluations
-        )
-
-        # Execute the evaluation
-        result = await self._component_tester.test_component(qa_request, executor)
-        return result
-
     async def evaluate_by_config_id(
         self, evaluation_config_id: str, executor: Optional["AuriteEngine"] = None
     ) -> Dict[str, QAEvaluationResult]:
@@ -304,8 +229,6 @@ class QAEngine:
         Returns:
             Dictionary mapping component names to QAEvaluationResult objects
         """
-        from uuid import uuid4
-
         if not self.config_manager:
             raise ValueError("ConfigManager is required to load evaluation configurations")
 
@@ -314,47 +237,8 @@ class QAEngine:
         if not eval_config:
             raise ValueError(f"Evaluation configuration '{evaluation_config_id}' not found")
 
-        self.logger.info(f"QAEngine: Loading evaluation config: {evaluation_config_id}")
-
-        # Process test cases to ensure they have UUIDs
-        test_cases = eval_config.get("test_cases", [])
-        for case in test_cases:
-            # If no id field or id is not a valid UUID, generate one
-            if "id" not in case or (
-                isinstance(case["id"], str) and not case["id"].replace("-", "").replace("urn:uuid:", "").isalnum()
-            ):
-                # If there was a non-UUID id, use it as the name
-                if "id" in case and not case.get("name"):
-                    case["name"] = case["id"]
-                case["id"] = str(uuid4())
-
-        # Handle both old single component_ref and new multiple component_refs
-        component_refs = []
-        eval_config.get("component_type", "agent")
-
-        # Check for new component_refs field first
-        if "component_refs" in eval_config and eval_config["component_refs"]:
-            component_refs = eval_config["component_refs"]
-            self.logger.info(f"QAEngine: Found component_refs: {component_refs}")
-        # Fall back to old component_ref field for backward compatibility
-        elif "component_ref" in eval_config and eval_config["component_ref"]:
-            component_refs = [eval_config["component_ref"]]
-            self.logger.info(f"QAEngine: Using legacy component_ref: {eval_config['component_ref']}")
-        else:
-            # No component references - this is likely a manual output evaluation
-            component_refs = None
-            self.logger.info("QAEngine: No component references found - assuming manual output evaluation")
-
-        # Create EvaluationRequest from the loaded config
         shared_fields = set(EvaluationRequest.model_fields.keys())
         request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
-
-        # Set the component_refs field
-        request_data["component_refs"] = component_refs
-
-        # Remove old fields that might conflict
-        request_data.pop("component_ref", None)
-
         request = EvaluationRequest(**request_data)
 
         # Execute the evaluation
