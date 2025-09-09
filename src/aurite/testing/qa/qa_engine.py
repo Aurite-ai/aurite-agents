@@ -127,7 +127,6 @@ class QAEngine:
             review_llm=request.review_llm,
             expected_schema=request.expected_schema,
             component_refs=request.component_refs,
-            eval_type=component_type,
             run_agent=getattr(request, "run_agent", None),
             run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
             # Caching configuration - use defaults from QATestRequest
@@ -275,7 +274,6 @@ class QAEngine:
             review_llm=request.review_llm,
             expected_schema=request.expected_schema,
             component_refs=[component_name] if component_name else None,
-            eval_type=component_type,
             run_agent=getattr(request, "run_agent", None),
             run_agent_kwargs=getattr(request, "run_agent_kwargs", {}),
             # Caching configuration - use defaults from QATestRequest
