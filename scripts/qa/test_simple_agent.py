@@ -30,8 +30,8 @@ async def test_simple_agent():
     # Create a minimal agent config
 
     eval_request = {
-        "eval_name": "Weather Agent",
-        "eval_type": "agent",
+        "component_refs": ["Weather Agent"],
+        "component_type": "agent",
         "test_cases": [test_case],
     }
 
@@ -40,6 +40,7 @@ async def test_simple_agent():
 
         if response.status_code == 200:
             result = response.json()
+            result = result.get("Weather Agent")
             print(f"Status: {result.get('status')}")
             print(f"Score: {result.get('overall_score')}%")
             print(f"Passed: {result.get('passed_cases')}/{result.get('total_cases')}")
