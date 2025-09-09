@@ -23,9 +23,9 @@ from .qa_models import ExpectationAnalysisResult, SchemaValidationResult
 
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
-    from aurite.lib.models.api.requests import EvaluationCase
+    from aurite.lib.models.api.requests import EvaluationCase, EvaluationRequest
 
-    from .qa_models import CaseEvaluationResult, QAEvaluationResult, QATestRequest
+    from .qa_models import CaseEvaluationResult, QAEvaluationResult
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +295,7 @@ async def store_cached_evaluation_result(
 
 async def execute_component(
     case: "EvaluationCase",
-    request: "QATestRequest",
+    request: "EvaluationRequest",
     executor: Optional["AuriteEngine"] = None,
 ) -> Any:
     """
