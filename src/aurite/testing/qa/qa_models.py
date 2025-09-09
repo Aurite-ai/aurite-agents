@@ -33,9 +33,6 @@ class QATestRequest(BaseModel):
     component_refs: Optional[List[str]] = Field(
         default=None, description="List of component names to evaluate (for multi-component testing)"
     )
-    eval_type: Optional[str] = Field(
-        default=None, description="Type of evaluation (agent, linear_workflow, custom_workflow)"
-    )
     run_agent: Optional[Callable[..., Any] | Callable[..., Awaitable[Any]] | str] = Field(
         default=None,
         description="""A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.

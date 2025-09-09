@@ -321,7 +321,6 @@ class TestComponentTesters:
                 )
             ],
             eval_name="test_agent",
-            eval_type="agent",
         )
 
         with patch("aurite.testing.qa.components.agent.agent_qa_tester.LiteLLMClient") as mock_client_class:
@@ -354,7 +353,6 @@ class TestComponentTesters:
                 )
             ],
             eval_name="test_workflow",
-            eval_type="linear_workflow",
         )
 
         with patch("aurite.testing.qa.components.workflow.workflow_qa_tester.LiteLLMClient") as mock_client_class:
@@ -421,7 +419,6 @@ class TestComponentTesters:
                 )
             ],
             eval_name="problematic_agent",
-            eval_type="agent",
         )
 
         # Mock LLM to return failures
@@ -467,7 +464,6 @@ class TestComponentTesters:
                 )
             ],
             eval_name="problematic_workflow",
-            eval_type="linear_workflow",
         )
 
         # Mock LLM to return failures
