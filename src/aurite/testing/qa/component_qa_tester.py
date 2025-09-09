@@ -189,7 +189,7 @@ class ComponentQATester:
                         input=case.input,
                         output=None,
                         grade="FAIL",
-                        analysis=f"{request.component_type.title()} test execution failed: {str(result)}",
+                        analysis=f"Test execution failed: {str(result)}",
                         expectations_broken=case.expectations,
                         error=str(result),
                     )
@@ -398,7 +398,7 @@ class ComponentQATester:
                 input=case.input,
                 output=None,
                 grade="FAIL",
-                analysis=f"{request.component_type.title()} evaluation failed: {str(e)}",
+                analysis=f"Evaluation failed: {str(e)}",
                 expectations_broken=case.expectations,
                 error=str(e),
                 execution_time=(datetime.utcnow() - start_time).total_seconds(),
@@ -774,7 +774,7 @@ class ComponentQATester:
         component_type = request.component_type
 
         if not component_config.get("name"):
-            errors.append(f"{component_type.title()} configuration missing required 'name' field")
+            errors.append("Configuration missing required 'name' field")
 
         # Type-specific validations
         if component_type == "agent":
