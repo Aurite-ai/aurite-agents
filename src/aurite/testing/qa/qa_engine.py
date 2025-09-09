@@ -100,7 +100,7 @@ class QAEngine:
                 component_name = request.component_refs[0]
 
             # Get component config - prefer provided config over loading from ConfigManager
-            if hasattr(request, "component_config") and request.component_config:
+            if request.component_config:
                 # Use the provided component configuration
                 component_config = request.component_config
                 component_name = component_config.get("name", component_name or "unknown")
@@ -111,7 +111,7 @@ class QAEngine:
                     self.logger.info(f"QAEngine: Loading component config for {component_type}.{component_name}")
                     config = self.config_manager.get_config(component_type=component_type, component_id=component_name)
                     if config:
-                        component_config = config
+                        request.component_config = config
                         self.logger.info("QAEngine: Successfully loaded component config")
                     else:
                         self.logger.warning(f"QAEngine: No config found for {component_type}.{component_name}")
