@@ -3,11 +3,9 @@ from .qa_engine import QAEngine
 from .qa_models import (
     CaseEvaluationResult,
     ComponentQAConfig,
-    EvaluationCase,
     ExpectationAnalysisResult,
     QAEvaluationResult,
     QATestCategory,
-    QATestRequest,
     SchemaValidationResult,
 )
 from .qa_utils import (
@@ -25,8 +23,6 @@ __all__ = [
     # From qa_engine
     "QAEngine",
     # From qa_models
-    "EvaluationCase",
-    "QATestRequest",
     "SchemaValidationResult",
     "ExpectationAnalysisResult",
     "CaseEvaluationResult",
