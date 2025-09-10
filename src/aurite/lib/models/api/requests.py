@@ -54,9 +54,6 @@ class EvaluationRequest(BaseModel):
         default=None, description="Configuration of the component being tested"
     )
     test_cases: List[EvaluationCase] = Field(description="List of test cases to evaluate")
-    framework: Optional[str] = Field(
-        default="aurite", description="Framework to use for testing (aurite, langchain, autogen, etc.)"
-    )
     review_llm: Optional[str] = Field(
         default=None, description="LLM configuration ID to use for reviewing test results"
     )
