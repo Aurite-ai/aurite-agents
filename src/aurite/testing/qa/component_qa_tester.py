@@ -385,12 +385,12 @@ class ComponentQATester:
         Returns:
             Dictionary with component context for the LLM
         """
-        component_config = request.component_config
+        component_config = request.component_config or {}
         component_type = request.component_type
 
         base_context = {
             "type": component_type,
-            "name": component_config.get("name", "Unknown") if component_config else None,
+            "name": component_config.get("name", "Unknown"),
         }
 
         # Add component-specific context

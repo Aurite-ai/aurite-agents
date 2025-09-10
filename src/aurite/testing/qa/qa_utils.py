@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 def generate_cache_key(
     case_input: str,
-    component_config: Dict[str, Any],
+    component_config: Optional[Dict[str, Any]],
     evaluation_config_id: Optional[str] = None,
     review_llm: Optional[str] = None,
     expectations: Optional[List[str]] = None,
@@ -50,6 +50,8 @@ def generate_cache_key(
     Returns:
         Unique cache key string
     """
+    if not component_config:
+        component_config = {}
     # Extract key configuration elements that affect the output
     key_data = {
         "input": case_input,
