@@ -27,6 +27,7 @@
       ]
     }
   ],
+  "force_refresh": true,
   "metadata": {
     "description": "Function-based evaluation for weather agents - tests custom run function with different quality levels",
     "evaluation_type": "run_function",
