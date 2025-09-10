@@ -79,7 +79,7 @@ class QAFunctionalTester:
         self.results: Dict[str, Any] = {}
 
         # Get API key from environment or use default
-        self.api_key = os.getenv("AURITE_API_KEY", "test-api-key")
+        self.api_key = os.getenv("API_KEY", "test-api-key")
 
         # Predefined evaluation configurations
         self.agent_evaluations = [
