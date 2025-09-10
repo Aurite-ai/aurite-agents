@@ -520,13 +520,6 @@ class ComponentQATester:
                 "System prompt is very short. Consider providing more detailed instructions and behavioral guidelines."
             )
 
-        # Analyze tool usage patterns
-        tools = config.get("tools", [])
-        if not tools and any("tool" in r.analysis.lower() for r in failed_cases):
-            recommendations.append(
-                "Agent lacks tools but test cases suggest tool usage is needed. Consider adding relevant tools."
-            )
-
         # Analyze temperature settings
         temperature = config.get("temperature", 0.7)
         if temperature > 0.9 and len(failed_cases) > len(all_results) / 2:
@@ -537,13 +530,9 @@ class ComponentQATester:
         # Analyze response length issues
         max_tokens = config.get("max_tokens")
         if max_tokens and max_tokens < 500:
-            short_responses = [
-                r for r in failed_cases if "too short" in r.analysis.lower() or "incomplete" in r.analysis.lower()
-            ]
-            if short_responses:
-                recommendations.append(
-                    f"Max tokens setting ({max_tokens}) may be too low, causing truncated responses. Consider increasing."
-                )
+            recommendations.append(
+                f"Max tokens setting ({max_tokens}) may be too low, causing truncated responses. Consider increasing."
+            )
 
         return recommendations
 
@@ -570,18 +559,6 @@ class ComponentQATester:
             recommendations.append(
                 f"Timeout ({timeout}s) may be too short for a {len(steps)}-step workflow. "
                 "Consider increasing to allow adequate time for all steps."
-            )
-
-        # Analyze coordination failures
-        coordination_failures = [
-            r
-            for r in failed_cases
-            if any(keyword in r.analysis.lower() for keyword in ["coordination", "data flow", "step", "mapping"])
-        ]
-        if coordination_failures:
-            recommendations.append(
-                f"{len(coordination_failures)} failures appear related to agent coordination or data flow. "
-                "Review step input/output mappings and agent compatibility."
             )
 
         return recommendations
