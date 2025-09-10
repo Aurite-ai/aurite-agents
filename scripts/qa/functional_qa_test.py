@@ -83,7 +83,8 @@ class QAFunctionalTester:
 
         # Predefined evaluation configurations
         self.agent_evaluations = [
-            "weather_agents_evaluation"  # Single config that tests all three agents
+            "weather_agents_evaluation",  # Single config that tests all three agents
+            "single_weather_agent_evaluation",
         ]
 
         self.manual_agent_evaluations = [
