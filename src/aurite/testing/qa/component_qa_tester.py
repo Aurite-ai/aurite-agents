@@ -112,11 +112,6 @@ class ComponentQATester:
 
         self.logger.info(f"Starting QA testing {evaluation_id}")
 
-        # Validate the request
-        validation_errors = self.validate_request(request)
-        if validation_errors:
-            raise ValueError(f"Invalid request: {'; '.join(validation_errors)}")
-
         # Check for cached evaluation result first (if caching is enabled and not forced refresh)
         if request.use_cache and not request.force_refresh and request.evaluation_config_id:
             evaluation_cache_key = generate_evaluation_cache_key(
@@ -147,120 +142,96 @@ class ComponentQATester:
         # No cached evaluation found or caching disabled - proceed with execution
         self.logger.debug("No cached evaluation found, executing component tests")
 
-        # Set up testing
-        await self.setup()
+        # Get LLM client for evaluation
+        llm_client = await self._get_llm_client(request, executor)
 
-        try:
-            # Get LLM client for evaluation
-            llm_client = await self._get_llm_client(request, executor)
+        tasks = [
+            self._evaluate_single_case(case=case, llm_client=llm_client, request=request, executor=executor)
+            for case in request.test_cases
+        ]
+        case_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # Determine execution strategy based on component type
-            parallel_execution = self._should_use_parallel_execution(request.component_type)
+        # Process results and handle any exceptions
+        processed_results: Dict[str, CaseEvaluationResult] = {}
+        failed_count = 0
 
-            # Execute test cases
-            if parallel_execution:
-                tasks = [
-                    self._evaluate_single_case(case=case, llm_client=llm_client, request=request, executor=executor)
-                    for case in request.test_cases
-                ]
-                case_results = await asyncio.gather(*tasks, return_exceptions=True)
-            else:
-                # Sequential execution for components that require it
-                case_results = []
-                for case in request.test_cases:
-                    try:
-                        result = await self._evaluate_single_case(
-                            case=case, llm_client=llm_client, request=request, executor=executor
-                        )
-                        case_results.append(result)
-                    except Exception as e:
-                        case_results.append(e)
-
-            # Process results and handle any exceptions
-            processed_results: Dict[str, CaseEvaluationResult] = {}
-            failed_count = 0
-
-            for case, result in zip(request.test_cases, case_results, strict=False):
-                case_id_str = str(case.id)
-                if isinstance(result, Exception):
-                    # Create a failed result for exceptions
-                    processed_results[case_id_str] = CaseEvaluationResult(
-                        case_id=case_id_str,
-                        input=case.input,
-                        output=None,
-                        grade="FAIL",
-                        analysis=f"Test execution failed: {str(result)}",
-                        expectations_broken=case.expectations,
-                        error=str(result),
-                    )
+        for case, result in zip(request.test_cases, case_results, strict=False):
+            case_id_str = str(case.id)
+            if isinstance(result, Exception):
+                # Create a failed result for exceptions
+                processed_results[case_id_str] = CaseEvaluationResult(
+                    case_id=case_id_str,
+                    input=case.input,
+                    output=None,
+                    grade="FAIL",
+                    analysis=f"Test execution failed: {str(result)}",
+                    expectations_broken=case.expectations,
+                    error=str(result),
+                )
+                failed_count += 1
+            elif isinstance(result, CaseEvaluationResult):
+                processed_results[case_id_str] = result
+                if result.grade == "FAIL":
                     failed_count += 1
-                elif isinstance(result, CaseEvaluationResult):
-                    processed_results[case_id_str] = result
-                    if result.grade == "FAIL":
-                        failed_count += 1
 
-            # Calculate overall score
-            overall_score = self.aggregate_scores(list(processed_results.values()))
+        # Calculate overall score
+        overall_score = self.aggregate_scores(list(processed_results.values()))
 
-            # Generate component-specific recommendations
-            recommendations = self._generate_component_recommendations(list(processed_results.values()), request)
+        # Generate component-specific recommendations
+        recommendations = self._generate_component_recommendations(list(processed_results.values()), request)
 
-            # Determine overall status
-            passed_count = len(processed_results) - failed_count
-            if failed_count == 0:
-                status = "success"
-            elif failed_count == len(processed_results):
-                status = "failed"
-            else:
-                status = "partial"
+        # Determine overall status
+        passed_count = len(processed_results) - failed_count
+        if failed_count == 0:
+            status = "success"
+        elif failed_count == len(processed_results):
+            status = "failed"
+        else:
+            status = "partial"
 
-            completed_at = datetime.utcnow()
+        completed_at = datetime.utcnow()
 
-            evaluation_result = QAEvaluationResult(
-                evaluation_id=evaluation_id,
-                status=status,
-                component_type=request.component_type,
-                component_name=request.component_config.get("name", "unknown") if request.component_config else None,
-                overall_score=overall_score,
-                total_cases=len(processed_results),
-                passed_cases=passed_count,
-                failed_cases=failed_count,
-                case_results=processed_results,
-                recommendations=recommendations,
-                metadata={
-                    "component_config": request.component_config,
-                    "test_categories": [cat.name for cat in self.get_test_categories()],
-                    "component_type": request.component_type,
-                    "framework": request.framework,
-                },
-                started_at=started_at,
-                completed_at=completed_at,
-                duration_seconds=(completed_at - started_at).total_seconds(),
+        evaluation_result = QAEvaluationResult(
+            evaluation_id=evaluation_id,
+            status=status,
+            component_type=request.component_type,
+            component_name=request.component_config.get("name", "unknown") if request.component_config else None,
+            overall_score=overall_score,
+            total_cases=len(processed_results),
+            passed_cases=passed_count,
+            failed_cases=failed_count,
+            case_results=processed_results,
+            recommendations=recommendations,
+            metadata={
+                "component_config": request.component_config,
+                "test_categories": [cat.name for cat in self.get_test_categories()],
+                "component_type": request.component_type,
+            },
+            started_at=started_at,
+            completed_at=completed_at,
+            duration_seconds=(completed_at - started_at).total_seconds(),
+        )
+
+        # Store evaluation result in cache if caching is enabled
+        if request.use_cache and request.evaluation_config_id:
+            evaluation_cache_key = generate_evaluation_cache_key(
+                evaluation_config_id=request.evaluation_config_id,
+                component_config=request.component_config,
+                test_cases=request.test_cases,
+                review_llm=request.review_llm,
             )
 
-            # Store evaluation result in cache if caching is enabled
-            if request.use_cache and request.evaluation_config_id:
-                evaluation_cache_key = generate_evaluation_cache_key(
-                    evaluation_config_id=request.evaluation_config_id,
-                    component_config=request.component_config,
-                    test_cases=request.test_cases,
-                    review_llm=request.review_llm,
-                )
+            session_manager = None
+            if executor and hasattr(executor, "_session_manager"):
+                session_manager = executor._session_manager
 
-                session_manager = None
-                if executor and hasattr(executor, "_session_manager"):
-                    session_manager = executor._session_manager
+            await store_cached_evaluation_result(
+                cache_key=evaluation_cache_key,
+                result=evaluation_result,
+                session_manager=session_manager,
+            )
 
-                await store_cached_evaluation_result(
-                    cache_key=evaluation_cache_key,
-                    result=evaluation_result,
-                    session_manager=session_manager,
-                )
-
-            return evaluation_result
-
-        finally:
-            await self.teardown()
+        return evaluation_result
 
     async def _evaluate_single_case(
         self,
@@ -475,23 +446,6 @@ class ComponentQATester:
                 )
 
         return base_context
-
-    def _should_use_parallel_execution(self, component_type: str) -> bool:
-        """
-        Determine if parallel execution should be used for a component type.
-
-        Args:
-            component_type: The type of component being tested
-
-        Returns:
-            True if parallel execution is appropriate, False otherwise
-        """
-        # Workflows are typically sequential by nature
-        if component_type in ["workflow", "linear_workflow", "custom_workflow"]:
-            return False
-
-        # Most other components can be tested in parallel
-        return True
 
     async def _get_llm_client(self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None):
         """
@@ -708,97 +662,3 @@ class ComponentQATester:
             List of test categories supported by this tester
         """
         return self.config.test_categories if self.config else self._get_default_test_categories()
-
-    async def setup(self) -> None:
-        """
-        Setup method called before running tests.
-
-        Performs any necessary initialization for component testing.
-        """
-        self.logger.debug("Setting up component QA tester")
-        # Add any component-specific setup here
-        pass
-
-    async def teardown(self) -> None:
-        """
-        Teardown method called after running tests.
-
-        Performs cleanup after component testing.
-        """
-        self.logger.debug("Tearing down component QA tester")
-        # Add any component-specific cleanup here
-        pass
-
-    def validate_request(self, request: EvaluationRequest) -> List[str]:
-        """
-        Validate the test request for component-specific requirements.
-
-        Args:
-            request: The test request to validate
-
-        Returns:
-            List of validation error messages (empty if valid)
-        """
-        errors = []
-
-        # Basic validations
-        if not request.test_cases:
-            errors.append("No test cases provided")
-
-        # Validate test cases have required fields
-        for i, case in enumerate(request.test_cases):
-            if not case.id:
-                errors.append(f"Test case {i} missing ID")
-            if not case.expectations and not request.expected_schema:
-                errors.append(f"Test case {case.id}: No expectations or schema defined")
-
-        # Check if this is a manual output evaluation (all test cases have outputs)
-        has_manual_outputs = all(case.output is not None for case in request.test_cases)
-
-        # Check if this is a function-based evaluation (run_agent is provided)
-        has_run_function = getattr(request, "run_agent", None) is not None
-
-        # Skip component-specific validations for manual output or function-based evaluations
-        if has_manual_outputs:
-            self.logger.info("Skipping component-specific validations for manual output evaluation")
-            return errors
-        elif has_run_function:
-            self.logger.info("Skipping component-specific validations for function-based evaluation")
-            return errors
-
-        if not request.component_type:
-            errors.append("Component type not specified")
-
-        # Component-specific validations (only for live component evaluations)
-        component_config = request.component_config or {}
-        component_type = request.component_type
-
-        if not component_config.get("name"):
-            errors.append("Configuration missing required 'name' field")
-
-        # Type-specific validations
-        if component_type == "agent":
-            if not component_config.get("llm") and not component_config.get("llm_config_id"):
-                errors.append("Agent configuration missing LLM specification ('llm' or 'llm_config_id')")
-
-        elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
-            workflow_type = component_config.get("type", "linear_workflow")
-
-            if component_type == "linear_workflow" or workflow_type == "linear_workflow":
-                steps = component_config.get("steps", [])
-                if not steps:
-                    errors.append("Linear workflow missing required 'steps' field")
-
-            elif component_type == "custom_workflow" or workflow_type == "custom_workflow":
-                if not component_config.get("module_path"):
-                    errors.append("Custom workflow missing required 'module_path' field")
-                if not component_config.get("class_name"):
-                    errors.append("Custom workflow missing required 'class_name' field")
-
-        elif component_type == "llm":
-            if not component_config.get("model"):
-                errors.append("LLM configuration missing required 'model' field")
-            if not component_config.get("provider"):
-                errors.append("LLM configuration missing required 'provider' field")
-
-        return errors
