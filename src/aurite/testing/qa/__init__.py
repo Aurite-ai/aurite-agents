@@ -11,7 +11,6 @@ from .qa_utils import (
     analyze_expectations,
     clean_llm_output,
     execute_component,
-    generate_basic_recommendations,
     get_llm_client,
     validate_schema,
 )
@@ -33,5 +32,4 @@ __all__ = [
     "analyze_expectations",
     "clean_llm_output",
     "get_llm_client",
-    "generate_basic_recommendations",
 ]
