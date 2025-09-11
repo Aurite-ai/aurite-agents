@@ -65,22 +65,10 @@ class QAEvaluationResult(BaseModel):
     duration_seconds: Optional[float] = Field(default=None, description="Total duration of the evaluation in seconds")
 
 
-class QATestCategory(BaseModel):
-    """Definition of a QA test category."""
-
-    name: str = Field(description="Name of the test category")
-    description: str = Field(description="Description of what this category tests")
-    weight: float = Field(default=1.0, description="Weight of this category in overall scoring")
-    required: bool = Field(default=False, description="Whether this category must pass for overall success")
-
-
 class ComponentQAConfig(BaseModel):
     """Configuration for component-specific QA testing."""
 
     component_type: str = Field(description="Type of component this config applies to")
-    test_categories: List[QATestCategory] = Field(
-        default_factory=list, description="Categories of tests available for this component"
-    )
     default_timeout: float = Field(default=30.0, description="Default timeout for test execution in seconds")
     parallel_execution: bool = Field(default=True, description="Whether test cases can be executed in parallel")
     max_retries: int = Field(default=0, description="Maximum number of retries for failed test cases")
