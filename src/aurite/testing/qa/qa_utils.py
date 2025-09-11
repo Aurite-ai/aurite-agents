@@ -165,7 +165,6 @@ async def store_cached_case_result(
 
 def generate_evaluation_cache_key(
     evaluation_config_id: str,
-    component_config: Dict[str, Any],
     test_cases: List,
     review_llm: Optional[str] = None,
 ) -> str:
@@ -195,16 +194,8 @@ def generate_evaluation_cache_key(
 
     key_data = {
         "evaluation_config_id": evaluation_config_id,
-        "component_name": component_config.get("name"),
-        "component_type": component_config.get("type"),
         "review_llm": review_llm,
         "test_cases": test_case_data,
-        # Include key config settings that affect output
-        "temperature": component_config.get("temperature"),
-        "model": component_config.get("model"),
-        "provider": component_config.get("provider"),
-        "system_prompt": component_config.get("system_prompt"),
-        "tools": sorted(component_config.get("tools", [])),
     }
 
     # Create hash of the key data
@@ -346,8 +337,9 @@ async def execute_component(
     if not executor:
         raise ValueError(f"Case {case.id}: No output provided and no executor available to run component")
 
-    # Get component name from component_config or component_refs
-    component_name = request.component_config.get("name")
+    if request.component_config:
+        component_name = request.component_config.get("name")
+
     if not component_name and hasattr(request, "component_refs") and request.component_refs:
         # For multi-component requests, use the first component name as fallback
         component_name = request.component_refs[0]
