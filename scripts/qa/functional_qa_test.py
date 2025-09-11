@@ -96,7 +96,7 @@ class QAFunctionalTester:
         ]
 
         self.workflow_evaluations = [
-            # Add workflow evaluation names here when available
+            "weather_workflow_evaluation",
         ]
 
         self.mcp_evaluations = [
