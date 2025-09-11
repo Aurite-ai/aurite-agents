@@ -1,0 +1,23 @@
+[
+    {
+    "name": "weather_workflow_evaluation",
+    "type": "evaluation",
+    "component_type": "linear_workflow",
+    "component_refs": [
+      "test_weather_workflow"
+    ],
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf",
+        "input": "What's the weather in San Francisco",
+        "expectations": [
+          "The first agent uses a tool to look up the weather in San Francisco",
+          "This weather information is relayed in detail to the second agent",
+          "The second agent creates a plan of what to wear based on this weather information",
+          "The plan is stored using a tool by the second agent"
+        ]
+      }
+    ]
+  }
+]
