@@ -567,64 +567,6 @@ async def get_llm_client(
         return LiteLLMClient(default_config)
 
 
-def generate_basic_recommendations(results: List, component_type: Optional[str] = None) -> List[str]:
-    """
-    Generate basic recommendations based on test results.
-
-    Args:
-        results: List of case evaluation results
-        component_type: Optional component type for context
-
-    Returns:
-        List of basic recommendation strings
-    """
-    if not results:
-        return []
-
-    recommendations = []
-
-    # Calculate statistics
-    failed_cases = [r for r in results if r.grade == "FAIL"]
-
-    if not failed_cases:
-        recommendations.append("All test cases passed successfully.")
-        return recommendations
-
-    # Analyze failure patterns
-    failure_rate = len(failed_cases) / len(results)
-
-    if failure_rate > 0.5:
-        recommendations.append(
-            f"High failure rate ({failure_rate:.1%}). Consider reviewing the component's core functionality."
-        )
-
-    # Check for schema failures
-    schema_failures = [r for r in failed_cases if not r.schema_valid]
-    if schema_failures:
-        recommendations.append(
-            f"{len(schema_failures)} cases failed schema validation. "
-            "Ensure the component outputs data in the expected format."
-        )
-
-    # Analyze broken expectations
-    all_broken_expectations = []
-    for result in failed_cases:
-        all_broken_expectations.extend(result.expectations_broken)
-
-    if all_broken_expectations:
-        # Find most common broken expectations
-        from collections import Counter
-
-        expectation_counts = Counter(all_broken_expectations)
-        most_common = expectation_counts.most_common(3)
-
-        for expectation, count in most_common:
-            if count > 1:
-                recommendations.append(f"Expectation '{expectation}' failed in {count} cases.")
-
-    return recommendations
-
-
 def _format_agent_conversation_history(result) -> str:
     """
     Format the full conversation history from an AgentRunResult for evaluation.
