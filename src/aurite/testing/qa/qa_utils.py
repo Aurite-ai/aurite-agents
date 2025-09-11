@@ -716,7 +716,7 @@ You are evaluating a {component_type} with the following configuration:
 
         context_prompt += f"""
 - System Prompt: {truncated_prompt}
-- Tools Available: {", ".join(component_context.get("tools", [])) or "None"}
+- Tools Available: {", ".join(component_context.get("mcp_servers", [])) or "None"}
 - Temperature: {component_context.get("temperature", "Not specified")}
 
 Focus on:
@@ -725,7 +725,7 @@ Focus on:
 3. Tool Usage: If tools were available, were they used appropriately?
 4. System Prompt Adherence: Does the response follow the agent's behavioral guidelines?"""
 
-    elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
+    elif component_type in ["workflow", "linear_workflow"]:
         steps = component_context.get("steps", [])
         step_names = []
         if isinstance(steps, list):
