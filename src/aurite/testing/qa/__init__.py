@@ -5,7 +5,6 @@ from .qa_models import (
     ComponentQAConfig,
     ExpectationAnalysisResult,
     QAEvaluationResult,
-    QATestCategory,
     SchemaValidationResult,
 )
 from .qa_utils import (
@@ -27,7 +26,6 @@ __all__ = [
     "ExpectationAnalysisResult",
     "CaseEvaluationResult",
     "QAEvaluationResult",
-    "QATestCategory",
     "ComponentQAConfig",
     # From qa_utils
     "execute_component",
