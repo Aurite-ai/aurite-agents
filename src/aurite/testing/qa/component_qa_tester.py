@@ -116,7 +116,6 @@ class ComponentQATester:
         if request.use_cache and not request.force_refresh and request.evaluation_config_id:
             evaluation_cache_key = generate_evaluation_cache_key(
                 evaluation_config_id=request.evaluation_config_id,
-                component_config=request.component_config,
                 test_cases=request.test_cases,
                 review_llm=request.review_llm,
             )
@@ -177,9 +176,6 @@ class ComponentQATester:
         # Calculate overall score
         overall_score = self.aggregate_scores(list(processed_results.values()))
 
-        # Generate component-specific recommendations
-        recommendations = self._generate_component_recommendations(list(processed_results.values()), request)
-
         # Determine overall status
         passed_count = len(processed_results) - failed_count
         if failed_count == 0:
@@ -201,7 +197,6 @@ class ComponentQATester:
             passed_cases=passed_count,
             failed_cases=failed_count,
             case_results=processed_results,
-            recommendations=recommendations,
             metadata={
                 "component_config": request.component_config,
                 "test_categories": [cat.name for cat in self.get_test_categories()],
@@ -216,7 +211,6 @@ class ComponentQATester:
         if request.use_cache and request.evaluation_config_id:
             evaluation_cache_key = generate_evaluation_cache_key(
                 evaluation_config_id=request.evaluation_config_id,
-                component_config=request.component_config,
                 test_cases=request.test_cases,
                 review_llm=request.review_llm,
             )
@@ -460,154 +454,6 @@ class ComponentQATester:
         """
         config_manager = executor._config_manager if executor else None
         return await get_llm_client(request.review_llm, config_manager)
-
-    def _generate_component_recommendations(
-        self, results: List[CaseEvaluationResult], request: EvaluationRequest
-    ) -> List[str]:
-        """
-        Generate component-specific recommendations based on test results.
-
-        Args:
-            results: List of case evaluation results
-            request: Original test request
-
-        Returns:
-            List of component-specific recommendation strings
-        """
-        recommendations = []
-        component_config = request.component_config
-        component_type = request.component_type
-
-        if not results:
-            return recommendations
-
-        failed_cases = [r for r in results if r.grade == "FAIL"]
-
-        # Generate component-specific recommendations
-        if component_type == "agent":
-            recommendations.extend(self._generate_agent_recommendations(failed_cases, component_config, results))
-        elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
-            recommendations.extend(self._generate_workflow_recommendations(failed_cases, component_config, results))
-        elif component_type == "llm":
-            recommendations.extend(self._generate_llm_recommendations(failed_cases, component_config, results))
-        elif component_type == "mcp_server":
-            recommendations.extend(self._generate_mcp_server_recommendations(failed_cases, component_config, results))
-
-        # Add general recommendations
-        if not failed_cases:
-            recommendations.append("All test cases passed successfully.")
-        else:
-            failure_rate = len(failed_cases) / len(results)
-            if failure_rate > 0.5:
-                recommendations.append(
-                    f"High failure rate ({failure_rate:.1%}). Consider reviewing the {component_type}'s core functionality."
-                )
-
-        return recommendations
-
-    def _generate_agent_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
-    ) -> List[str]:
-        """Generate agent-specific recommendations."""
-        recommendations = []
-        if not config:
-            config = {}
-
-        # Analyze system prompt issues
-        system_prompt = config.get("system_prompt", "")
-        if system_prompt and len(system_prompt) < 50:
-            recommendations.append(
-                "System prompt is very short. Consider providing more detailed instructions and behavioral guidelines."
-            )
-
-        # Analyze temperature settings
-        temperature = config.get("temperature", 0.7)
-        if temperature > 0.9 and len(failed_cases) > len(all_results) / 2:
-            recommendations.append(
-                f"High temperature setting ({temperature}) may be causing inconsistent responses. Consider lowering to 0.3-0.7."
-            )
-
-        # Analyze response length issues
-        max_tokens = config.get("max_tokens")
-        if max_tokens and max_tokens < 500:
-            recommendations.append(
-                f"Max tokens setting ({max_tokens}) may be too low, causing truncated responses. Consider increasing."
-            )
-
-        return recommendations
-
-    def _generate_workflow_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
-    ) -> List[str]:
-        """Generate workflow-specific recommendations."""
-        recommendations = []
-        if not config:
-            config = {}
-
-        # Analyze workflow structure
-        steps = config.get("steps", [])
-        if not steps:
-            recommendations.append("Workflow has no defined steps. Add workflow steps to enable execution.")
-            return recommendations
-
-        if len(steps) < 2:
-            recommendations.append("Workflow has only one step. Consider if this should be a simple agent instead.")
-
-        # Analyze timeout settings
-        timeout = config.get("timeout_seconds", 60)
-        if timeout < 30 and len(steps) > 2:
-            recommendations.append(
-                f"Timeout ({timeout}s) may be too short for a {len(steps)}-step workflow. "
-                "Consider increasing to allow adequate time for all steps."
-            )
-
-        return recommendations
-
-    def _generate_llm_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
-    ) -> List[str]:
-        """Generate LLM-specific recommendations."""
-        recommendations = []
-        if not config:
-            config = {}
-
-        model = config.get("model", "")
-        provider = config.get("provider", "")
-
-        if not model:
-            recommendations.append("No model specified in LLM configuration.")
-
-        if not provider:
-            recommendations.append("No provider specified in LLM configuration.")
-
-        # Analyze temperature for consistency issues
-        temperature = config.get("temperature", 0.7)
-        if temperature > 0.8 and len(failed_cases) > len(all_results) / 3:
-            recommendations.append(
-                f"High temperature ({temperature}) may be causing inconsistent outputs. Consider lowering for more deterministic results."
-            )
-
-        return recommendations
-
-    def _generate_mcp_server_recommendations(
-        self, failed_cases: List[CaseEvaluationResult], config: Optional[Dict], all_results: List[CaseEvaluationResult]
-    ) -> List[str]:
-        """Generate MCP server-specific recommendations."""
-        recommendations = []
-        if not config:
-            config = {}
-
-        command = config.get("command", [])
-        if not command:
-            recommendations.append("No command specified for MCP server.")
-
-        tools = config.get("tools", [])
-        resources = config.get("resources", [])
-
-        if not tools and not resources:
-            recommendations.append("MCP server has no tools or resources defined. Consider adding functionality.")
-
-        return recommendations
 
     def aggregate_scores(self, results: List[CaseEvaluationResult]) -> float:
         """
