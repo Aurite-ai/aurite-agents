@@ -98,6 +98,7 @@ class QAFunctionalTester:
         self.workflow_evaluations = [
             "weather_workflow_evaluation",
             "weather_custom_workflow_evaluation",
+            "weather_graph_workflow_evaluation",
         ]
 
         self.mcp_evaluations = [

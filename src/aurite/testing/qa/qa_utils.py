@@ -370,6 +370,11 @@ async def execute_component(
             workflow_name=component_name,
             initial_input=case.input,
         )
+    elif component_type == "graph_workflow":
+        return await executor.run_graph_workflow(
+            workflow_name=component_name,
+            initial_input=case.input,
+        )
     elif component_type == "mcp_server":
         # generate an temp agent config with a hardcoded system prompt and access to only that mcp server
         agent_name = f"qa_test_agent_{uuid.uuid4().hex}"

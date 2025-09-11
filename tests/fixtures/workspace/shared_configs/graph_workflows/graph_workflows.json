@@ -1,0 +1,40 @@
+[
+    {
+        "name": "Weather Agent Fahrenheit",
+        "description": "Weather Agent for testing",
+        "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. Important: Make sure to get the temperature in fahrenheit. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "mcp_servers": ["weather_server"],
+        "type": "agent",
+        "include_history": true
+    },
+    {
+        "name": "Weather Agent Celcius",
+        "description": "Weather Agent for testing",
+        "system_prompt": "You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. Important: Make sure to get the temperature in celcius. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "mcp_servers": ["weather_server"],
+        "type": "agent",
+        "include_history": true
+    },
+    {
+        "name": "Parallel Weather Graph Workflow",
+        "description": "Example parallel graph workflow",
+        "type": "graph_workflow",
+        "nodes": [
+            {
+                "type": "agent",
+                "name": "Weather Agent Fahrenheit",
+                "node_id": "f"
+            },
+            {
+                "type": "agent",
+                "name": "Weather Agent Celcius",
+                "node_id": "c"
+            }
+        ],
+        "edges": [
+            
+        ]
+    }
+]

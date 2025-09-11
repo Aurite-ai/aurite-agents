@@ -1,42 +1,62 @@
 [
-    {
-      "name": "weather_workflow_evaluation",
-      "type": "evaluation",
-      "component_type": "linear_workflow",
-      "component_refs": [
-        "test_weather_workflow"
-      ],
-      "review_llm": null,
-      "test_cases": [
-        {
-          "name": "weather_planning_sf",
-          "input": "What's the weather in San Francisco",
-          "expectations": [
-            "The first agent uses a tool to look up the weather in San Francisco",
-            "This weather information is relayed in detail to the second agent",
-            "The second agent creates a plan of what to wear based on this weather information",
-            "The plan is stored using a tool by the second agent"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "weather_custom_workflow_evaluation",
-      "type": "evaluation",
-      "component_type": "custom_workflow",
-      "component_refs": [
-        "ExampleCustomWorkflow"
-      ],
-      "review_llm": null,
-      "test_cases": [
-        {
-          "name": "weather_planning_sf",
-          "input": "What's the weather in San Francisco",
-          "expectations": [
-            "The workflow runs successfully",
-            "The workflow creates a plan based on the weather conditions in San Francisco"
-          ]
-        }
-      ]
-    }
+  {
+    "name": "weather_workflow_evaluation",
+    "type": "evaluation",
+    "component_type": "linear_workflow",
+    "component_refs": [
+      "test_weather_workflow"
+    ],
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf",
+        "input": "What's the weather in San Francisco",
+        "expectations": [
+          "The first agent uses a tool to look up the weather in San Francisco",
+          "This weather information is relayed in detail to the second agent",
+          "The second agent creates a plan of what to wear based on this weather information",
+          "The plan is stored using a tool by the second agent"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "weather_custom_workflow_evaluation",
+    "type": "evaluation",
+    "component_type": "custom_workflow",
+    "component_refs": [
+      "ExampleCustomWorkflow"
+    ],
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf",
+        "input": "What's the weather in San Francisco",
+        "expectations": [
+          "The workflow runs successfully",
+          "The workflow creates a plan based on the weather conditions in San Francisco"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "weather_graph_workflow_evaluation",
+    "type": "evaluation",
+    "component_type": "graph_workflow",
+    "component_refs": [
+      "Parallel Weather Graph Workflow"
+    ],
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf",
+        "input": "What's the weather in San Francisco",
+        "expectations": [
+          "The workflow runs successfully",
+          "The workflow's fahrenheit agent outputs the temperature in fahrenheit",
+          "The workflow's celcius agent outputs the temperature in celcius"
+        ]
+      }
+    ]
+  }
 ]
