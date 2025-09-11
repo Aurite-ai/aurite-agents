@@ -17,7 +17,6 @@ from .qa_models import (
     CaseEvaluationResult,
     ComponentQAConfig,
     QAEvaluationResult,
-    QATestCategory,
 )
 from .qa_utils import (
     analyze_expectations,
@@ -58,41 +57,11 @@ class ComponentQATester:
         """
         self.config = config or ComponentQAConfig(
             component_type="unified",  # This tester handles all types
-            test_categories=self._get_default_test_categories(),
             default_timeout=90.0,  # Reasonable default for most components
             parallel_execution=True,  # Most components can run in parallel
             max_retries=1,
         )
         self.logger = logging.getLogger(self.__class__.__name__)
-
-    def _get_default_test_categories(self) -> List[QATestCategory]:
-        """Get default test categories for component testing."""
-        return [
-            QATestCategory(
-                name="functionality",
-                description="Core functionality and goal achievement",
-                weight=0.4,
-                required=True,
-            ),
-            QATestCategory(
-                name="output_quality",
-                description="Quality, coherence, and completeness of outputs",
-                weight=0.3,
-                required=True,
-            ),
-            QATestCategory(
-                name="integration",
-                description="Integration with other components and data flow",
-                weight=0.2,
-                required=False,
-            ),
-            QATestCategory(
-                name="reliability",
-                description="Error handling and consistent behavior",
-                weight=0.1,
-                required=False,
-            ),
-        ]
 
     async def test_component(
         self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
@@ -199,7 +168,6 @@ class ComponentQATester:
             case_results=processed_results,
             metadata={
                 "component_config": request.component_config,
-                "test_categories": [cat.name for cat in self.get_test_categories()],
                 "component_type": request.component_type,
             },
             started_at=started_at,
@@ -404,12 +372,3 @@ class ComponentQATester:
         total = len(results)
 
         return (passed / total) * 100.0
-
-    def get_test_categories(self) -> List[QATestCategory]:
-        """
-        Return the categories of tests this tester can perform.
-
-        Returns:
-            List of test categories supported by this tester
-        """
-        return self.config.test_categories if self.config else self._get_default_test_categories()
