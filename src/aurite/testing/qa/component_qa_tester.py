@@ -306,7 +306,7 @@ class ComponentQATester:
 
             # Analyze expectations using utility function with component context
             if case.expectations:
-                component_context = self._build_component_context(request)
+                component_context = request.component_config or {}
                 expectation_result = await analyze_expectations(case, output, llm_client, component_context)
 
                 grade = "PASS" if not expectation_result.expectations_broken else "FAIL"
@@ -368,78 +368,6 @@ class ComponentQATester:
                 error=str(e),
                 execution_time=(datetime.utcnow() - start_time).total_seconds(),
             )
-
-    def _build_component_context(self, request: EvaluationRequest) -> Dict:
-        """
-        Build component-specific context for expectation analysis.
-
-        Args:
-            request: The test request containing component configuration
-
-        Returns:
-            Dictionary with component context for the LLM
-        """
-        component_config = request.component_config or {}
-        component_type = request.component_type
-
-        base_context = {
-            "type": component_type,
-            "name": component_config.get("name", "Unknown"),
-        }
-
-        # Add component-specific context
-        if component_config:
-            if component_type == "agent":
-                base_context.update(
-                    {
-                        "system_prompt": component_config.get("system_prompt", ""),
-                        "tools": component_config.get("tools", []),
-                        "temperature": component_config.get("temperature", 0.7),
-                        "max_tokens": component_config.get("max_tokens"),
-                        "conversation_memory": component_config.get("conversation_memory", True),
-                    }
-                )
-
-            elif component_type in ["workflow", "linear_workflow", "custom_workflow"]:
-                steps = component_config.get("steps", [])
-                base_context.update(
-                    {
-                        "steps": steps,
-                        "timeout_seconds": component_config.get("timeout_seconds", 60),
-                        "parallel_execution": component_config.get("parallel_execution", False),
-                        "error_handling": component_config.get("error_handling", {}),
-                    }
-                )
-
-                # Add workflow type specific context
-                if component_type == "custom_workflow":
-                    base_context.update(
-                        {
-                            "module_path": component_config.get("module_path"),
-                            "class_name": component_config.get("class_name"),
-                        }
-                    )
-
-            elif component_type == "llm":
-                base_context.update(
-                    {
-                        "model": component_config.get("model", "Unknown"),
-                        "provider": component_config.get("provider", "Unknown"),
-                        "temperature": component_config.get("temperature", 0.7),
-                        "max_tokens": component_config.get("max_tokens"),
-                    }
-                )
-
-            elif component_type == "mcp_server":
-                base_context.update(
-                    {
-                        "command": component_config.get("command", []),
-                        "tools": component_config.get("tools", []),
-                        "resources": component_config.get("resources", []),
-                    }
-                )
-
-        return base_context
 
     async def _get_llm_client(self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None):
         """
