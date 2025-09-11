@@ -99,6 +99,10 @@ class QAFunctionalTester:
             # Add workflow evaluation names here when available
         ]
 
+        self.mcp_evaluations = [
+            "weather_mcp_evaluation",
+        ]
+
     async def run_all_tests(self, component_type: str = "all") -> Dict[str, Any]:
         """
         Run all QA functional tests using evaluation configurations.
@@ -126,6 +130,11 @@ class QAFunctionalTester:
             logger.info(f"\n{Colors.CYAN}🔄 Testing Workflow QA System...{Colors.END}")
             workflow_results = await self._test_workflows()
             self.results["workflow_qa"] = workflow_results
+
+        if component_type in ["mcp_server", "all"]:
+            logger.info(f"\n{Colors.CYAN}🔄 Testing MCP Server QA System...{Colors.END}")
+            mcp_results = await self._test_mcp_servers()
+            self.results["mcp_qa"] = mcp_results
 
         # Generate summary report
         self._generate_summary_report()
@@ -159,18 +168,8 @@ class QAFunctionalTester:
             logger.debug(f"API health check failed: {e}")
             return False
 
-    async def _test_agents(self) -> Dict[str, Any]:
-        """Test agents using evaluation configurations."""
+    async def _test(self, evaluations_to_run) -> Dict[str, Any]:
         results = {}
-
-        # Choose evaluation list based on mode
-        if self.evaluation_mode == "manual":
-            evaluations_to_run = self.manual_agent_evaluations
-        elif self.evaluation_mode == "function":
-            evaluations_to_run = self.function_agent_evaluations
-        else:
-            evaluations_to_run = self.agent_evaluations
-
         async with httpx.AsyncClient(timeout=60.0) as client:
             for config_name in evaluations_to_run:
                 logger.info(f"\n  📋 Testing {config_name}...")
@@ -196,38 +195,36 @@ class QAFunctionalTester:
 
         return results
 
+    async def _test_agents(self) -> Dict[str, Any]:
+        """Test agents using evaluation configurations."""
+
+        # Choose evaluation list based on mode
+        if self.evaluation_mode == "manual":
+            evaluations_to_run = self.manual_agent_evaluations
+        elif self.evaluation_mode == "function":
+            evaluations_to_run = self.function_agent_evaluations
+        else:
+            evaluations_to_run = self.agent_evaluations
+
+        return await self._test(evaluations_to_run)
+
     async def _test_workflows(self) -> Dict[str, Any]:
         """Test workflows using evaluation configurations."""
-        results = {}
 
         if not self.workflow_evaluations:
             logger.info("    ℹ️  No workflow evaluation configurations defined")
-            return results
+            return {}
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            for config_name in self.workflow_evaluations:
-                logger.info(f"\n  📋 Testing {config_name}...")
+        return await self._test(self.workflow_evaluations)
 
-                try:
-                    # Use the API endpoint that loads evaluation configs directly
-                    response = await client.post(
-                        f"{self.api_url}/testing/evaluate/{config_name}", headers={"X-API-Key": self.api_key}
-                    )
+    async def _test_mcp_servers(self) -> Dict[str, Any]:
+        """Test workflows using evaluation configurations."""
 
-                    if response.status_code == 200:
-                        result = response.json()
-                        results[config_name] = self._process_result(result)
-                        self._print_result_summary(config_name, results[config_name])
-                    else:
-                        error_msg = f"API returned status {response.status_code}: {response.text}"
-                        logger.error(f"    ❌ {config_name}: {error_msg}")
-                        results[config_name] = {"status": "error", "error": error_msg}
+        if not self.mcp_evaluations:
+            logger.info("    ℹ️  No mcp server evaluation configurations defined")
+            return {}
 
-                except Exception as e:
-                    logger.error(f"    ❌ {config_name}: Failed - {str(e)}")
-                    results[config_name] = {"status": "error", "error": str(e)}
-
-        return results
+        return await self._test(self.mcp_evaluations)
 
     def _process_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -470,6 +467,11 @@ class QAFunctionalTester:
             logger.info(f"\n{Colors.CYAN}🔄 Workflow QA Results:{Colors.END}")
             self._print_category_summary(workflow_results)
 
+        mcp_results = self.results.get("mcp_qa", {})
+        if mcp_results and "error" not in mcp_results:
+            logger.info(f"\n{Colors.CYAN}🔄 MCP Server QA Results:{Colors.END}")
+            self._print_category_summary(mcp_results)
+
         # Overall Assessment
         self._print_overall_assessment()
 
@@ -598,7 +600,7 @@ def main():
     parser = argparse.ArgumentParser(description="Functional QA Testing for Aurite Framework")
     parser.add_argument(
         "--component-type",
-        choices=["agent", "workflow", "all"],
+        choices=["agent", "workflow", "mcp_server", "all"],
         default="all",
         help="Type of component to test (default: all)",
     )
