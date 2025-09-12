@@ -236,6 +236,166 @@ The CLI is organized into several main commands.
     - All workflow configurations (linear and custom)
     - Any other component configurations in your workspace
 
+=== ":material-docker: `aurite docker`"
+
+    Manages Aurite Docker containers for containerized deployment and development. This command provides a complete Docker workflow from initialization to deployment.
+
+    | Argument / Option | Type | Description |
+    | --- | --- | --- |
+    | `[ACTION]` | `string` | Docker action to perform (default: `run`) |
+    | `-p`, `--project` | `string` | Path to Aurite project directory (default: current directory) |
+    | `-n`, `--name` | `string` | Container name (default: `aurite-server`) |
+    | `--port` | `integer` | Port to expose (default: `8000`) |
+    | `-e`, `--env-file` | `string` | Path to environment file |
+    | `-v`, `--version` | `string` | Docker image version tag (default: `latest`) |
+    | `-d/-D`, `--detach/--no-detach` | `flag` | Run in background (default: detached) |
+    | `--pull` | `flag` | Pull latest image before running |
+    | `-f`, `--force` | `flag` | Force action (e.g., remove existing container) |
+    | `-t`, `--build-tag` | `string` | Tag for built image (e.g., `my-project:latest`) |
+    | `--push` | `flag` | Push built image to registry after building |
+    | `--regenerate` | `flag` | Regenerate Docker files with fresh templates |
+    | `--dockerfile` | `string` | Path to custom Dockerfile (build action only) |
+
+    **Actions**
+
+    | Action | Description |
+    | --- | --- |
+    | `run` | Start a new container (mounts project as volume) |
+    | `stop` | Stop running container |
+    | `logs` | View container logs |
+    | `shell` | Open shell in container |
+    | `status` | Check container status |
+    | `pull` | Pull latest image |
+    | `build` | Build custom image with project embedded |
+    | `init` | Create Docker files without building |
+
+    !!! info "Container vs Build Modes"
+        - **Run Mode**: Mounts your project directory as a volume for development
+        - **Build Mode**: Embeds your project into a custom image for deployment
+
+    **Examples**
+
+    ```bash
+    # Start Aurite container with project mounted as volume
+    aurite docker run
+
+    # Start container with custom settings
+    aurite docker run --port 9000 --name my-aurite --env-file .env.prod
+
+    # Initialize Docker files for customization
+    aurite docker init
+
+    # Build custom image with project embedded
+    aurite docker build --build-tag my-project:v1.0
+
+    # Build and push to registry
+    aurite docker build --build-tag my-project:v1.0 --push
+
+    # Check container status
+    aurite docker status --name my-aurite
+
+    # View container logs
+    aurite docker logs --name my-aurite
+
+    # Open shell in running container
+    aurite docker shell --name my-aurite
+
+    # Stop container
+    aurite docker stop --name my-aurite
+
+    # Pull latest base image
+    aurite docker pull --version latest
+    ```
+
+    **Docker File Management**
+
+    The `init` and `build` actions create two files in your project directory:
+
+    - **`Dockerfile.aurite`**: Customizable Dockerfile with a USER CUSTOMIZATION SECTION
+    - **`.dockerignore`**: Optimized ignore patterns for Aurite projects
+
+    !!! tip "Customization Workflow"
+        1. Run `aurite docker init` to create Docker files
+        2. Edit the USER CUSTOMIZATION SECTION in `Dockerfile.aurite` to add dependencies
+        3. Run `aurite docker build` to create your custom image
+        4. Use `--regenerate` flag to overwrite existing Docker files with fresh templates
+
+    **Pre-flight Checks**
+
+    The `run` action performs automatic validation:
+
+    - ✓ Docker installation and daemon status
+    - ✓ Aurite project directory validation (`.aurite` file)
+    - ✓ Environment file detection and confirmation
+    - ✓ Port availability checking
+    - ✓ Container name conflict resolution
+
+    **System Requirements**
+
+    - Docker installed and running
+    - Valid Aurite project directory (contains `.aurite` file)
+    - Available port for API server (default: 8000)
+
+    **Container Features**
+
+    When running containers, you get:
+
+    - API Server: `http://localhost:{port}`
+    - Health Check: `http://localhost:{port}/health`
+    - API Documentation: `http://localhost:{port}/api-docs`
+    - Project volume mount: `/app/project` (run mode)
+    - Environment file support
+    - Automatic cleanup on container removal
+
+    **Environment Variables**
+
+    The Docker container supports several environment variables for configuration:
+
+    | Variable | Default | Description |
+    | --- | --- | --- |
+    | `API_KEY` | *required* | Authentication key for API server access |
+    | `AURITE_ENABLE_DB` | `false` | Enable database mode (SQLite or PostgreSQL) |
+    | `AURITE_AUTO_EXPORT` | `true` | Automatically export configurations to database on startup |
+    | `LOG_LEVEL` | `INFO` | Set to `DEBUG` for verbose container logging |
+
+    **Database Configuration** (when `AURITE_ENABLE_DB=true`):
+
+    | Variable | Description |
+    | --- | --- |
+    | `AURITE_DB_TYPE` | Database type (`sqlite` or `postgres`) |
+    | `AURITE_DB_HOST` | PostgreSQL host (if using PostgreSQL) |
+    | `AURITE_DB_PORT` | PostgreSQL port (default: 5432) |
+    | `AURITE_DB_USER` | PostgreSQL username |
+    | `AURITE_DB_PASSWORD` | PostgreSQL password |
+    | `AURITE_DB_NAME` | Database name |
+
+    !!! info "Auto-Export Behavior"
+        When `AURITE_ENABLE_DB=true`, the container automatically exports all file-based configurations to the database on startup unless `AURITE_AUTO_EXPORT=false` is set. This ensures your database stays synchronized with your project files.
+
+    **Examples with Environment Variables**
+
+    ```bash
+    # Run with database mode and auto-export enabled
+    aurite docker run \
+      --env-file .env \
+      -e AURITE_ENABLE_DB=true \
+      -e AURITE_AUTO_EXPORT=true \
+      -e API_KEY=$(openssl rand -hex 32)
+
+    # Run with auto-export disabled
+    aurite docker run \
+      --env-file .env \
+      -e AURITE_ENABLE_DB=true \
+      -e AURITE_AUTO_EXPORT=false \
+      -e API_KEY=your-secure-api-key
+
+    # Run with debug logging
+    aurite docker run \
+      --env-file .env \
+      -e LOG_LEVEL=DEBUG \
+      -e API_KEY=your-secure-api-key
+    ```
+
 ---
 
 ## Global Options
