@@ -21,7 +21,11 @@ async def test_local_server_working(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "duckduckgo_local_control")))
+        server_config = config_manager.get_config("mcp_server", "duckduckgo_local_control")
+        if not server_config:
+            raise ValueError("MCP server config 'duckduckgo_local_control' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         tool_result = await host.call_tool("duckduckgo_local_control-search", {"query": "London", "max_results": 1})
 
@@ -45,7 +49,11 @@ async def test_local_server_wrong_tool_args(with_test_config):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "duckduckgo_local_control")))
+        server_config = config_manager.get_config("mcp_server", "duckduckgo_local_control")
+        if not server_config:
+            raise ValueError("MCP server config 'duckduckgo_local_control' not found")
+
+        await host.register_client(ClientConfig(**server_config))
 
         tool_result = await host.call_tool("duckduckgo_local_control-search", {"sdfsdf": "sdffsdfsdf"})
 
@@ -69,6 +77,7 @@ async def test_local_server_wrong_keys(with_test_config):
         config_manager.refresh()
 
         with pytest.raises(Exception):
-            await host.register_client(
-                ClientConfig(**config_manager.get_config("mcp_server", "duckduckgo_local_invalid_both"))
-            )
+            server_config = config_manager.get_config("mcp_server", "duckduckgo_local_invalid_both")
+            if not server_config:
+                raise ValueError("MCP server config 'duckduckgo_local_invalid_both' not found")
+            await host.register_client(ClientConfig(**server_config))

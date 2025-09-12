@@ -75,3 +75,27 @@ class DuplicateClientIdError(ValueError):
     """Custom exception for duplicate client ID registration attempts."""
 
     pass
+
+
+class MCPServerFileNotFoundError(ConfigurationError):
+    """
+    Raised when an MCP server configuration references a server_path that doesn't exist.
+
+    Provides structured information about the missing file for better
+    error handling in frontend applications.
+    """
+
+    def __init__(self, server_name: str, server_path: str, context_path: str | None = None):
+        self.server_name = server_name
+        self.server_path = server_path
+        self.context_path = context_path
+
+        if context_path:
+            message = (
+                f"MCP server '{server_name}' references a non-existent file: {server_path}\n"
+                f"Expected location (relative to {context_path}): {server_path}"
+            )
+        else:
+            message = f"MCP server '{server_name}' references a non-existent file: {server_path}"
+
+        super().__init__(message)

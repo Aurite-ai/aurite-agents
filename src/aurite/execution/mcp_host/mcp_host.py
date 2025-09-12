@@ -212,7 +212,7 @@ class MCPHost:
 
         # Create a task for the registration process to handle timeout properly
         registration_task = asyncio.create_task(_registration_process())
-        
+
         try:
             await asyncio.wait_for(registration_task, timeout=config.registration_timeout)
         except asyncio.TimeoutError:
@@ -227,14 +227,14 @@ class MCPHost:
                 pass  # Expected when task is cancelled
             except Exception as e:
                 logger.debug(f"Exception during task cancellation cleanup: {e}")
-            
+
             # Now it's safe to close the session stack since the task is fully cancelled
             try:
                 await session_stack.aclose()
             except Exception as e:
                 logger.debug(f"Exception during session stack cleanup: {e}")
                 # Don't re-raise cleanup errors, just log them
-            
+
             raise MCPServerTimeoutError(
                 server_name=config.name, timeout_seconds=config.registration_timeout, operation="registration"
             ) from asyncio.TimeoutError

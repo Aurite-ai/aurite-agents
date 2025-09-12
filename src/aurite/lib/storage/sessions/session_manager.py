@@ -5,14 +5,19 @@ Manages the lifecycle and persistence of execution sessions.
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 from pydantic import ValidationError
 
 from aurite.lib.storage.db.db_manager import StorageManager
 
-from ...models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, SessionMetadata
+from ...models.api.responses import (
+    AgentRunResult,
+    GraphWorkflowExecutionResult,
+    LinearWorkflowExecutionResult,
+    SessionMetadata,
+)
 from .cache_manager import CacheManager
 
 logger = logging.getLogger(__name__)
@@ -25,7 +30,7 @@ class SessionManager:
     mechanism, like the CacheManager.
     """
 
-    def __init__(self, cache_manager: "CacheManager", storage_manager: "StorageManager"):
+    def __init__(self, cache_manager: "CacheManager", storage_manager: Optional["StorageManager"]):
         """
         Initialize the SessionManager.
 
@@ -35,7 +40,8 @@ class SessionManager:
         """
         self._cache = cache_manager
         self._storage = storage_manager
-        self._use_db = storage_manager is not None and storage_manager._engine is not None
+        # Check if storage_manager exists and has an engine before accessing _engine
+        self._use_db = bool(storage_manager and hasattr(storage_manager, "_engine") and storage_manager._engine)
         if self._use_db:
             logger.info("SessionManager initialized with database support enabled")
         else:
@@ -48,9 +54,11 @@ class SessionManager:
         When DB disabled: Uses cache only.
         """
         # Check if database is actually available (not just initially configured)
-        db_available = self._use_db and self._storage and self._storage._engine is not None
+        db_available = (
+            self._use_db and self._storage and hasattr(self._storage, "_engine") and self._storage._engine is not None
+        )
 
-        if db_available:
+        if db_available and self._storage:
             # Database mode: Always check DB first to ensure data exists
             # This prevents returning stale cache data after deletion
             try:
@@ -138,10 +146,13 @@ class SessionManager:
         self._save_result(session_id, agent_result.model_dump(), "agent", base_session_id)
 
     def save_workflow_result(
-        self, session_id: str, workflow_result: LinearWorkflowExecutionResult, base_session_id: Optional[str] = None
+        self,
+        session_id: str,
+        workflow_result: Union[LinearWorkflowExecutionResult, GraphWorkflowExecutionResult],
+        base_session_id: Optional[str] = None,
     ):
         """
-        Saves the complete result of a workflow execution.
+        Saves the complete result of a workflow execution (Linear or Graph).
         """
         self._save_result(session_id, workflow_result.model_dump(), "workflow", base_session_id)
 
@@ -157,7 +168,7 @@ class SessionManager:
 
         # Get existing data based on storage mode
         existing_data = None
-        if self._use_db:
+        if self._use_db and self._storage:
             existing_data = self._storage.get_session(session_id)
         else:
             existing_data = self._cache.get_result(session_id)
@@ -176,7 +187,7 @@ class SessionManager:
             **metadata,
         }
 
-        if self._use_db:
+        if self._use_db and self._storage:
             # Database mode: Save to DB as primary storage
             try:
                 self._storage.save_session(session_data)
@@ -200,7 +211,7 @@ class SessionManager:
         all_validated_sessions: List[SessionMetadata] = []
 
         # Try database first if available
-        if self._use_db:
+        if self._use_db and self._storage:
             try:
                 db_sessions, total_count = self._storage.get_sessions_list(
                     agent_name=agent_name,
@@ -278,7 +289,7 @@ class SessionManager:
 
         # Delete from database if available
         db_deleted = False
-        if self._use_db:
+        if self._use_db and self._storage:
             try:
                 db_deleted = self._storage.delete_session(session_id)
                 if db_deleted:
@@ -324,7 +335,7 @@ class SessionManager:
                         del parent_data["agents_involved"][session_id]
                         self._cache.save_result(parent.session_id, parent_data)
                         # Also update in database if available
-                        if self._use_db:
+                        if self._use_db and self._storage:
                             try:
                                 self._storage.save_session(parent_data)
                             except Exception as e:
@@ -346,7 +357,7 @@ class SessionManager:
         session_data = None
 
         # Try database first if available
-        if self._use_db:
+        if self._use_db and self._storage:
             session_data = self._storage.get_session(session_id)
 
         # Fall back to cache if not found in DB
@@ -419,7 +430,7 @@ class SessionManager:
         """
         logger.debug(f"Cleaning up sessions older than {days} days, keeping max {max_sessions}")
 
-        if self._use_db:
+        if self._use_db and self._storage:
             # Database mode - clean database only
             try:
                 self._storage.cleanup_old_sessions(days=days, max_sessions=max_sessions)

@@ -1,52 +1,79 @@
 # =============================================================================
-# Aurite Agents Framework - Example Docker Compose Configuration
+# Aurite Agents Framework - Docker Compose Example
 # =============================================================================
-# This is an example docker-compose.yml file showing how to use the published
-# Aurite Agents container from DockerHub.
+# This is a secure example configuration for running Aurite Agents with Docker Compose.
+# Copy this file to docker-compose.yml and customize for your environment.
 #
 # Usage:
-#   1. Copy this file to your project directory as docker-compose.yml
-#   2. Create a .env file with your configuration (see .env.example below)
-#   3. Run: docker compose up
-#
-# For more examples and documentation:
-#   https://github.com/Aurite-ai/aurite-agents
+#   1. Copy this file: cp docker-compose.example.yml docker-compose.yml
+#   2. Generate secure API key: echo "API_KEY=$(openssl rand -hex 32)" > .env
+#   3. Add database credentials to .env file (if using PostgreSQL)
+#   4. Run: docker-compose up -d
 # =============================================================================
 
 version: '3.8'
 
 services:
-  # =============================================================================
-  # Aurite Agents API Server
-  # =============================================================================
   aurite:
     image: aurite/aurite-agents:latest
-    container_name: aurite_agents
-    ports:
-      - "${PORT:-8000}:8000"
-    volumes:
-      # Mount your project directory here
-      # The container will look for .aurite file in this directory
-      - ./:/app/project
+    container_name: aurite-agents
+
+    # Security: Run with minimal privileges
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+
+    # Read-only root filesystem with specific writable directories
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+      - /app/cache:noexec,nosuid,size=500M
+
+    # Environment variables (use .env file for sensitive values)
     environment:
-      # Required: API key for authentication
-      - API_KEY=${API_KEY}
+      # Required: API authentication key
+      API_KEY: ${API_KEY}
 
-      # Optional: Auto-initialize project if no .aurite file found
-      # - AURITE_AUTO_INIT=true
+      # Optional: Database configuration
+      AURITE_ENABLE_DB: ${AURITE_ENABLE_DB:-false}
+      AURITE_DB_TYPE: ${AURITE_DB_TYPE:-sqlite}
+      AURITE_DB_HOST: ${AURITE_DB_HOST:-postgres}
+      AURITE_DB_PORT: ${AURITE_DB_PORT:-5432}
+      AURITE_DB_NAME: ${AURITE_DB_NAME:-aurite}
+      AURITE_DB_USER: ${AURITE_DB_USER:-aurite}
+      AURITE_DB_PASSWORD: ${AURITE_DB_PASSWORD}
 
-      # Optional: Enable database persistence
-      # - AURITE_ENABLE_DB=true
-      # - AURITE_DB_TYPE=sqlite
+      # Optional: Auto-initialization for new projects
+      AURITE_AUTO_INIT: ${AURITE_AUTO_INIT:-false}
 
-      # Optional: LLM provider API keys (pass through from .env)
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Optional: API port (default 8000)
+      AURITE_API_PORT: ${AURITE_API_PORT:-8000}
 
-      # Optional: Logging level
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    restart: unless-stopped
+      # Optional: Log level
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+    # Volume mounts
+    volumes:
+      # Mount your project directory
+      - ./my-aurite-project:/app/project:rw
+
+      # Optional: Use Docker secrets for sensitive data (recommended for production)
+      # - aurite_api_key:/run/secrets/api_key:ro
+      # - aurite_db_password:/run/secrets/db_password:ro
+
+    # Network configuration
+    ports:
+      - "127.0.0.1:8000:8000"  # Bind only to localhost
+    networks:
+      - aurite-network
+
+    # Health check
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
       interval: 30s
@@ -54,91 +81,124 @@ services:
       retries: 3
       start_period: 40s
 
-  # =============================================================================
-  # PostgreSQL Database (Optional)
-  # =============================================================================
-  # Uncomment this section if you want to use PostgreSQL for persistence
-  # Also set AURITE_ENABLE_DB=true and AURITE_DB_TYPE=postgres in aurite service
-  #
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: aurite_postgres
-  #   environment:
-  #     POSTGRES_USER: ${AURITE_DB_USER:-aurite_user}
-  #     POSTGRES_PASSWORD: ${AURITE_DB_PASSWORD:-aurite_password}
-  #     POSTGRES_DB: ${AURITE_DB_NAME:-aurite_db}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "${POSTGRES_PORT:-5432}:5432"
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${AURITE_DB_USER:-aurite_user}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  # =============================================================================
-  # Redis Cache (Optional)
-  # =============================================================================
-  # Uncomment this section if you want to use Redis for caching
-  #
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: aurite_redis
-  #   ports:
-  #     - "${REDIS_PORT:-6379}:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 3
+    # Restart policy
+    restart: unless-stopped
 
-# =============================================================================
-# Volumes (Uncomment if using PostgreSQL or Redis)
-# =============================================================================
-# volumes:
-#   postgres_data:
-#     driver: local
-#   redis_data:
-#     driver: local
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-# =============================================================================
-# Networks (Optional - for advanced configurations)
-# =============================================================================
-# networks:
-#   aurite_network:
-#     driver: bridge
+    # Dependencies
+    depends_on:
+      postgres:
+        condition: service_healthy
 
----
-# =============================================================================
-# Example .env file
-# =============================================================================
-# Create a .env file in the same directory with the following content:
-#
-# # Required
-# API_KEY=your_secure_api_key_here
-#
-# # Optional - Port configuration
-# PORT=8000
-#
-# # Optional - LLM Provider API Keys
-# OPENAI_API_KEY=your_openai_api_key_here
-# ANTHROPIC_API_KEY=your_anthropic_api_key_here
-# GEMINI_API_KEY=your_gemini_api_key_here
-#
-# # Optional - Database configuration (if using PostgreSQL)
-# AURITE_DB_USER=aurite_user
-# AURITE_DB_PASSWORD=secure_password_here
-# AURITE_DB_NAME=aurite_db
-# POSTGRES_PORT=5432
-#
-# # Optional - Redis configuration
-# REDIS_PORT=6379
-#
-# # Optional - Logging
-# LOG_LEVEL=INFO
-# =============================================================================
+  # Optional: PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: aurite-postgres
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      POSTGRES_DB: ${AURITE_DB_NAME:-aurite}
+      POSTGRES_USER: ${AURITE_DB_USER:-aurite}
+      POSTGRES_PASSWORD: ${AURITE_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    networks:
+      - aurite-network
+
+    # Health check for PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AURITE_DB_USER:-aurite} -d ${AURITE_DB_NAME:-aurite}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    restart: unless-stopped
+
+    # Only expose to internal network, not host
+    expose:
+      - "5432"
+
+  # Optional: Nginx reverse proxy with TLS
+  nginx:
+    image: nginx:alpine
+    container_name: aurite-nginx
+
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:noexec,nosuid
+      - /var/run:noexec,nosuid
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+
+    ports:
+      - "443:443"
+      - "80:80"
+
+    networks:
+      - aurite-network
+
+    depends_on:
+      - aurite
+
+    restart: unless-stopped
+
+    profiles:
+      - production
+
+# Networks
+networks:
+  aurite-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# Volumes
+volumes:
+  postgres-data:
+    driver: local
+
+# Secrets (for production use)
+# secrets:
+#   aurite_api_key:
+#     file: ./secrets/api_key.txt
+#   aurite_db_password:
+#     file: ./secrets/db_password.txt

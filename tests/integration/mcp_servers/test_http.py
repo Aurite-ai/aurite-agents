@@ -22,8 +22,11 @@ async def test_http_server_working(with_test_config, start_http_server):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "math_http_control")))
+        server_config = config_manager.get_config("mcp_server", "math_http_control")
+        if not server_config:
+            raise ValueError("MCP server config 'math_http_control' not found")
 
+        await host.register_client(ClientConfig(**server_config))
         tool_result = await host.call_tool("math_http_control-add_numbers", {"a": 1, "b": 2})
 
         assert tool_result is not None
@@ -47,8 +50,10 @@ async def test_http_server_error(with_test_config, start_http_server):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "math_http_control")))
-
+        server_config = config_manager.get_config("mcp_server", "math_http_control")
+        if not server_config:
+            raise ValueError("MCP server config 'math_http_control' not found")
+        await host.register_client(ClientConfig(**server_config))
         tool_result = await host.call_tool("math_http_control-subtract_numbers", {"a": 1, "b": 2})
 
         assert tool_result is not None
@@ -71,7 +76,10 @@ async def test_http_server_wrong_args(with_test_config, start_http_server):
 
         config_manager.refresh()
 
-        await host.register_client(ClientConfig(**config_manager.get_config("mcp_server", "math_http_control")))
+        server_config = config_manager.get_config("mcp_server", "math_http_control")
+        if not server_config:
+            raise ValueError("MCP server config 'math_http_control' not found")
+        await host.register_client(ClientConfig(**server_config))
 
         tool_result = await host.call_tool("math_http_control-add_numbers", {"asdf": 1, "basdf": 2})
 

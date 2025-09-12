@@ -1,0 +1,29 @@
+# Auto-generated Dockerfile for Aurite project. Update as needed.
+# To build the image, run:
+# aurite docker build --version latest
+# =============================================================================
+# Aurite Agents Framework - Project Docker Image
+# =============================================================================
+ARG version_tag=latest
+FROM aurite/aurite-agents:${version_tag}
+
+# Copy project files into the container
+COPY . /app/project/
+
+# Set working directory
+WORKDIR /app/project
+
+# To install dependencies from requirements.txt, uncomment the following:
+# USER root
+# RUN if [ -f requirements.txt ]; then \
+#     pip install --no-cache-dir -r requirements.txt; \
+#     fi
+# RUN chown -R appuser:appuser /app/project
+# USER appuser
+
+# Ensure proper permissions
+USER root
+RUN chown -R appuser:appuser /app/project
+USER appuser
+
+# The base image already has the correct entrypoint and CMD

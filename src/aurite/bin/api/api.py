@@ -29,11 +29,11 @@ from ...utils.errors import (
 from ..dependencies import (
     get_server_config,  # Re-import ServerConfig if needed locally, or remove if only used in dependencies.py
 )
+from ..studio.static_server import setup_studio_routes_with_static
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
 from .routes import main_router
-from ..studio.static_server import setup_studio_routes_with_static
 
 # Removed CustomWorkflowManager import
 # Hello
@@ -82,7 +82,7 @@ app = FastAPI(
     docs_url="/api-docs",  # Swagger UI
     redoc_url="/redoc",  # ReDoc UI
     openapi_url="/openapi.json",  # OpenAPI schema endpoint
-    swagger_ui_parameters={"defaultModelsExpandDepth": -1}  # Collapse models by default
+    swagger_ui_parameters={"defaultModelsExpandDepth": -1},  # Collapse models by default
 )
 
 # Setup CORS middleware immediately during app creation
@@ -295,7 +295,7 @@ async def log_requests(request: Request, call_next: Callable):
 try:
     # Override the default swagger_ui_parameters to use CDN assets
     app.swagger_ui_parameters = {
-        **app.swagger_ui_parameters,
+        **app.swagger_ui_parameters,  # type: ignore
         "swagger_js_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
         "swagger_css_url": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.9.0/swagger-ui.css",
     }
@@ -304,12 +304,13 @@ except Exception as e:
     logger.warning(f"⚠ Error configuring Swagger UI CDN assets: {e}")
 
 logger.info("✓ Swagger UI configured at /api-docs")
-logger.info("✓ ReDoc configured at /redoc") 
+logger.info("✓ ReDoc configured at /redoc")
 logger.info("✓ OpenAPI schema available at /openapi.json")
 
 # Mount custom static files if they exist (for studio assets)
 try:
     from pathlib import Path
+
     static_dir = Path(__file__).parent.parent / "studio" / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -329,7 +330,7 @@ try:
         logger.info("✓ Aurite Studio static assets configured and available at /studio")
     else:
         logger.info("⚠ Aurite Studio static assets not available - studio will use development mode")
-        
+
         # Fallback catch-all route for paths not handled by API
         # IMPORTANT: Exclude FastAPI's internal paths for Swagger UI
         @app.get("/{full_path:path}", include_in_schema=False)
@@ -341,6 +342,7 @@ try:
             raise HTTPException(status_code=404, detail="Not Found")
 except Exception as e:
     logger.error(f"Error setting up static file serving: {e}")
+
     # Fallback catch-all route for paths not handled by API
     # IMPORTANT: Exclude FastAPI's internal paths for Swagger UI
     @app.get("/{full_path:path}", include_in_schema=False)

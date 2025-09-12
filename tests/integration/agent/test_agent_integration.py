@@ -129,4 +129,6 @@ async def test_agent_run_conversation_with_tool_use(
 
     # Mock Call Assertions
     assert mock_llm_instance.create_message.call_count == 2
-    mock_host.call_tool.assert_awaited_once_with(name="get_user_info", args={"user_id": "123"}, agent_config=multi_turn_agent_config)
+    mock_host.call_tool.assert_awaited_once_with(
+        name="get_user_info", args={"user_id": "123"}, agent_config=multi_turn_agent_config
+    )

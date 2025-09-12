@@ -2,16 +2,29 @@
 # Aurite Agents Framework - Public Docker Image
 # =============================================================================
 # This Dockerfile creates a production-ready container for the Aurite Agents
-# framework that can be published to DockerHub for public use.
+# framework, installing it as a proper Python package.
+#
+# Build:
+#   docker build -t aurite/aurite-agents:latest .
+#   docker build --build-arg GIT_COMMIT=$(git rev-parse HEAD) \
+#                --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+#                -t aurite/aurite-agents:latest .
 #
 # Usage:
-#   docker run -v /path/to/project:/app/project -p 8000:8000 aurite/aurite-agents
+#   docker run -v /path/to/project:/app/project -p 8000:8000 \
+#              -e API_KEY=your-secure-key aurite/aurite-agents
+#
+# Security Notes:
+#   - Container runs as non-root user (appuser, UID 1000)
+#   - API_KEY environment variable is required for API authentication
+#   - Use reverse proxy with TLS in production
+#   - Consider using Docker secrets for sensitive data
 #
 # For more examples, see: https://github.com/Aurite-ai/aurite-agents
 # =============================================================================
 
 # Build stage
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047 AS builder
 
 # Install build dependencies
 RUN apt-get update && \
@@ -25,24 +38,32 @@ RUN apt-get update && \
 # Set working directory for build
 WORKDIR /build
 
-# Copy the entire project context
-# .dockerignore will handle exclusions
-COPY . .
+# Upgrade pip for better wheel handling
+RUN pip install --upgrade pip
 
-# Install poetry
-RUN pip install poetry
+# Copy the requirements files first for better caching
+COPY src/ ./src/
+COPY pyproject.toml .
+COPY docker-entrypoint.sh .
+COPY LICENSE .
+COPY README.md .
+COPY requirements.txt .
 
-# Configure poetry to install packages to the system python
-RUN poetry config virtualenvs.create false
+# Build wheel for aurite-agents and all its dependencies
+# This creates wheels in /wheels directory for faster installation
+RUN pip wheel --no-cache-dir --wheel-dir /wheels .
 
-# Install all dependencies, including the project itself in editable mode
-# This is the single source of truth for dependencies
-RUN poetry install --with storage
+# Install all wheels (aurite-agents and dependencies)
+RUN pip install --no-cache-dir --no-deps /wheels/*.whl
 
 # =============================================================================
 # Runtime stage
 # =============================================================================
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:d67a7b66b989ad6b6d6b10d428dcc5e0bfc3e5f88906e67d490c4d3daac57047
+
+# Build arguments for metadata
+ARG GIT_COMMIT=unknown
+ARG BUILD_DATE=unknown
 
 # Add metadata labels for DockerHub
 LABEL org.opencontainers.image.title="Aurite Agents Framework" \
@@ -52,39 +73,34 @@ LABEL org.opencontainers.image.title="Aurite Agents Framework" \
       org.opencontainers.image.documentation="https://github.com/Aurite-ai/aurite-agents/blob/main/README.md" \
       org.opencontainers.image.vendor="Aurite AI" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.version="0.3.28" \
+      org.opencontainers.image.version="0.4.1" \
+      org.opencontainers.image.revision="${GIT_COMMIT}" \
+      org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="Ryan W <ryan@aurite.ai>, Blake R <blake@aurite.ai>, Jiten Oswal <jiten@aurite.ai>" \
-      org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
       maintainer="Aurite AI <hello@aurite.ai>"
 
+
 # Install runtime dependencies
-# We need curl for healthcheck, libpq5 for psycopg2, python3 for health check script
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         curl \
         libpq5 && \
     rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser
+# Create non-root user for security with explicit home directory
+RUN useradd -m -u 1000 -d /home/appuser appuser
 
 # Create application directories
-RUN mkdir -p /app/src /app/project /app/cache && \
+RUN mkdir -p /app/project /app/cache && \
     chown -R appuser:appuser /app
 
-# Copy necessary artifacts from the builder stage
-# Copy installed Python packages (including dev dependencies and editable install)
+# Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
-# Copy the source code (needed for editable install runtime and reload)
-COPY --from=builder /build/src/ /app/src/
-# Copy pyproject.toml (might be needed by runtime tools or for reference)
-COPY --from=builder /build/pyproject.toml /app/
-# Copy entrypoint script
-COPY --from=builder /build/docker-entrypoint.sh /app/
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
 
-# Make entrypoint executable and ensure proper ownership
-RUN chmod +x /app/docker-entrypoint.sh && \
-    chown appuser:appuser /app/docker-entrypoint.sh
+# Copy entrypoint script if it exists
+COPY --chown=appuser:appuser docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER appuser
@@ -93,30 +109,14 @@ USER appuser
 WORKDIR /app/project
 
 # Set environment variables
-ENV PYTHONPATH=/app/src \
-    PYTHONUNBUFFERED=1 \
-    # API server settings
-    AURITE_API_HOST=0.0.0.0 \
-    AURITE_API_PORT=8000 \
-    # Feature flags
-    AURITE_ALLOW_DYNAMIC_REGISTRATION=true \
-    # Database settings (default to file-based mode)
-    AURITE_ENABLE_DB=false \
-    AURITE_DB_TYPE=sqlite \
-    AURITE_DB_PATH=/app/project/.aurite_db/aurite.db \
-    # Cache directory
-    CACHE_DIR=/app/cache \
-    # Logging
-    LOG_LEVEL=INFO \
-    ENV=production \
-    # Auto-initialization (disabled by default for security)
-    AURITE_AUTO_INIT=false
+# No PYTHONPATH needed - aurite is properly installed as a package
+ENV PYTHONUNBUFFERED=1 \
+    AURITE_PROJECT_DIR=/app/project
 
 # Expose the API port
 EXPOSE 8000
 
-# Health check - use Python to check the health endpoint
-# This avoids dependency on external tools and provides better error messages
+# Health check using Python to check the health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${AURITE_API_PORT:-8000}/health').read()" || exit 1
 

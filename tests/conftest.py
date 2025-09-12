@@ -70,6 +70,55 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
+def with_test_config():
+    try:
+        with open(".aurite", "r+") as f:
+            original_content = f.read()
+
+            content = original_content
+            import re
+
+            # Find the include_configs list
+            match = re.search(r"include_configs\s*=\s*(\[.*\])", content)
+            if match:
+                include_configs_list_str = match.group(1)
+                # Remove brackets and whitespace
+                include_configs_str = include_configs_list_str.strip()[1:-1].strip()
+                if include_configs_str.endswith(","):
+                    include_configs_str = include_configs_str[:-1]
+
+                if not include_configs_str:
+                    # The list is empty
+                    new_include_configs_list = '["./tests/fixtures/config"]'
+                else:
+                    # The list has existing configs
+                    new_include_configs_list = f'[{include_configs_str}, "./tests/fixtures/config"]'
+
+                content = content.replace(
+                    f"include_configs = {include_configs_list_str}",
+                    f"include_configs = {new_include_configs_list}",
+                )
+            else:
+                # If include_configs is not present, add it at the end
+                if content.endswith("\n"):
+                    content += 'include_configs = ["./tests/fixtures/config"]\n'
+                else:
+                    content += '\ninclude_configs = ["./tests/fixtures/config"]\n'
+
+            f.seek(0)
+            f.write(content)
+            f.truncate()
+
+        yield
+
+        with open(".aurite", "w") as f:
+            f.write(original_content)
+
+    except Exception as e:
+        logger.warning(f"Test fixtures config could not be loaded: {e}")
+
+
+@pytest.fixture
 def host_config() -> HostConfig:
     """
     Provides a default HostConfig object for tests.
@@ -94,49 +143,6 @@ def mock_client_session_group() -> MagicMock:
     mock_group.tools = {}
     mock_group.sessions = {}
     return mock_group
-
-
-@pytest.fixture
-def with_test_config():
-    try:
-        with open(".aurite", "r+") as f:
-            original_content = f.read()
-
-            content = original_content
-            import re
-
-            # Find the projects list
-            match = re.search(r"projects\s*=\s*(\[.*\])", content)
-            if match:
-                projects_list_str = match.group(1)
-                # Remove brackets and whitespace
-                projects_str = projects_list_str.strip()[1:-1].strip()
-                if projects_str[-1] == ",":
-                    projects_str = projects_str[:-1]
-
-                if not projects_str:
-                    # The list is empty
-                    new_projects_list = '["./tests/fixtures/config"]'
-                else:
-                    # The list has existing projects
-                    new_projects_list = f'[{projects_str}, "./tests/fixtures/config"]'
-
-                content = content.replace(
-                    f"projects = {projects_list_str}",
-                    f"projects = {new_projects_list}",
-                )
-
-            f.seek(0)
-            f.write(content)
-            f.truncate()
-
-        yield
-
-        with open(".aurite", "w") as f:
-            f.write(original_content)
-
-    except Exception as e:
-        logger.warning(f"Test fixtures config could not be loaded: {e}")
 
 
 @pytest.fixture

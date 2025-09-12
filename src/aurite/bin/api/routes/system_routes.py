@@ -244,48 +244,6 @@ async def get_system_capabilities(api_key: str = Security(get_api_key)):
     # Check for optional dependencies
     optional_features = {}
 
-    # Check for ML dependencies
-    try:
-        import pandas  # type: ignore # noqa: F401
-
-        optional_features["pandas"] = True
-    except ImportError:
-        optional_features["pandas"] = False
-
-    try:
-        # Try importing sentence_transformers if available
-        __import__("sentence_transformers")
-        optional_features["sentence_transformers"] = True
-    except ImportError:
-        optional_features["sentence_transformers"] = False
-
-    # Set ml_support based on both dependencies
-    optional_features["ml_support"] = optional_features.get("pandas", False) and optional_features.get(
-        "sentence_transformers", False
-    )
-
-    # Check for storage dependencies
-    try:
-        import redis  # noqa: F401
-
-        optional_features["redis_cache"] = True
-    except ImportError:
-        optional_features["redis_cache"] = False
-
-    try:
-        import psycopg2  # noqa: F401
-
-        optional_features["postgresql"] = True
-    except ImportError:
-        optional_features["postgresql"] = False
-
-    try:
-        import mem0  # noqa: F401
-
-        optional_features["mem0_memory"] = True
-    except ImportError:
-        optional_features["mem0_memory"] = False
-
     # Get supported LLM providers from litellm
     supported_llm_providers = [
         "openai",

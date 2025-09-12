@@ -15,7 +15,7 @@ from ...models.config.components import CustomWorkflowConfig  # Updated import p
 
 # Type hint for AuriteEngine
 if TYPE_CHECKING:
-    from ...execution.aurite_engine import AuriteEngine
+    from ....execution.aurite_engine import AuriteEngine
 
 
 logger = logging.getLogger(__name__)

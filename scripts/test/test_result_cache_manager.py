@@ -269,7 +269,7 @@ async def test_cleanup_expired():
             test_type = "workflow"
             test_result = create_test_result(component_id, test_type)
 
-            print(f"Saving result {i+1}/3 with 1-second TTL...")
+            print(f"Saving result {i + 1}/3 with 1-second TTL...")
             cache_manager.save_test_result(component_id, test_type, test_result, ttl_override=1)
 
         # Save one with long TTL
@@ -296,9 +296,9 @@ async def test_cleanup_expired():
         for i in range(3):
             component_id = f"cleanup_test_{i}"
             if cache_manager.get_test_result(component_id, "workflow", ttl_override=1) is None:
-                print(f"✓ Expired result {i+1} correctly removed")
+                print(f"✓ Expired result {i + 1} correctly removed")
             else:
-                print(f"✗ Expired result {i+1} still exists")
+                print(f"✗ Expired result {i + 1} still exists")
                 return False
 
         return True

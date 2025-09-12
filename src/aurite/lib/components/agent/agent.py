@@ -96,6 +96,9 @@ class Agent:
         """
         logger.debug(f"Agent starting run for '{self.config.name or 'Unnamed'}'.")
         max_iterations = self.config.max_iterations
+        # Handle None case - use a sensible default
+        if max_iterations is None:
+            max_iterations = 50  # Use the same default as in AgentConfig
 
         for current_iteration in range(max_iterations):
             logger.debug(f"Conversation loop iteration {current_iteration + 1}")
@@ -126,17 +129,20 @@ class Agent:
                     if self.final_response:
                         self.final_response = ChatCompletionMessage.model_validate(self.final_response.model_dump())
                     return AgentRunResult(
+                        agent_name=self.config.name,
                         status="success",
                         final_response=self.final_response,
                         conversation_history=self.conversation_history,
                         error_message=None,
                         session_id=self.session_id,
+                        exception=None,
                     )
 
             except Exception as e:
                 error_message = f"Error during conversation turn {current_iteration + 1}: {type(e).__name__}: {e}"
                 logger.error(error_message)
                 return AgentRunResult(
+                    agent_name=self.config.name,
                     status="error",
                     final_response=None,
                     conversation_history=self.conversation_history,
@@ -152,6 +158,8 @@ class Agent:
             conversation_history=self.conversation_history,
             error_message=f"Agent stopped after reaching the maximum of {max_iterations} iterations.",
             session_id=self.session_id,
+            agent_name=self.config.name,
+            exception=None,
         )
 
     async def stream_conversation(self) -> AsyncGenerator[Dict[str, Any], None]:
@@ -163,6 +171,9 @@ class Agent:
         logger.info(f"Starting streaming conversation for agent '{self.config.name or 'Unnamed'}'")
 
         max_iterations = self.config.max_iterations
+        # Handle None case - use a sensible default
+        if max_iterations is None:
+            max_iterations = 50  # Use the same default as in AgentConfig
         llm_started = False
 
         for current_iteration in range(max_iterations):

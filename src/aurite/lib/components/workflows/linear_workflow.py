@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from pydantic import BaseModel
 
+# Import error types for proper error handling
+from ....utils.errors import ConfigurationError
 from ...models.api.responses import AgentRunResult, LinearWorkflowExecutionResult, LinearWorkflowStepResult
 
 # Relative imports assuming this file is in src/workflows/
@@ -16,7 +18,7 @@ from ...models.config.components import WorkflowComponent, WorkflowConfig
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
-    from ...execution.aurite_engine import AuriteEngine
+    from ....execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +176,18 @@ class LinearWorkflowExecutor:
                         )
                     )
 
+                except ConfigurationError as e:
+                    # Configuration errors should be reported clearly and stop execution immediately
+                    error_msg = f"Configuration error for component '{component.name}': {str(e)}"
+                    logger.error(error_msg)
+                    return LinearWorkflowExecutionResult(
+                        workflow_name=workflow_name,
+                        status="failed",
+                        step_results=step_results,
+                        final_output=current_message,
+                        error=error_msg,
+                        session_id=session_id,
+                    )
                 except Exception as e:
                     logger.error(
                         f"Error processing component '{component.name}': {e}",

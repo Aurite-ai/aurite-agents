@@ -17,7 +17,7 @@ from ...models.config.components import GraphWorkflowConfig
 
 # Import LLM client and Facade for type hinting only
 if TYPE_CHECKING:
-    from ...execution.aurite_engine import AuriteEngine
+    from ....execution.aurite_engine import AuriteEngine
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,8 @@ class GraphWorkflowExecutor:
 
         config_manager = self.engine._config_manager
         for node in self.config.nodes:
-            config = config_manager.get_config(component_type=node.type, component_id=node.name)
-            if not config:
+            # Check if configuration exists for this node
+            if not config_manager.get_config(component_type=node.type, component_id=node.name):
                 raise ValueError(
                     f"Invalid Node: No config found for node_id {node.node_id} (type: {node.type}, name: {node.name})"
                 )

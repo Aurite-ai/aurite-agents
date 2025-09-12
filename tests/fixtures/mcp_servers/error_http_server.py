@@ -3,6 +3,7 @@ Error MCP server for HTTP testing using FastMCP HTTP transport
 """
 
 import time
+
 from fastmcp import FastMCP
 
 mcp = FastMCP("error-http-server")

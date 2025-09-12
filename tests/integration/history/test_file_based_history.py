@@ -6,7 +6,6 @@ Tests the SessionManager with CacheManager (no database).
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from openai.types.chat import ChatCompletionMessage
@@ -33,9 +32,7 @@ def cache_manager(temp_cache_dir):
 def session_manager(cache_manager):
     """Create a SessionManager with file-based caching only (no database)."""
     # Pass None for storage_manager to use file-based caching only
-    mock_storage = MagicMock()
-    mock_storage._engine = None  # Simulate no database
-    return SessionManager(cache_manager=cache_manager, storage_manager=mock_storage)
+    return SessionManager(cache_manager=cache_manager, storage_manager=None)
 
 
 class TestFileBasedSessionHistory:

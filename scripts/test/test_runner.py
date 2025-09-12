@@ -264,7 +264,7 @@ class TestRunner:
         print("📊 OVERALL RESULTS:")
         print(f"   Success Rate: {success_rate:.1f}% ({total_success}/{total_tests})")
         print(f"   Total Duration: {total_duration:.2f}s")
-        print(f"   Average per Suite: {total_duration/total_tests:.2f}s")
+        print(f"   Average per Suite: {total_duration / total_tests:.2f}s")
 
         if success_rate >= 95:
             print("🎉 EXCELLENT - Test suite is highly reliable!")

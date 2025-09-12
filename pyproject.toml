@@ -1,6 +1,6 @@
 [project]
 name = "aurite"
-version = "0.3.28"
+version = "0.4.1"
 description = "Aurite Agents is an agent development and runtime framework."
 authors = [
     { name = "Ryan W", email = "ryan@aurite.ai" },
@@ -10,6 +10,7 @@ authors = [
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
+
 requires-python = ">=3.11,<4.0.0"
 keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
 classifiers = [
@@ -34,13 +35,13 @@ dependencies = [
     "pytz (>=2025.2,<2026.0)",
     "fastapi (>=0.115.14,<0.116.0)",
     "typer[all] (>=0.16.0,<0.17.0)",
+
     "uvicorn (>=0.29.0,<0.36.0)",
     "anyio (>=4.9.0,<5.0.0)",
     "openai (>=1.99.6,<1.100.0)",
     "pydantic-settings (>=2.10.1,<3.0.0)",
     "sqlalchemy (>=2.0.41,<3.0.0)",
     "cryptography (>=43.0.0,<46.0.0)",
-    "pydub (>=0.25.1,<0.26.0)",
     "tomli (>=2.2.1,<3.0.0)",
     "textual[syntax] (>=3.5.0,<4.0.0)",
     "toml (>=0.10.2,<0.11.0)",
@@ -51,19 +52,42 @@ dependencies = [
     "litellm (>=1.75.4,<2.0.0)",
     "fastmcp (>=2.11.3,<3.0.0)",
     "rich (>=14.1.0,<15.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
 ]
+
+# DEV DEPENDENCIES
+[tool.poetry.group.dev.dependencies]
+textual-dev = ">=1.7.0,<2.0.0"
+pytest = "^8.4.1"
+pytest-mock = "^3.12.0"
+pytest-timeout = "^2.4.0"
+mypy = "^1.16.1"
+types-pyyaml = "^6.0.12.20250516"
+types-pytz = "^2025.2.0.20250516"
+jupyter = "^1.1.1"
+pre-commit = "^4.2.0"
+alembic = "^1.16.2"
+deptry = { version = "^0.23.0", python = ">=3.11,<4.0" }
+pytest-httpserver = "^1.1.3"
+mkdocs-gen-files = "^0.5.0"
+mkdocs-jupyter = "^0.25.1"
+mkdocs-material = "^9.6.16"
+pymdown-extensions = "^10.16.1"
+pytest-benchmark = "^5.1.0"
+
+[project.scripts]
+aurite = "aurite.bin.cli:app"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [project.urls]
 Homepage = "https://publish.obsidian.md/aurite/HOME"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
 
-[project.scripts]
-aurite = "aurite.bin.cli:app"
 
-[project.optional-dependencies]
-storage = ["redis>=6.2.0,<7.0.0", "psycopg2-binary>=2.9.10,<3.0.0", "mem0ai>=0.1.113,<0.2.0"]
-ml = ["pandas>=2.3.0,<3.0.0", "sentence-transformers>=4.1.0,<5.0.0"]
-
+# POETRY CONFIGURATION
 [tool.poetry]
 packages = [{ include = "aurite", from = "src" }]
 include = [
@@ -82,37 +106,10 @@ include = [
     ] },
 ]
 
-[tool.poetry.group.dev.dependencies]
-textual-dev = ">=1.7.0,<2.0.0"
-pytest = "^8.4.1"
-pytest-mock = "^3.12.0"
-pytest-timeout = "^2.4.0"
-mypy = "^1.16.1"
-types-pyyaml = "^6.0.12.20250516"
-types-pytz = "^2025.2.0.20250516"
-jupyter = "^1.1.1"
-pre-commit = "^4.2.0"
-alembic = "^1.16.2"
-deptry = { version = "^0.23.0", python = ">=3.11,<4.0" }
-pytest-httpserver = "^1.1.3"
-mkdocs-gen-files = "^0.5.0"
-mkdocs-jupyter = "^0.25.1"
-mkdocs-material = "^9.6.16"
-pymdown-extensions = "^10.16.1"
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
 
-[tool.poetry.group.storage]
-optional = true
-
-[tool.poetry.group.storage.dependencies]
-redis = "^6.2.0"
-psycopg2-binary = "^2.9.10"
-mem0ai = { version = "^0.1.113", python = ">=3.11,<4.0" }
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-# Pytest configuration
+# PYTEST CONFIGURATION
 [tool.pytest.ini_options]
 anyio_mode = "asyncio"
 testpaths = ["tests"]
@@ -154,6 +151,7 @@ addopts = "--verbose --no-header --disable-warnings"
 junit_family = "xunit2"
 timeout = 60
 
+# MYPY CONFIGURATION
 [tool.mypy]
 warn_return_any = false
 ignore_missing_imports = true
@@ -161,14 +159,26 @@ check_untyped_defs = false
 disallow_untyped_defs = false
 show_error_codes = true
 disallow_untyped_calls = false
-files = ["src/aurite/**/*.py"]
+files = ["src/aurite"]
 follow_imports = "silent"
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
 
+# DEPTRY CONFIGURATION
 [tool.deptry]
 known_first_party = ["aurite"]
-extend_exclude = ["tests", "docs"]
+extend_exclude = [
+    "tests",
+    "docs",
+    "src/aurite/lib/storage/mcp_storage",
+    "scripts",
+]
 per_rule_ignores = { DEP001 = [
     "pytest_benchmark",
+    "importlib_resources",
+], DEP002 = [
+    "psycopg2-binary",
 ], DEP003 = [
     "google",
     "httpx",
@@ -182,6 +192,7 @@ per_rule_ignores = { DEP001 = [
     "mem0",
     "psycopg2",
     "sentence_transformers",
+    "pytest_benchmark",
 ] }
 
 [tool.deptry.package_module_name_map]
@@ -190,6 +201,7 @@ per_rule_ignores = { DEP001 = [
 "pandas" = "pandas"
 "sentence-transformers" = "sentence_transformers"
 
+# RUFF CONFIGURATION
 [tool.ruff]
 line-length = 120
 indent-width = 4
@@ -212,6 +224,7 @@ ignore = [
     "C901", # too complex
     "E722", # do not use bare except
     "F403", # forbidden import
+    "E402", # module level import not at top of file
 ]
 
 [tool.ruff.lint.isort]
