@@ -42,7 +42,7 @@
       },
       {
         "name": "comprehensive_travel",
-        "input": "Create a comprehensive travel plan based on weather in three cities",
+        "input": "Create a comprehensive travel plan based on weather in three cities: London, Tokyo, and New York",
         "expectations": [
           "The response uses weather tools to get weather data for multiple cities",
           "The response uses planning tools to create and save a structured plan",
@@ -63,7 +63,7 @@
     "type": "evaluation",
     "component_type": "agent",
     "component_refs": [
-      "Average Weather Agent"
+      "Good Weather Agent"
     ],
     "review_llm": null,
     "test_cases": [
