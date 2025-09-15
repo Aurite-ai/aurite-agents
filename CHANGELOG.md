@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feat-sqlite-support ([@wilcoxr](https://github.com/wilcoxr)) [#149](https://github.com/Aurite-ai/aurite-agents/pull/149)
 
 ### Changed
+- Feat/test engine setup ([@wilcoxr](https://github.com/wilcoxr)) [#174](https://github.com/Aurite-ai/aurite-agents/pull/174)
 - Update/pyproject improvements ([@wilcoxr](https://github.com/wilcoxr)) [#172](https://github.com/Aurite-ai/aurite-agents/pull/172)
 - Framework Agnostic Eval ([@blakerandle](https://github.com/blakerandle)) [#170](https://github.com/Aurite-ai/aurite-agents/pull/170)
 - Feat/container-publish ([@wilcoxr](https://github.com/wilcoxr)) [#166](https://github.com/Aurite-ai/aurite-agents/pull/166)
