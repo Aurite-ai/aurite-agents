@@ -1,0 +1,44 @@
+[
+    {
+        "name": "formatting_evaluation_good",
+        "type": "evaluation",
+        "component_type": "agent",
+        "component_refs": [
+            "QA Formatting Agent Good"
+        ],
+        "review_llm": null,
+        "test_cases": [
+            {
+                "name": "meeting_transcript",
+                "input": "David Kim: Alright everyone, let's get started. Sarah, can you walk us through the test fixture design?\nSarah Chen: Sure. We've designed a pneumatic test fixture for the new PCB assembly. It uses four spring-loaded pins for electrical contact and has a clear polycarbonate cover for operator safety.\nMike Rodriguez: What's the clamping force on the PCB?\nSarah Chen: We're targeting 15 pounds of downward force, adjustable via the pneumatic regulator. The fixture can accommodate boards from 0.8mm to 2.0mm thickness.\nLisa Park: Have we validated the repeatability? I'm concerned about contact resistance variations.\nSarah Chen: Good point. Initial tests show contact resistance under 50 milliohms with less than 5% variation across 100 cycles.\nMike Rodriguez: The pneumatic system looks solid, but we should add a pressure sensor for monitoring.\nDavid Kim: Agreed. What's our timeline for prototype completion?\nSarah Chen: Two weeks for fabrication, then one week for validation testing.\nLisa Park: I'll need the test procedures documented before we can approve for production use.\nDavid Kim: Perfect. Sarah, please coordinate with Lisa on the documentation. Any other concerns?\nMike Rodriguez: None from me. The design looks good to go.\nDavid Kim: Great. Let's reconvene in three weeks for the validation results. Meeting adjourned.",
+                "expectations": [
+                    "The response is a markdown formatted summary of the meeting",
+                    "The response includes an attendees list with 4 names: David Kim, Sarah Chen, Mike Rodriguez, Lisa Park",
+                    "The response includes a short meeting summary at the beginning",
+                    "The response includes a list of Action Items"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "formatting_evaluation_bad",
+        "type": "evaluation",
+        "component_type": "agent",
+        "component_refs": [
+            "QA Formatting Agent Bad"
+        ],
+        "review_llm": null,
+        "test_cases": [
+            {
+                "name": "meeting_transcript",
+                "input": "David Kim: Alright everyone, let's get started. Sarah, can you walk us through the test fixture design?\nSarah Chen: Sure. We've designed a pneumatic test fixture for the new PCB assembly. It uses four spring-loaded pins for electrical contact and has a clear polycarbonate cover for operator safety.\nMike Rodriguez: What's the clamping force on the PCB?\nSarah Chen: We're targeting 15 pounds of downward force, adjustable via the pneumatic regulator. The fixture can accommodate boards from 0.8mm to 2.0mm thickness.\nLisa Park: Have we validated the repeatability? I'm concerned about contact resistance variations.\nSarah Chen: Good point. Initial tests show contact resistance under 50 milliohms with less than 5% variation across 100 cycles.\nMike Rodriguez: The pneumatic system looks solid, but we should add a pressure sensor for monitoring.\nDavid Kim: Agreed. What's our timeline for prototype completion?\nSarah Chen: Two weeks for fabrication, then one week for validation testing.\nLisa Park: I'll need the test procedures documented before we can approve for production use.\nDavid Kim: Perfect. Sarah, please coordinate with Lisa on the documentation. Any other concerns?\nMike Rodriguez: None from me. The design looks good to go.\nDavid Kim: Great. Let's reconvene in three weeks for the validation results. Meeting adjourned.",
+                "expectations": [
+                    "The response is a markdown formatted summary of the meeting",
+                    "The response includes an attendees list with 4 names: David Kim, Sarah Chen, Mike Rodriguez, Lisa Park",
+                    "The response includes a short meeting summary at the beginning",
+                    "The response includes a list of Action Items"
+                ]
+            }
+        ]
+    }
+]

@@ -88,6 +88,8 @@ class QAFunctionalTester:
                 "expected_pass_rate": 50.0,
             },  # Single config that tests all three agents
             {"config": "single_weather_agent_evaluation", "expected_pass_rate": 100.0},
+            {"config": "formatting_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "formatting_evaluation_bad", "expected_pass_rate": 0.0},
         ]
 
         self.manual_agent_evaluations = [
