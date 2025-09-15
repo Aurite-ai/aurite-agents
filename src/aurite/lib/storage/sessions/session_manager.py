@@ -487,6 +487,152 @@ class SessionManager:
             except Exception as e:
                 logger.error(f"Error during cache cleanup: {e}", exc_info=True)
 
+    # --- QA Test Result Management Methods ---
+
+    def save_qa_test_result(self, result: Dict[str, Any], evaluation_config_id: str) -> Optional[str]:
+        """
+        Save a QA test result with caching support.
+
+        Args:
+            result: QAEvaluationResult as dictionary
+            evaluation_config_id: ID of the evaluation config used
+
+        Returns:
+            The result_id if saved successfully, None otherwise
+        """
+        import uuid
+
+        # Generate unique result ID
+        result_id = f"qa_{uuid.uuid4().hex[:12]}"
+
+        # Extract metadata for indexing
+        component_type = result.get("component_type")
+        overall_score = result.get("overall_score")
+        status = result.get("status")
+
+        # Prepare result data for storage
+        result_data = {
+            "result_id": result_id,
+            "evaluation_config_id": evaluation_config_id,
+            "result": result,
+            "component_type": component_type,
+            "overall_score": overall_score,
+            "status": status,
+        }
+
+        # Save to database if available
+        db_saved = False
+        if self._use_db and self._storage:
+            try:
+                db_saved = self._storage.save_qa_result(result_data)
+                if db_saved:
+                    logger.debug(f"QA result {result_id} saved to database")
+            except Exception as e:
+                logger.warning(f"Failed to save QA result {result_id} to database: {e}")
+
+        # Always save to cache for fast access
+        try:
+            self._cache.save_qa_result(result_id, result_data)
+            logger.debug(f"QA result {result_id} saved to cache")
+        except Exception as e:
+            logger.error(f"Failed to save QA result {result_id} to cache: {e}")
+            if not db_saved:
+                return None  # Failed to save anywhere
+
+        return result_id
+
+    def get_qa_test_result(self, result_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a QA test result with caching support.
+
+        Args:
+            result_id: The result ID to retrieve
+
+        Returns:
+            Complete QA result data, or None if not found
+        """
+        # Check cache first for fast access
+        result_data = self._cache.get_qa_result(result_id)
+        if result_data:
+            return result_data
+
+        # Fall back to database if available
+        if self._use_db and self._storage:
+            try:
+                result_data = self._storage.get_qa_result(result_id)
+                if result_data:
+                    # Update cache for future access
+                    self._cache.save_qa_result(result_id, result_data)
+                    return result_data
+            except Exception as e:
+                logger.warning(f"Failed to get QA result {result_id} from database: {e}")
+
+        return None
+
+    def get_qa_test_results(
+        self, evaluation_config_id: Optional[str] = None, component_type: Optional[str] = None, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get a list of QA test results with optional filtering.
+
+        Args:
+            evaluation_config_id: Filter by evaluation config ID
+            component_type: Filter by component type
+            limit: Maximum number of results to return
+
+        Returns:
+            List of QA result metadata (without full result data for performance)
+        """
+        # Try database first if available
+        if self._use_db and self._storage:
+            try:
+                results, _total = self._storage.get_qa_results_list(
+                    evaluation_config_id=evaluation_config_id, component_type=component_type, limit=limit, offset=0
+                )
+                return results
+            except Exception as e:
+                logger.warning(f"Failed to get QA results from database: {e}")
+
+        # Fall back to cache-based filtering (less efficient but works)
+        cache_dir = self._cache.get_cache_dir()
+        results = []
+
+        try:
+            for qa_file in cache_dir.glob("qa_*.json"):
+                if len(results) >= limit:
+                    break
+
+                try:
+                    with open(qa_file, "r") as f:
+                        result_data = json.load(f)
+
+                    # Apply filters
+                    if evaluation_config_id and result_data.get("evaluation_config_id") != evaluation_config_id:
+                        continue
+                    if component_type and result_data.get("component_type") != component_type:
+                        continue
+
+                    # Add metadata only (not full result)
+                    results.append(
+                        {
+                            "result_id": result_data.get("result_id"),
+                            "evaluation_config_id": result_data.get("evaluation_config_id"),
+                            "component_type": result_data.get("component_type"),
+                            "overall_score": result_data.get("overall_score"),
+                            "status": result_data.get("status"),
+                            "created_at": None,  # Not available in cache files
+                        }
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to process QA cache file {qa_file}: {e}")
+        except Exception as e:
+            logger.error(f"Error during QA cache file scan: {e}")
+
+        # Sort by result_id (newest first, assuming timestamp in ID)
+        results.sort(key=lambda x: x.get("result_id", ""), reverse=True)
+
+        return results
+
     def _validate_and_transform_metadata(self, session_data: Dict[str, Any]) -> SessionMetadata:
         """
         Transforms raw session data into a validated Pydantic model.
@@ -512,6 +658,76 @@ class SessionManager:
             agents_involved=session_data.get("agents_involved"),
             base_session_id=session_data.get("base_session_id"),
         )
+
+    def save_qa_case_result(self, cache_key: str, cache_data: Dict[str, Any]) -> bool:
+        """
+        Save a QA case result to cache.
+
+        Args:
+            cache_key: The cache key to store under
+            cache_data: The cache data containing result and metadata
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            # Use cache manager to store the QA case result
+            self._cache.save_qa_case_result(cache_key, cache_data)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save QA case result for key {cache_key}: {e}")
+            return False
+
+    def get_qa_case_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a QA case result from cache.
+
+        Args:
+            cache_key: The cache key to look up
+
+        Returns:
+            Cache data if found, None otherwise
+        """
+        try:
+            return self._cache.get_qa_case_result(cache_key)
+        except Exception as e:
+            logger.error(f"Failed to get QA case result for key {cache_key}: {e}")
+            return None
+
+    def save_qa_evaluation_result(self, cache_key: str, cache_data: Dict[str, Any]) -> bool:
+        """
+        Save a QA evaluation result to cache.
+
+        Args:
+            cache_key: The cache key to store under
+            cache_data: The cache data containing result and metadata
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        try:
+            # Use cache manager to store the QA evaluation result
+            self._cache.save_qa_evaluation_result(cache_key, cache_data)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save QA evaluation result for key {cache_key}: {e}")
+            return False
+
+    def get_qa_evaluation_result(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a QA evaluation result from cache.
+
+        Args:
+            cache_key: The cache key to look up
+
+        Returns:
+            Cache data if found, None otherwise
+        """
+        try:
+            return self._cache.get_qa_evaluation_result(cache_key)
+        except Exception as e:
+            logger.error(f"Failed to get QA evaluation result for key {cache_key}: {e}")
+            return None
 
     def _extract_metadata(self, execution_result: Dict[str, Any]) -> Dict[str, Any]:
         """

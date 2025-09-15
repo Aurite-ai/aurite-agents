@@ -15,7 +15,7 @@ from sqlalchemy.orm.session import Session
 
 from .db_connection import create_db_engine, get_db_session
 from .db_models import Base as SQLAlchemyBase
-from .db_models import ComponentDB, SessionDB
+from .db_models import ComponentDB, QATestResultDB, SessionDB
 
 logger = logging.getLogger(__name__)
 
@@ -534,3 +534,213 @@ class StorageManager:
             if "conversation_history" in result:
                 return result["conversation_history"]
         return None
+
+    # --- QA Test Result Management Methods ---
+
+    def save_qa_result(self, result_data: Dict[str, Any]) -> bool:
+        """
+        Saves a QA test result to the database.
+
+        Args:
+            result_data: Dictionary containing:
+                - result_id: Unique identifier for the result
+                - evaluation_config_id: ID of the evaluation config used
+                - result: Complete QAEvaluationResult as dict
+                - component_type: Type of component tested (optional, for indexing)
+                - overall_score: Overall score (optional, for indexing)
+                - status: Result status (optional, for indexing)
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        if not self._engine:
+            logger.debug("Database not configured. Cannot save QA result.")
+            return False
+
+        result_id = result_data.get("result_id")
+        evaluation_config_id = result_data.get("evaluation_config_id")
+
+        if not result_id or not evaluation_config_id:
+            logger.warning("Cannot save QA result without result_id and evaluation_config_id")
+            return False
+
+        logger.debug(f"Saving QA result '{result_id}' to database")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for saving QA result")
+                return False
+
+            try:
+                # Check if result already exists
+                existing = db.get(QATestResultDB, result_id)
+
+                if existing:
+                    # Update existing result
+                    existing.evaluation_config_id = evaluation_config_id
+                    existing.result = result_data.get("result", {})
+                    existing.component_type = result_data.get("component_type")
+                    existing.overall_score = result_data.get("overall_score")
+                    existing.status = result_data.get("status")
+                    logger.debug(f"Updated existing QA result '{result_id}' in database")
+                else:
+                    # Create new result
+                    new_result = QATestResultDB(
+                        result_id=result_id,
+                        evaluation_config_id=evaluation_config_id,
+                        result=result_data.get("result", {}),
+                        component_type=result_data.get("component_type"),
+                        overall_score=result_data.get("overall_score"),
+                        status=result_data.get("status"),
+                        created_at=datetime.utcnow(),
+                    )
+                    db.add(new_result)
+                    logger.debug(f"Created new QA result '{result_id}' in database")
+
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to save QA result '{result_id}': {e}", exc_info=True)
+                return False
+
+    def get_qa_result(self, result_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a QA test result from the database.
+
+        Args:
+            result_id: The result ID to retrieve
+
+        Returns:
+            Complete QA result data as a dictionary, or None if not found
+        """
+        if not self._engine:
+            return None
+
+        logger.debug(f"Loading QA result '{result_id}' from database")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for loading QA result")
+                return None
+
+            try:
+                qa_result = db.get(QATestResultDB, result_id)
+                if qa_result:
+                    return {
+                        "result_id": qa_result.result_id,
+                        "evaluation_config_id": qa_result.evaluation_config_id,
+                        "result": qa_result.result,
+                        "component_type": qa_result.component_type,
+                        "overall_score": qa_result.overall_score,
+                        "status": qa_result.status,
+                        "created_at": qa_result.created_at.isoformat() if qa_result.created_at else None,
+                    }
+                return None
+
+            except Exception as e:
+                logger.error(f"Failed to load QA result '{result_id}': {e}", exc_info=True)
+                return None
+
+    def get_qa_results_list(
+        self,
+        evaluation_config_id: Optional[str] = None,
+        component_type: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        Lists QA test results with optional filtering.
+
+        Args:
+            evaluation_config_id: Filter by evaluation config ID
+            component_type: Filter by component type
+            limit: Maximum number of results
+            offset: Number of results to skip
+
+        Returns:
+            Tuple of (list of QA result dictionaries, total count)
+        """
+        if not self._engine:
+            return [], 0
+
+        logger.debug(
+            f"Listing QA results (config={evaluation_config_id}, type={component_type}, limit={limit}, offset={offset})"
+        )
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for listing QA results")
+                return [], 0
+
+            try:
+                # Build base query
+                query = db.query(QATestResultDB)
+
+                if evaluation_config_id:
+                    query = query.filter(QATestResultDB.evaluation_config_id == evaluation_config_id)
+
+                if component_type:
+                    query = query.filter(QATestResultDB.component_type == component_type)
+
+                # Get total count before pagination
+                total_count = query.count()
+
+                # Order by created_at descending (most recent first)
+                query = query.order_by(QATestResultDB.created_at.desc())
+
+                # Apply pagination
+                query = query.offset(offset).limit(limit)
+
+                results = []
+                for qa_result in query.all():
+                    results.append(
+                        {
+                            "result_id": qa_result.result_id,
+                            "evaluation_config_id": qa_result.evaluation_config_id,
+                            "component_type": qa_result.component_type,
+                            "overall_score": qa_result.overall_score,
+                            "status": qa_result.status,
+                            "created_at": qa_result.created_at.isoformat() if qa_result.created_at else None,
+                            # Note: Not including full result here for performance, use get_qa_result() for that
+                        }
+                    )
+
+                return results, total_count
+
+            except Exception as e:
+                logger.error(f"Failed to list QA results: {e}", exc_info=True)
+                return [], 0
+
+    def delete_qa_result(self, result_id: str) -> bool:
+        """
+        Deletes a QA test result from the database.
+
+        Args:
+            result_id: The result to delete
+
+        Returns:
+            True if deleted successfully, False otherwise
+        """
+        if not self._engine:
+            return False
+
+        logger.debug(f"Deleting QA result '{result_id}' from database")
+
+        with get_db_session(engine=self._engine) as db:
+            if not db:
+                logger.error("Failed to get DB session for deleting QA result")
+                return False
+
+            try:
+                qa_result = db.get(QATestResultDB, result_id)
+                if qa_result:
+                    db.delete(qa_result)
+                    logger.info(f"Deleted QA result '{result_id}' from database")
+                    return True
+                else:
+                    logger.debug(f"QA result '{result_id}' not found in database")
+                    return False
+
+            except Exception as e:
+                logger.error(f"Failed to delete QA result '{result_id}': {e}", exc_info=True)
+                return False

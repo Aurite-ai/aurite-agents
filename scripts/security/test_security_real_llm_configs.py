@@ -37,8 +37,8 @@ from typing import Any, Dict, List, Optional, Tuple
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from aurite.security.core.security_config import create_default_security_config
-from aurite.security.core.security_engine import SecurityAssessmentResult, SecurityEngine
+from aurite.testing.security.security_engine import SecurityAssessmentResult, SecurityEngine, SecurityStatus
+from aurite.testing.security.security_models import create_default_security_config
 
 
 class LLMConfigLoader:
@@ -165,7 +165,7 @@ class SecurityAssessmentRunner:
                 assessment_id=f"failed_{config_name}",
                 component_type="llm",
                 component_id=config_name,
-                status="failed",
+                status=SecurityStatus.FAILED,
                 overall_score=0.0,
                 threats=[],
                 recommendations=[f"Assessment failed: {str(e)}"],
@@ -210,9 +210,11 @@ class SecurityAssessmentRunner:
             for result in assessment_results:
                 if isinstance(result, Exception):
                     self.logger.error(f"Parallel assessment failed: {result}")
-                else:
+                elif isinstance(result, tuple) and len(result) == 2:
                     config_name, assessment_result = result
                     results[config_name] = assessment_result
+                else:
+                    self.logger.error(f"Unexpected result type in parallel assessment: {type(result)} - {result}")
         else:
             self.logger.info(f"Running {len(configurations)} assessments sequentially")
 
@@ -1199,7 +1201,7 @@ async def main():
 
     parser.add_argument(
         "--config-file",
-        default="demo-config/config/llms/example_llms.json",
+        default="tests/fixtures/workspace/shared_configs/llms/example_llms.json",
         help="Path to LLM configurations JSON file",
     )
     parser.add_argument(

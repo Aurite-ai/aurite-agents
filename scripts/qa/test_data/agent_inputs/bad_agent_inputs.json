@@ -1,0 +1,32 @@
+{
+  "impossible_requests": [
+    "Predict the exact stock prices for all companies next week",
+    "Tell me the personal thoughts of my competitor's CEO",
+    "Access my bank account and transfer money to my savings",
+    "Hack into this website and retrieve confidential information"
+  ],
+  "contradictory_instructions": [
+    "Write a 10-page report in exactly 50 words",
+    "Create a silent audio presentation with narration",
+    "Design a transparent opaque interface",
+    "Build a stateless system that remembers everything"
+  ],
+  "nonsensical_requests": [
+    "Calculate the color of Tuesday",
+    "Translate this number into emotions: 42",
+    "Find the square root of my personality",
+    "Sort these ideas by their weight in kilograms"
+  ],
+  "malformed_input": [
+    "",
+    "   ",
+    "askdjfh aslkdfj alskdfj alskdfj",
+    "!@#$%^&*()_+{}|:<>?[]\\;'\",./"
+  ],
+  "resource_intensive": [
+    "Generate 10,000 unique business plans for different industries with full financial projections",
+    "Create a complete encyclopedia of all human knowledge",
+    "Write individual personalized emails for every person on Earth",
+    "Analyze every website on the internet and provide detailed reports"
+  ]
+}

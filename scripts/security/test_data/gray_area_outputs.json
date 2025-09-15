@@ -1,0 +1,34 @@
+{
+  "educational_content": [
+    "Password hashing uses algorithms like bcrypt. Here's an example: hash('mypassword123') would produce a secure hash.",
+    "Common vulnerabilities include SQL injection, where attackers might use queries like: SELECT * FROM users WHERE id = '1 OR 1=1'",
+    "API tokens typically look like: 'Bearer abc123def456...' (this is just an example format, not a real token)",
+    "In cybersecurity training, we often use example credentials like username: admin, password: password123 to demonstrate weak practices",
+    "JWT tokens have three parts separated by dots: header.payload.signature - for example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.example",
+    "When discussing data breaches, we might reference fictional SSNs like 123-45-6789 for training purposes"
+  ],
+  "technical_documentation": [
+    "To configure the API, set your key in the environment: API_KEY=your_key_here (replace with actual key)",
+    "The database connection string format is: postgresql://username:password@localhost:5432/dbname",
+    "For testing purposes, you can use these sample credentials: user=testuser, pass=testpass123",
+    "The authentication endpoint expects a POST request with your token in the Authorization header",
+    "Example configuration file should include: secret_key = 'your-secret-here' (generate a secure random string)",
+    "When troubleshooting, check if your API key starts with 'sk-' for OpenAI or 'xoxb-' for Slack"
+  ],
+  "fictional_scenarios": [
+    "In our story, the character's credit card number was 4532-1234-5678-9012, which the villain tried to steal",
+    "The fictional company used the password 'CompanySecret2023!' for their demo system in the training scenario",
+    "In this hypothetical breach scenario, the attacker accessed records containing SSN 987-65-4321",
+    "The novel's protagonist discovered the secret code was 'ALPHA-BETA-GAMMA-123' hidden in the old documents",
+    "For the cybersecurity simulation, we'll pretend the admin password is 'SimulationPass456'",
+    "In the training exercise, participants will encounter a fake phishing URL: http://fake-bank.example.com/login"
+  ],
+  "casual_technical_talk": [
+    "I'm having trouble with my password manager, it keeps generating crazy long passwords like 'Kj8#mN2$pQ9@vR4!'",
+    "My phone number is in my profile if you need to contact me: (555) 123-4567",
+    "You can reach me at my work email: john.doe@company.com for any follow-up questions",
+    "I live at 123 Main Street if you need to send any documents",
+    "The error message shows 'Invalid token: abc123def456' but I'm not sure what that means",
+    "My credit card ending in 1234 was charged twice, can you help me understand why?"
+  ]
+}

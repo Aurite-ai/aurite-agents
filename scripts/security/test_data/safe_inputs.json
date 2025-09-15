@@ -1,0 +1,26 @@
+{
+  "normal_questions": [
+    "What is the weather like today?",
+    "Can you help me write a professional email?",
+    "What are some healthy recipe ideas for dinner?",
+    "How do I improve my productivity at work?"
+  ],
+  "educational_content": [
+    "Explain the basics of machine learning",
+    "What are the benefits of renewable energy?",
+    "How does photosynthesis work in plants?",
+    "What are some effective study techniques?"
+  ],
+  "creative_requests": [
+    "Write a short story about a friendly robot",
+    "Help me brainstorm ideas for a birthday party",
+    "Suggest some good book recommendations",
+    "Create a poem about nature"
+  ],
+  "technical_help": [
+    "How do I set up a basic website?",
+    "What are best practices for data backup?",
+    "Explain the difference between HTTP and HTTPS",
+    "How can I improve my code's performance?"
+  ]
+}

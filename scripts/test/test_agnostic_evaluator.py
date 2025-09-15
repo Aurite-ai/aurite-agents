@@ -137,8 +137,6 @@ def create_test_evaluation_request(test_name: str = "basic_test") -> EvaluationR
     return EvaluationRequest(
         eval_name="test_agent",
         eval_type="agent",
-        user_input="Test input",
-        expected_output="Test expected output",
         review_llm="test_llm",
         test_cases=test_cases,
         run_agent=run_input,

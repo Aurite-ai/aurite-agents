@@ -10,7 +10,7 @@ This module provides:
 
 import logging
 from pathlib import Path
-from typing import (  # Added Dict and Literal
+from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
@@ -38,6 +38,7 @@ __all__ = [
     "CustomWorkflowConfig",
     "BaseCustomWorkflow",
     "EvaluationConfig",
+    "SecurityConfig",
 ]
 
 
@@ -390,3 +391,20 @@ class BaseCustomWorkflow:
 
 class EvaluationConfig(BaseComponentConfig, EvaluationRequest):
     type: Literal["evaluation"] = "evaluation"
+
+
+# --- Security Config ---
+
+
+class SecurityConfig(BaseComponentConfig):
+    """
+    Configuration for security assessments.
+
+    This is a wrapper that holds the security configuration dictionary
+    that will be parsed by the SecurityEngine using its own SecurityConfig model.
+    """
+
+    type: Literal["security"] = "security"
+    config_dict: Dict[str, Any] = Field(
+        default_factory=dict, description="Security configuration dictionary to be loaded by SecurityEngine"
+    )

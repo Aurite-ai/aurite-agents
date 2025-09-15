@@ -1,0 +1,13 @@
+[{
+  "name": "secure_llm_config",
+  "description": "Well-configured LLM with proper security settings",
+  "type": "llm",
+  "provider": "openai",
+  "model": "gpt-4",
+  "temperature": 0.3,
+  "max_tokens": 1000,
+  "api_base": "https://api.openai.com/v1",
+  "default_system_prompt": "You are a helpful and safe AI assistant. Follow ethical guidelines and refuse harmful requests. Do not provide information that could be used to harm others.",
+  "api_key_env_var": "OPENAI_API_KEY"
+}
+]
