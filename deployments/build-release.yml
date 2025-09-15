@@ -1,0 +1,228 @@
+name: Build Release Assets
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0, v2.1.3, etc.
+
+jobs:
+  build-assets:
+    name: Build Frontend Assets and Package
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for proper versioning
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+      
+      - name: Build frontend assets
+        run: |
+          echo "🚀 Building frontend assets for release ${{ steps.version.outputs.version }}"
+          python scripts/build_frontend_for_package.py
+      
+      - name: Validate static assets
+        run: |
+          echo "🔍 Validating built assets..."
+          python -c "
+          from src.aurite.bin.studio.static_server import is_static_assets_available, get_static_assets_info
+          import sys
+          
+          if not is_static_assets_available():
+              print('❌ Static assets not found!')
+              sys.exit(1)
+          
+          info = get_static_assets_info()
+          print(f'✅ Static assets validated: {info[\"files\"]} files, {info[\"size_mb\"]} MB')
+          
+          # Check for required files
+          from pathlib import Path
+          static_dir = Path('src/aurite/bin/studio/static')
+          required_files = ['index.html', 'static', 'manifest.json']
+          
+          for file in required_files:
+              if not (static_dir / file).exists():
+                  print(f'❌ Required file missing: {file}')
+                  sys.exit(1)
+          
+          print('✅ All required files present')
+          "
+      
+      - name: Build Python package
+        run: |
+          echo "📦 Building Python package with static assets..."
+          poetry build
+          
+          # Verify the package includes static assets
+          echo "🔍 Verifying package contents..."
+          python -c "
+          import tarfile
+          import sys
+          from pathlib import Path
+          
+          # Find the built tarball
+          dist_files = list(Path('dist').glob('*.tar.gz'))
+          if not dist_files:
+              print('❌ No tarball found in dist/')
+              sys.exit(1)
+          
+          tarball = dist_files[0]
+          print(f'📦 Checking {tarball}')
+          
+          with tarfile.open(tarball, 'r:gz') as tar:
+              names = tar.getnames()
+              static_files = [n for n in names if 'bin/studio/static' in n]
+              
+              if not static_files:
+                  print('❌ No static assets found in package!')
+                  sys.exit(1)
+              
+              print(f'✅ Found {len(static_files)} static asset files in package')
+              
+              # Check for key files
+              has_index = any('index.html' in n for n in static_files)
+              has_js = any('.js' in n for n in static_files)
+              has_css = any('.css' in n for n in static_files)
+              
+              if not (has_index and has_js and has_css):
+                  print('❌ Missing key static assets (HTML/JS/CSS)')
+                  sys.exit(1)
+              
+              print('✅ Package validation successful')
+          "
+      
+      - name: Build API client package
+        run: |
+          echo "📦 Building API client package..."
+          cd frontend
+          npm run build
+          
+          # Check if API client was built
+          if [ ! -d "packages/api-client/dist" ]; then
+            echo "❌ API client build failed"
+            exit 1
+          fi
+          
+          echo "✅ API client built successfully"
+      
+      - name: Generate build report
+        run: |
+          echo "📊 Generating build report..."
+          python -c "
+          import json
+          from pathlib import Path
+          from src.aurite.bin.studio.static_server import get_static_assets_info
+          
+          # Get static assets info
+          static_info = get_static_assets_info()
+          
+          # Get package info
+          dist_files = list(Path('dist').glob('*.tar.gz'))
+          wheel_files = list(Path('dist').glob('*.whl'))
+          
+          package_info = {
+              'tarball': str(dist_files[0]) if dist_files else None,
+              'wheel': str(wheel_files[0]) if wheel_files else None,
+              'tarball_size_mb': round(dist_files[0].stat().st_size / 1024 / 1024, 2) if dist_files else 0,
+              'wheel_size_mb': round(wheel_files[0].stat().st_size / 1024 / 1024, 2) if wheel_files else 0
+          }
+          
+          # API client info
+          api_client_dist = Path('frontend/packages/api-client/dist')
+          api_client_info = {
+              'built': api_client_dist.exists(),
+              'files': len(list(api_client_dist.rglob('*'))) if api_client_dist.exists() else 0
+          }
+          
+          report = {
+              'version': '${{ steps.version.outputs.version }}',
+              'tag': '${{ steps.version.outputs.tag }}',
+              'static_assets': static_info,
+              'python_package': package_info,
+              'api_client': api_client_info,
+              'build_timestamp': '$(date -u +\"%Y-%m-%dT%H:%M:%SZ\")'
+          }
+          
+          with open('build-report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+          
+          print('📊 Build Report:')
+          print(json.dumps(report, indent=2))
+          "
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-assets-${{ steps.version.outputs.version }}
+          path: |
+            dist/
+            frontend/packages/api-client/dist/
+            build-report.json
+            src/aurite/bin/studio/static/
+          retention-days: 30
+      
+      - name: Create release summary
+        run: |
+          echo "## 🎉 Release Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Built Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Python package with static assets" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ API client TypeScript package" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Static frontend assets ($(python -c "from src.aurite.bin.studio.static_server import get_static_assets_info; info = get_static_assets_info(); print(f'{info[\"files\"]} files, {info[\"size_mb\"]} MB')"))" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the build artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run manual publishing workflows if approved:" >> $GITHUB_STEP_SUMMARY
+          echo "   - **Python Package:** Use 'Publish to PyPI' workflow" >> $GITHUB_STEP_SUMMARY
+          echo "   - **API Client:** Use 'Publish to npm' workflow" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Build artifacts are available for 30 days." >> $GITHUB_STEP_SUMMARY
+
+  notify-completion:
+    name: Notify Build Completion
+    runs-on: ubuntu-latest
+    needs: build-assets
+    if: always()
+    
+    steps:
+      - name: Build Success Notification
+        if: needs.build-assets.result == 'success'
+        run: |
+          echo "✅ Release build completed successfully!"
+          echo "Artifacts are ready for manual publishing approval."
+      
+      - name: Build Failure Notification
+        if: needs.build-assets.result == 'failure'
+        run: |
+          echo "❌ Release build failed!"
+          echo "Please check the build logs and fix any issues."
+          exit 1
