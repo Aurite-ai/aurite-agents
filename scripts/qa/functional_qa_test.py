@@ -155,6 +155,15 @@ class QAFunctionalTester:
 
         return self.results
 
+    async def run_tests_from_config(self, config_name: str) -> Dict[str, Any]:
+        self._print_header()
+
+        self.results[config_name] = await self._test([config_name])
+
+        self._generate_summary_report()
+
+        return self.results
+
     def _print_header(self):
         """Print a formatted header for the test run."""
         logger.info("=" * 80)
@@ -664,6 +673,11 @@ def main():
         default="live",
         help="Evaluation mode: 'live' runs components, 'manual' uses pre-recorded outputs, 'function' uses custom run function (default: live)",
     )
+    parser.add_argument(
+        "--eval-config",
+        default=None,
+        help="Specify a specific evaluation config to run by name (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -671,7 +685,10 @@ def main():
     tester = QAFunctionalTester(api_url=args.api_url, verbose=args.verbose, evaluation_mode=args.evaluation_mode)
 
     try:
-        results = asyncio.run(tester.run_all_tests(args.component_type))
+        if args.eval_config:
+            results = asyncio.run(tester.run_tests_from_config(args.eval_config))
+        else:
+            results = asyncio.run(tester.run_all_tests(args.component_type))
 
         # Exit with appropriate code
         if any("error" in str(result) for result in results.values()):
