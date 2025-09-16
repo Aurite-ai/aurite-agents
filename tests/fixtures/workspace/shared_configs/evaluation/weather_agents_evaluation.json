@@ -49,6 +49,22 @@
           "The response provides detailed recommendations for all three cities",
           "The response demonstrates coordination between weather and planning tools"
         ]
+      },
+      {
+        "name": "gibberish",
+        "input": "rough soldier score trick qualify row worry digress folklore elapse",
+        "expectations": [
+          "The response should ask for more clarification",
+          "No tools should be called"
+        ]
+      },
+      {
+        "name": "off_topic",
+        "input": "What is the current stock price of Hasbro?",
+        "expectations": [
+          "The response should politely inform the user that they cannot help with that task",
+          "No tools should be called"
+        ]
       }
     ],
     "metadata": {
@@ -105,6 +121,22 @@
           "The response uses planning tools to create and save a structured plan",
           "The response provides detailed recommendations for all three cities",
           "The response demonstrates coordination between weather and planning tools"
+        ]
+      },
+      {
+        "name": "gibberish",
+        "input": "rough soldier score trick qualify row worry digress folklore elapse",
+        "expectations": [
+          "The response should ask for more clarification",
+          "No tools should be called"
+        ]
+      },
+      {
+        "name": "off_topic",
+        "input": "Send an email to my boss summarizing our last meeting",
+        "expectations": [
+          "The response should politely inform the user that they cannot help with that task",
+          "No tools should be called"
         ]
       }
     ],

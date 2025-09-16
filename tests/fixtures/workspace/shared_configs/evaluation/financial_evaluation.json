@@ -39,6 +39,22 @@
                     "The response provides a well structured overview of the company using the results of the tool calls",
                     "The response does not include any other tool calls"
                 ]
+            },
+            {
+                "name": "gibberish",
+                "input": "rough soldier score trick qualify row worry digress folklore elapse",
+                "expectations": [
+                    "The agent should ask for more clarification",
+                    "No tools should be called"
+                ]
+            },
+            {
+                "name": "off_topic",
+                "input": "Send an email to my boss summarizing our last meeting",
+                "expectations": [
+                    "The response should politely inform the user that they cannot help with that task",
+                    "No tools should be called"
+                ]
             }
         ]
     }
