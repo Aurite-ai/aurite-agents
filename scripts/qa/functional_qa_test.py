@@ -184,38 +184,55 @@ class QAFunctionalTester:
 
     async def _test(self, evaluations_to_run) -> Dict[str, Any]:
         results = {}
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            for eval_config in evaluations_to_run:
-                # Handle both old string format and new dict format
-                if isinstance(eval_config, str):
-                    config_name = eval_config
-                    expected_pass_rate = 100.0  # Default
+
+        async def run_single_evaluation(client, eval_config):
+            # Handle both old string format and new dict format
+            if isinstance(eval_config, str):
+                config_name = eval_config
+                expected_pass_rate = 100.0  # Default
+            else:
+                config_name = eval_config["config"]
+                expected_pass_rate = eval_config.get("expected_pass_rate", 100.0)
+
+            logger.info(f"\n  📋 Testing {config_name}...")
+
+            try:
+                # Use the API endpoint that loads evaluation configs directly
+                response = await client.post(
+                    f"{self.api_url}/testing/evaluate/{config_name}", headers={"X-API-Key": self.api_key}
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    processed_result = self._process_result(result)
+                    processed_result["expected_pass_rate"] = expected_pass_rate
+                    self._print_result_summary(config_name, processed_result)
+                    return config_name, processed_result
                 else:
-                    config_name = eval_config["config"]
-                    expected_pass_rate = eval_config.get("expected_pass_rate", 100.0)
+                    error_msg = f"API returned status {response.status_code}: {response.text}"
+                    logger.error(f"    ❌ {config_name}: {error_msg}")
+                    return config_name, {"status": "error", "error": error_msg}
 
-                logger.info(f"\n  📋 Testing {config_name}...")
+            except Exception as e:
+                logger.error(f"    ❌ {config_name}: Failed - {str(e)}")
+                return config_name, {"status": "error", "error": str(e)}
 
-                try:
-                    # Use the API endpoint that loads evaluation configs directly
-                    response = await client.post(
-                        f"{self.api_url}/testing/evaluate/{config_name}", headers={"X-API-Key": self.api_key}
-                    )
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Create tasks for all evaluations
+            tasks = [run_single_evaluation(client, eval_config) for eval_config in evaluations_to_run]
 
-                    if response.status_code == 200:
-                        result = response.json()
-                        processed_result = self._process_result(result)
-                        processed_result["expected_pass_rate"] = expected_pass_rate
-                        results[config_name] = processed_result
-                        self._print_result_summary(config_name, results[config_name])
-                    else:
-                        error_msg = f"API returned status {response.status_code}: {response.text}"
-                        logger.error(f"    ❌ {config_name}: {error_msg}")
-                        results[config_name] = {"status": "error", "error": error_msg}
+            # Run all tasks in parallel
+            task_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                except Exception as e:
-                    logger.error(f"    ❌ {config_name}: Failed - {str(e)}")
-                    results[config_name] = {"status": "error", "error": str(e)}
+            # Process results
+            for task_result in task_results:
+                if isinstance(task_result, Exception):
+                    logger.error(f"    ❌ Task failed with exception: {str(task_result)}")
+                    # You might want to handle this case differently based on your needs
+                    continue
+
+                config_name, result = task_result
+                results[config_name] = result
 
         return results
 
