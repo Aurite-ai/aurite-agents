@@ -90,6 +90,8 @@ class QAFunctionalTester:
             {"config": "single_weather_agent_evaluation", "expected_pass_rate": 100.0},
             {"config": "formatting_evaluation_good", "expected_pass_rate": 100.0},
             {"config": "formatting_evaluation_bad", "expected_pass_rate": 0.0},
+            {"config": "financial_agents_evaluation", "expected_pass_rate": 70.0},
+            {"config": "llm_weather_agents_evaluation", "expected_pass_rate": 100.0},
         ]
 
         self.manual_agent_evaluations = [
