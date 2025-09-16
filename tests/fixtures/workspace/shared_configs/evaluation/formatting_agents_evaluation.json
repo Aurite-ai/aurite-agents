@@ -17,6 +17,13 @@
                     "The response includes a short meeting summary at the beginning",
                     "The response includes a list of Action Items"
                 ]
+            },
+            {
+                "name": "error_response",
+                "input": "ERROR    [asyncio] Task exception was never retrieved\nfuture: <Task finished name='Task-43' coro=<<async_generator_athrow without __name__>()> exception=RuntimeError('Attempted to exit cancel scope in a different task than it was entered in')>\n  + Exception Group Traceback (most recent call last):\n  |   File '/lib/python3.12/site-packages/anyio/_backends/_asyncio.py', line 772, in __aexit__\n  |     raise BaseExceptionGroup(\n  | BaseExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+                "expectations": [
+                    "The response is a short message stating that it recieved an unrecognized input"
+                ]
             }
         ]
     },
@@ -37,6 +44,13 @@
                     "The response includes an attendees list with 4 names: David Kim, Sarah Chen, Mike Rodriguez, Lisa Park",
                     "The response includes a short meeting summary at the beginning",
                     "The response includes a list of Action Items"
+                ]
+            },
+            {
+                "name": "error_response",
+                "input": "ERROR    [asyncio] Task exception was never retrieved\nfuture: <Task finished name='Task-43' coro=<<async_generator_athrow without __name__>()> exception=RuntimeError('Attempted to exit cancel scope in a different task than it was entered in')>\n  + Exception Group Traceback (most recent call last):\n  |   File '/lib/python3.12/site-packages/anyio/_backends/_asyncio.py', line 772, in __aexit__\n  |     raise BaseExceptionGroup(\n  | BaseExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)",
+                "expectations": [
+                    "The response is a short message stating that it recieved an unrecognized input"
                 ]
             }
         ]

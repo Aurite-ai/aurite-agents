@@ -93,7 +93,12 @@ class QAFunctionalTester:
         ]
 
         self.manual_agent_evaluations = [
-            {"config": "manual_weather_agents_evaluation", "expected_pass_rate": 100.0}  # Manual output evaluation
+            {"config": "manual_weather_agents_evaluation", "expected_pass_rate": 100.0},  # Manual output evaluation
+            {"config": "manual_email_formatting_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "manual_email_formatting_evaluation_poor", "expected_pass_rate": 0.0},
+            {"config": "email_formatting_security_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "email_formatting_security_evaluation_bad", "expected_pass_rate": 0.0},
+            {"config": "evaluator_prompt_injection_attempt", "expected_pass_rate": 0.0},
         ]
 
         self.function_agent_evaluations = [
