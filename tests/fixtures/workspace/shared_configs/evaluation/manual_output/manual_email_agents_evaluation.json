@@ -1,0 +1,72 @@
+[
+    {
+        "name": "manual_email_formatting_evaluation_good",
+        "type": "evaluation",
+        "component_type": "agent",
+        "review_llm": null,
+        "force_refresh": true,
+        "test_cases": [
+            {
+                "name": "business_meeting_request_good",
+                "input": "I need to send an email to john.smith@company.com asking for a meeting next Tuesday at 2pm to discuss the quarterly budget review. Make it professional but friendly.",
+                "output": "=== FULL CONVERSATION HISTORY ===\nUSER: I need to send an email to john.smith@company.com asking for a meeting next Tuesday at 2pm to discuss the quarterly budget review. Make it professional but friendly.\n\nTOOL CALL: format_email\nARGUMENTS: {\"recipient\": \"john.smith@company.com\", \"subject\": \"Meeting Request: Quarterly Budget Review\", \"tone\": \"professional_friendly\", \"content_type\": \"meeting_request\"}\n\nTOOL RESPONSE (format_email): {\"email_id\": \"email_123\", \"status\": \"formatted\"}\n\nTOOL CALL: add_meeting_details\nARGUMENTS: {\"email_id\": \"email_123\", \"date\": \"next Tuesday\", \"time\": \"2:00 PM\", \"topic\": \"quarterly budget review\"}\n\nTOOL RESPONSE (add_meeting_details): {\"status\": \"details_added\", \"email_id\": \"email_123\"}\n\nTOOL CALL: finalize_email\nARGUMENTS: {\"email_id\": \"email_123\"}\n\nTOOL RESPONSE (finalize_email): {\"status\": \"ready_to_send\", \"email_id\": \"email_123\"}\n\nASSISTANT: I've formatted a professional yet friendly email for your meeting request. Here's the final version:\n\n**To:** john.smith@company.com\n**Subject:** Meeting Request: Quarterly Budget Review\n\n**Email Body:**\nHi John,\n\nI hope this email finds you well. I would like to schedule a meeting with you to discuss our quarterly budget review.\n\n**Meeting Details:**\n- **Date:** Next Tuesday\n- **Time:** 2:00 PM\n- **Topic:** Quarterly Budget Review\n- **Duration:** Approximately 1 hour (estimated)\n\nThis meeting will be a great opportunity for us to review our financial performance and plan for the upcoming quarter. Please let me know if this time works for you, or if you'd prefer to reschedule for a more convenient time.\n\nLooking forward to our discussion!\n\nBest regards,\n[Your Name]\n\nThe email has been formatted with a clear subject line, professional greeting, structured meeting details, and a friendly closing. It's ready to send!\n\n=== FINAL RESPONSE ===\nI've formatted a professional yet friendly email for your meeting request. Here's the final version:\n\n**To:** john.smith@company.com\n**Subject:** Meeting Request: Quarterly Budget Review\n\n**Email Body:**\nHi John,\n\nI hope this email finds you well. I would like to schedule a meeting with you to discuss our quarterly budget review.\n\n**Meeting Details:**\n- **Date:** Next Tuesday\n- **Time:** 2:00 PM\n- **Topic:** Quarterly Budget Review\n- **Duration:** Approximately 1 hour (estimated)\n\nThis meeting will be a great opportunity for us to review our financial performance and plan for the upcoming quarter. Please let me know if this time works for you, or if you'd prefer to reschedule for a more convenient time.\n\nLooking forward to our discussion!\n\nBest regards,\n[Your Name]\n\nThe email has been formatted with a clear subject line, professional greeting, structured meeting details, and a friendly closing. It's ready to send!",
+                "expectations": [
+                    "The assistant response contains a written email",
+                    "The response uses email formatting tools to structure the email",
+                    "The response includes proper email headers (To, Subject)",
+                    "The response maintains the requested professional but friendly tone",
+                    "The response includes all specified meeting details (date, time, topic)",
+                    "The response has proper email structure with greeting, body, and closing"
+                ]
+            },
+            {
+                "name": "thank_you_email_good",
+                "input": "Write a thank you email to sarah.johnson@client.com for the great presentation yesterday and mention we'll follow up with the proposal by Friday",
+                "output": "=== FULL CONVERSATION HISTORY ===\nUSER: Write a thank you email to sarah.johnson@client.com for the great presentation yesterday and mention we'll follow up with the proposal by Friday\n\nTOOL CALL: format_email\nARGUMENTS: {\"recipient\": \"sarah.johnson@client.com\", \"subject\": \"Thank You - Excellent Presentation Yesterday\", \"tone\": \"grateful_professional\", \"content_type\": \"thank_you\"}\n\nTOOL RESPONSE (format_email): {\"email_id\": \"email_789\", \"status\": \"formatted\"}\n\nTOOL CALL: add_follow_up_commitment\nARGUMENTS: {\"email_id\": \"email_789\", \"commitment\": \"proposal delivery\", \"deadline\": \"Friday\"}\n\nTOOL RESPONSE (add_follow_up_commitment): {\"status\": \"commitment_added\", \"email_id\": \"email_789\"}\n\nTOOL CALL: finalize_email\nARGUMENTS: {\"email_id\": \"email_789\"}\n\nTOOL RESPONSE (finalize_email): {\"status\": \"ready_to_send\", \"email_id\": \"email_789\"}\n\nASSISTANT: I've crafted a thoughtful thank you email for you. Here's the formatted version:\n\n**To:** sarah.johnson@client.com\n**Subject:** Thank You - Excellent Presentation Yesterday\n\n**Email Body:**\nDear Sarah,\n\nI wanted to reach out and express my sincere gratitude for the outstanding presentation you delivered yesterday. Your insights were incredibly valuable, and the way you presented the information was both engaging and informative.\n\nThe depth of knowledge you shared and your clear communication style made the session truly beneficial for our team. We were particularly impressed with your innovative approach to the challenges we discussed.\n\n**Next Steps:**\nAs promised, we will be following up with our detailed proposal by **Friday**. This will include all the points we discussed and our recommended solutions tailored to your specific needs.\n\nThank you once again for your time and expertise. We look forward to continuing our collaboration and building on the strong foundation established during yesterday's meeting.\n\nWarm regards,\n[Your Name]\n\nThe email strikes the right balance of gratitude and professionalism while clearly communicating your follow-up commitment.\n\n=== FINAL RESPONSE ===\nI've crafted a thoughtful thank you email for you. Here's the formatted version:\n\n**To:** sarah.johnson@client.com\n**Subject:** Thank You - Excellent Presentation Yesterday\n\n**Email Body:**\nDear Sarah,\n\nI wanted to reach out and express my sincere gratitude for the outstanding presentation you delivered yesterday. Your insights were incredibly valuable, and the way you presented the information was both engaging and informative.\n\nThe depth of knowledge you shared and your clear communication style made the session truly beneficial for our team. We were particularly impressed with your innovative approach to the challenges we discussed.\n\n**Next Steps:**\nAs promised, we will be following up with our detailed proposal by **Friday**. This will include all the points we discussed and our recommended solutions tailored to your specific needs.\n\nThank you once again for your time and expertise. We look forward to continuing our collaboration and building on the strong foundation established during yesterday's meeting.\n\nWarm regards,\n[Your Name]\n\nThe email strikes the right balance of gratitude and professionalism while clearly communicating your follow-up commitment.",
+                "expectations": [
+                    "The assistant response contains a written email",
+                    "The response uses email formatting tools to create the thank you email",
+                    "The response includes proper email headers and subject line",
+                    "The response expresses genuine gratitude for the presentation",
+                    "The response mentions the follow-up commitment with specific deadline",
+                    "The response maintains appropriate professional tone throughout"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "manual_email_formatting_evaluation_poor",
+        "type": "evaluation",
+        "component_type": "agent",
+        "review_llm": null,
+        "force_refresh": true,
+        "test_cases": [
+            {
+                "name": "business_meeting_request_poor",
+                "input": "I need to send an email to john.smith@company.com asking for a meeting next Tuesday at 2pm to discuss the quarterly budget review. Make it professional but friendly.",
+                "output": "=== FULL CONVERSATION HISTORY ===\nUSER: I need to send an email to john.smith@company.com asking for a meeting next Tuesday at 2pm to discuss the quarterly budget review. Make it professional but friendly.\n\nASSISTANT: You should send John an email asking about the meeting. Make sure to mention the time and what you want to talk about. Keep it professional.\n\n=== FINAL RESPONSE ===\nYou should send John an email asking about the meeting. Make sure to mention the time and what you want to talk about. Keep it professional.",
+                "expectations": [
+                    "The assistant response contains a written email",
+                    "The response uses email formatting tools to structure the email",
+                    "The response includes proper email headers (To, Subject)",
+                    "The response maintains the requested professional but friendly tone",
+                    "The response includes all specified meeting details (date, time, topic)",
+                    "The response has proper email structure with greeting, body, and closing"
+                ]
+            },
+            {
+                "name": "thank_you_email_poor",
+                "input": "Write a thank you email to sarah.johnson@client.com for the great presentation yesterday and mention we'll follow up with the proposal by Friday",
+                "output": "=== FULL CONVERSATION HISTORY ===\nUSER: Write a thank you email to sarah.johnson@client.com for the great presentation yesterday and mention we'll follow up with the proposal by Friday\n\nASSISTANT: You should thank Sarah for her presentation and tell her about the proposal deadline. Make sure to be polite and professional in your email.\n\n=== FINAL RESPONSE ===\nYou should thank Sarah for her presentation and tell her about the proposal deadline. Make sure to be polite and professional in your email.",
+                "expectations": [
+                    "The assistant response contains a written email",
+                    "The response uses email formatting tools to create the thank you email",
+                    "The response includes proper email headers and subject line",
+                    "The response expresses genuine gratitude for the presentation",
+                    "The response mentions the follow-up commitment with specific deadline",
+                    "The response maintains appropriate professional tone throughout"
+                ]
+            }
+        ]
+    }
+]
