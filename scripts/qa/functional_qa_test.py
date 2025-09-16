@@ -102,7 +102,8 @@ class QAFunctionalTester:
         ]
 
         self.function_agent_evaluations = [
-            {"config": "function_weather_agents_evaluation", "expected_pass_rate": 100.0}  # Function-based evaluation
+            {"config": "function_weather_agents_evaluation", "expected_pass_rate": 100.0},  # Function-based evaluation
+            {"config": "does_not_exist_function_evaluation", "expected_pass_rate": 0.0},
         ]
 
         self.workflow_evaluations = [
@@ -113,6 +114,7 @@ class QAFunctionalTester:
 
         self.mcp_evaluations = [
             {"config": "weather_mcp_evaluation", "expected_pass_rate": 100.0},
+            {"config": "does_not_exist_mcp_evaluation", "expected_pass_rate": 0.0},
         ]
 
     async def run_all_tests(self, component_type: str = "all") -> Dict[str, Any]:
