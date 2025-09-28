@@ -1,9 +1,0 @@
-[
-  {
-    "name": "Example Custom Workflow",
-    "type": "custom_workflow",
-    "module_path": "custom_workflows.example_workflow",
-    "class_name": "ExampleCustomWorkflow",
-    "description": "An example custom workflow bundled with the aurite-agents package. Runs the Weather Agent, which ONLY supports New York, San Francisco, Tokyo, and London with fixed responses."
-  }
-]

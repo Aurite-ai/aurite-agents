@@ -281,8 +281,13 @@
           "type": "string"
         },
         "capabilities": {
-          "description": "A list of capabilities provided by this root.",
+          "description": "A list of capabilities provided by this root. Must be one or more of: 'tools', 'prompts', 'resources'.",
           "items": {
+            "enum": [
+              "tools",
+              "prompts",
+              "resources"
+            ],
             "type": "string"
           },
           "title": "Capabilities",

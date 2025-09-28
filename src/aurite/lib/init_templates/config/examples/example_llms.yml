@@ -1,0 +1,39 @@
+- name: my_openai_gpt4_turbo
+  type: llm
+  description: OpenAI GPT-4 Turbo model configuration for general use.
+  provider: openai
+  model: gpt-4-turbo-preview
+  temperature: 0.7
+  max_tokens: 1500
+
+- name: anthropic_claude_3_haiku
+  type: llm
+  description: Anthropic Claude 3 Haiku LLM configuration.
+  provider: anthropic
+  model: claude-3-haiku-20240307
+  temperature: 0.5
+  max_tokens: 2048
+
+- name: gemini_latest
+  type: llm
+  description: Google Gemini 2.5 LLM configuration.
+  provider: google
+  model: gemini-2.5
+  temperature: 0.7
+  max_tokens: 1500
+
+- name: anthropic_latest
+  type: llm
+  description: Anthropic Claude 4 LLM configuration.
+  provider: anthropic
+  model: claude-4-sonnet-20250514
+  temperature: 0.5
+  max_tokens: 2048
+
+- name: openai_latest
+  type: llm
+  description: OpenAI GPT-4 Turbo model configuration for general use.
+  provider: openai
+  model: gpt-5-2025-08-07
+  temperature: 0.7
+  max_tokens: 1500

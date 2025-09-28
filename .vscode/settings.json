@@ -17,6 +17,9 @@
     "**/.python-version/**": true,
     "**/.venv/**": true,
     "notebook-venv/**": true,
+    ".benchmarks/**": true,
+    ".husky/**": true,
+    ".aurite_db/**": true,
     "**/*.egg-info/**": true,
     ".poetry": true,
     "**/py.typed": true,
@@ -92,7 +95,7 @@
     "editor.formatOnSave": false
   },
   "yaml.schemas": {
-    "./schemas/aurite_combined_schema.json": [
+    "./schemas/aurite_schema.json": [
       "**/*.yml",
       "**/*.yaml",
       "!**/node_modules/**",
@@ -127,7 +130,7 @@
         "!**/*.spec.json",
         "!**/coverage/**"
       ],
-      "url": "./schemas/aurite_combined_schema.json"
+      "url": "./schemas/aurite_schema.json"
     }
   ]
 }

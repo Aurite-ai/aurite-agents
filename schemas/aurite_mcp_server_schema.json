@@ -53,18 +53,19 @@
           "server_path": {
             "anyOf": [
               {
+                "type": "string",
                 "format": "path",
-                "type": "string"
-              },
-              {
-                "type": "string"
+                "pattern": "^[a-zA-Z0-9\\._\\-/\\\\~][a-zA-Z0-9\\._\\-/\\\\ ~]*$",
+                "patternErrorMessage": "Invalid path format. Avoid special characters like |, <, >, &, ;, $, `. Spaces are allowed but not recommended - use underscores or hyphens instead.",
+                "description": "Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
+                "markdownDescription": "**File path** - Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible."
               },
               {
                 "type": "null"
               }
             ],
             "default": null,
-            "description": "Path to the server script for 'stdio' transport.",
+            "description": "Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
             "title": "Server Path"
           },
           "http_endpoint": {
@@ -136,6 +137,11 @@
           "capabilities": {
             "description": "List of capabilities this client provides (e.g., 'tools', 'prompts').",
             "items": {
+              "enum": [
+                "tools",
+                "prompts",
+                "resources"
+              ],
               "type": "string"
             },
             "title": "Capabilities",
@@ -227,18 +233,19 @@
         "server_path": {
           "anyOf": [
             {
+              "type": "string",
               "format": "path",
-              "type": "string"
-            },
-            {
-              "type": "string"
+              "pattern": "^[a-zA-Z0-9\\._\\-/\\\\~][a-zA-Z0-9\\._\\-/\\\\ ~]*$",
+              "patternErrorMessage": "Invalid path format. Avoid special characters like |, <, >, &, ;, $, `. Spaces are allowed but not recommended - use underscores or hyphens instead.",
+              "description": "Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
+              "markdownDescription": "**File path** - Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible."
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Path to the server script for 'stdio' transport.",
+          "description": "Path to the server script for 'stdio' transport. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
           "title": "Server Path"
         },
         "http_endpoint": {
@@ -310,6 +317,11 @@
         "capabilities": {
           "description": "List of capabilities this client provides (e.g., 'tools', 'prompts').",
           "items": {
+            "enum": [
+              "tools",
+              "prompts",
+              "resources"
+            ],
             "type": "string"
           },
           "title": "Capabilities",
@@ -367,8 +379,13 @@
           "type": "string"
         },
         "capabilities": {
-          "description": "A list of capabilities provided by this root.",
+          "description": "A list of capabilities provided by this root. Must be one or more of: 'tools', 'prompts', 'resources'.",
           "items": {
+            "enum": [
+              "tools",
+              "prompts",
+              "resources"
+            ],
             "type": "string"
           },
           "title": "Capabilities",

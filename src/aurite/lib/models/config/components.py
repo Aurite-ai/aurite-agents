@@ -56,7 +56,9 @@ class RootConfig(BaseModel):
 
     uri: str = Field(description="The URI of the root.")
     name: str = Field(description="The name of the root.")
-    capabilities: List[str] = Field(description="A list of capabilities provided by this root.")
+    capabilities: List[Literal["tools", "prompts", "resources"]] = Field(
+        description="A list of capabilities provided by this root. Must be one or more of: 'tools', 'prompts', 'resources'."
+    )
 
 
 class ClientConfig(BaseComponentConfig):

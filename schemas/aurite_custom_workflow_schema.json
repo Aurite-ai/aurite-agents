@@ -33,10 +33,13 @@
             "type": "string"
           },
           "module_path": {
-            "description": "Resolved absolute path to the Python file containing the workflow class.",
+            "description": "Resolved absolute path to the Python file containing the workflow class. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
             "format": "path",
             "title": "Module Path",
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9\\._\\-/\\\\~][a-zA-Z0-9\\._\\-/\\\\ ~]*$",
+            "patternErrorMessage": "Invalid path format. Avoid special characters like |, <, >, &, ;, $, `. Spaces are allowed but not recommended - use underscores or hyphens instead.",
+            "markdownDescription": "**File path** - Resolved absolute path to the Python file containing the workflow class. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible."
           },
           "class_name": {
             "description": "Name of the class within the module that implements the workflow.",
@@ -82,10 +85,13 @@
           "type": "string"
         },
         "module_path": {
-          "description": "Resolved absolute path to the Python file containing the workflow class.",
+          "description": "Resolved absolute path to the Python file containing the workflow class. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible.",
           "format": "path",
           "title": "Module Path",
-          "type": "string"
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9\\._\\-/\\\\~][a-zA-Z0-9\\._\\-/\\\\ ~]*$",
+          "patternErrorMessage": "Invalid path format. Avoid special characters like |, <, >, &, ;, $, `. Spaces are allowed but not recommended - use underscores or hyphens instead.",
+          "markdownDescription": "**File path** - Resolved absolute path to the Python file containing the workflow class. Examples: 'mcp_servers/weather_server.py', './scripts/my_server.py', '~/projects/server.py'. Avoid spaces in paths when possible."
         },
         "class_name": {
           "description": "Name of the class within the module that implements the workflow.",
