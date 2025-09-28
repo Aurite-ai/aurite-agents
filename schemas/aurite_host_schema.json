@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Host Configuration",
+  "description": "Configuration schema for host components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for host components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "host",
+            "default": "host",
+            "title": "Type",
+            "type": "string"
+          },
+          "mcp_servers": {
+            "description": "A list of MCP server client configurations.",
+            "items": {
+              "$ref": "#/$defs/ClientConfig"
+            },
+            "title": "Mcp Servers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "mcp_servers"
+        ],
+        "title": "Aurite Host Configuration",
+        "type": "object"
+      },
+      "description": "Array of host configurations"
+    },
+    {
+      "description": "Configuration schema for host components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "host",
+          "default": "host",
+          "title": "Type",
+          "type": "string"
+        },
+        "mcp_servers": {
+          "description": "A list of MCP server client configurations.",
+          "items": {
+            "$ref": "#/$defs/ClientConfig"
+          },
+          "title": "Mcp Servers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "mcp_servers"
+      ],
+      "title": "Aurite Host Configuration",
+      "type": "object"
+    }
+  ],
+  "$defs": {
+    "ClientConfig": {
+      "description": "Configuration for an MCP client",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "mcp_server",
+          "default": "mcp_server",
+          "title": "Type",
+          "type": "string"
+        },
+        "transport_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "stdio",
+                "http_stream",
+                "local"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The transport type for the client.",
+          "title": "Transport Type"
+        },
+        "server_path": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to the server script for 'stdio' transport.",
+          "title": "Server Path"
+        },
+        "http_endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL endpoint for 'http_stream' transport.",
+          "title": "Http Endpoint"
+        },
+        "headers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HTTP headers for 'http_stream' transport.",
+          "title": "Headers"
+        },
+        "command": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The command to run for 'local' transport.",
+          "title": "Command"
+        },
+        "args": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Arguments for the 'local' transport command.",
+          "title": "Args"
+        },
+        "roots": {
+          "description": "List of root configurations for this client.",
+          "items": {
+            "$ref": "#/$defs/RootConfig"
+          },
+          "title": "Roots",
+          "type": "array"
+        },
+        "capabilities": {
+          "description": "List of capabilities this client provides (e.g., 'tools', 'prompts').",
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "timeout": {
+          "default": 10.0,
+          "description": "Default timeout in seconds for client operations.",
+          "title": "Timeout",
+          "type": "number"
+        },
+        "registration_timeout": {
+          "default": 30.0,
+          "description": "Timeout for registering the mcp client",
+          "title": "Registration Timeout",
+          "type": "number"
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of component names (prompt, resource, tool) to exclude from this client.",
+          "title": "Exclude"
+        }
+      },
+      "required": [
+        "name",
+        "capabilities"
+      ],
+      "title": "ClientConfig",
+      "type": "object"
+    },
+    "RootConfig": {
+      "description": "Configuration for an MCP root",
+      "properties": {
+        "uri": {
+          "description": "The URI of the root.",
+          "title": "Uri",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name of the root.",
+          "title": "Name",
+          "type": "string"
+        },
+        "capabilities": {
+          "description": "A list of capabilities provided by this root.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        }
+      },
+      "required": [
+        "uri",
+        "name",
+        "capabilities"
+      ],
+      "title": "RootConfig",
+      "type": "object"
+    }
+  }
+}

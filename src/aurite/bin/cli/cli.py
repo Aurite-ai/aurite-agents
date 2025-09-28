@@ -24,6 +24,7 @@ from .commands.list import list_all, list_components_by_type, list_index, list_w
 from .commands.migrate import migrate_database, migrate_from_env
 from .commands.run import run_component
 from .commands.show import show_components
+from .commands.test import test_evaluation
 
 console = Console()
 logger = console.print
@@ -320,6 +321,9 @@ def run(
     session_id: Optional[str] = typer.Option(None, "--session-id", "-id", help="The session ID for history."),
     short: bool = typer.Option(False, "--short", "-s", help="Display a compact, one-line summary of the run."),
     debug: bool = typer.Option(False, "--debug", "-d", help="Display the full, raw event stream for debugging."),
+    test_cases: Optional[str] = typer.Option(
+        None, "--test-cases", help="Filter test cases to run (names, indices, or patterns)"
+    ),
 ):
     """Executes a framework component."""
 
@@ -329,9 +333,27 @@ def run(
             console.print("[bold yellow]Interactive agent selection is not yet implemented.[/bold yellow]")
             console.print("Please provide an agent name to run.")
             return
-        await run_component(name, user_message, system_prompt, session_id, short, debug)
+        await run_component(name, user_message, system_prompt, session_id, short, debug, test_cases)
 
     asyncio.run(main_run())
+
+
+@app.command()
+def test(
+    name: str = typer.Argument(..., help="The name of the evaluation configuration to run."),
+    test_cases: Optional[str] = typer.Option(
+        None, "--test-cases", "-t", help="Filter test cases to run (names, indices, or patterns)."
+    ),
+    short: bool = typer.Option(False, "--short", "-s", help="Display compact output without test case details."),
+    debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug logging for troubleshooting."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show additional details like execution time."),
+):
+    """Run QA evaluation tests on components."""
+
+    async def main_test():
+        await test_evaluation(name, test_cases, short, debug, verbose)
+
+    asyncio.run(main_test())
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 {
-  "python.testing.pytestArgs": ["tests"],
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "files.exclude": {
@@ -20,10 +22,11 @@
     "**/py.typed": true,
     "**/.mypy_cache/**": true
   },
-
   "markdownAdmonitions.enable": true,
-
-  "ruff.lint.ignore": ["F841", "E722"],
+  "ruff.lint.ignore": [
+    "F841",
+    "E722"
+  ],
   "explorer.fileNesting.enabled": true,
   "fileNestingUpdater.autoUpdate": true,
   "explorer.fileNesting.patterns": {
@@ -44,7 +47,6 @@
     "*.ipynb": "jupyter"
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-
   "editor.formatOnSave": true,
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
@@ -87,8 +89,45 @@
     "editor.formatOnSave": false
   },
   "[dockerfile]": {
-    // Keep existing specific settings
     "editor.formatOnSave": false
   },
-  "postman.settings.dotenv-detection-notification-visibility": false
+  "yaml.schemas": {
+    "./schemas/aurite_combined_schema.json": [
+      "**/*.yml",
+      "**/*.yaml",
+      "!**/node_modules/**",
+      "!**/.github/**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/*.test.yml",
+      "!**/*.test.yaml",
+      "!**/*.spec.yml",
+      "!**/*.spec.yaml",
+      "!**/docker-compose*.yml",
+      "!**/docker-compose*.yaml",
+      "!**/.gitlab-ci.yml",
+      "!**/.travis.yml",
+      "!**/mkdocs.yml",
+      "!**/pyproject.toml"
+    ]
+  },
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "**/*.json",
+        "!**/node_modules/**",
+        "!**/package.json",
+        "!**/package-lock.json",
+        "!**/tsconfig.json",
+        "!**/jsconfig.json",
+        "!**/.vscode/**",
+        "!**/dist/**",
+        "!**/build/**",
+        "!**/*.test.json",
+        "!**/*.spec.json",
+        "!**/coverage/**"
+      ],
+      "url": "./schemas/aurite_combined_schema.json"
+    }
+  ]
 }

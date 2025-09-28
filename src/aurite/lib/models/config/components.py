@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
+    Callable,
     Dict,
     List,
     Literal,
@@ -21,7 +23,7 @@ from typing import (
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
 
-from aurite.lib.models.api.requests import EvaluationRequest
+from aurite.lib.models.api.requests import EvaluationCase
 
 logger = logging.getLogger(__name__)
 
@@ -389,8 +391,43 @@ class BaseCustomWorkflow:
 # --- Evaluation Config ---
 
 
-class EvaluationConfig(BaseComponentConfig, EvaluationRequest):
-    type: Literal["evaluation"] = "evaluation"
+class EvaluationConfig(BaseComponentConfig):
+    """Request model for QA testing."""
+
+    component_type: Optional[str] = Field(
+        default=None, description="Type of component being tested (agent, llm, mcp_server, workflow)"
+    )
+    component_config: Optional[Dict[str, Any]] = Field(
+        default=None, description="Configuration of the component being tested"
+    )
+    test_cases: List[EvaluationCase] = Field(description="List of test cases to evaluate")
+    review_llm: Optional[str] = Field(
+        default=None, description="LLM configuration ID to use for reviewing test results"
+    )
+    expected_schema: Optional[Dict[str, Any]] = Field(
+        default=None, description="JSON schema to validate output against"
+    )
+    component_refs: Optional[List[str]] = Field(
+        default=None, description="List of component names to evaluate (for multi-component testing)"
+    )
+    run_agent: Optional[Callable[..., Any] | Callable[..., Awaitable[Any]] | str] = Field(
+        default=None,
+        description="""A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.
+        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'""",
+    )
+    run_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
+    )
+    # Caching configuration
+    use_cache: bool = Field(
+        default=True, description="Whether to use cached results for test cases that have been evaluated before"
+    )
+    cache_ttl: int = Field(default=3600, description="Time-to-live for cached results in seconds (default: 1 hour)")
+    force_refresh: bool = Field(default=False, description="Force re-execution of all test cases, bypassing cache")
+    evaluation_config_id: Optional[str] = Field(
+        default=None, description="ID of the evaluation configuration (used for cache key generation)"
+    )
 
 
 # --- Security Config ---

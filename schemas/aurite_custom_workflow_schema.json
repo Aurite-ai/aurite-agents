@@ -1,0 +1,105 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Custom Workflow Configuration",
+  "description": "Configuration schema for custom_workflow components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for custom_workflow components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "custom_workflow",
+            "default": "custom_workflow",
+            "title": "Type",
+            "type": "string"
+          },
+          "module_path": {
+            "description": "Resolved absolute path to the Python file containing the workflow class.",
+            "format": "path",
+            "title": "Module Path",
+            "type": "string"
+          },
+          "class_name": {
+            "description": "Name of the class within the module that implements the workflow.",
+            "title": "Class Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "module_path",
+          "class_name"
+        ],
+        "title": "Aurite Custom Workflow Configuration",
+        "type": "object"
+      },
+      "description": "Array of custom_workflow configurations"
+    },
+    {
+      "description": "Configuration schema for custom_workflow components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "custom_workflow",
+          "default": "custom_workflow",
+          "title": "Type",
+          "type": "string"
+        },
+        "module_path": {
+          "description": "Resolved absolute path to the Python file containing the workflow class.",
+          "format": "path",
+          "title": "Module Path",
+          "type": "string"
+        },
+        "class_name": {
+          "description": "Name of the class within the module that implements the workflow.",
+          "title": "Class Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "module_path",
+        "class_name"
+      ],
+      "title": "Aurite Custom Workflow Configuration",
+      "type": "object"
+    }
+  ]
+}

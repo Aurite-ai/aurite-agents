@@ -171,9 +171,11 @@ class QAEngine:
             # Create a single-component request for each component
             single_request = request.model_copy(deep=True)
             single_request.component_refs = [component_name]
-            single_request.component_config = self.config_manager.get_config(
-                component_type=component_type, component_id=component_name
-            )
+            if not single_request.component_config and self.config_manager:
+                # Load component config if not already provided
+                single_request.component_config = self.config_manager.get_config(
+                    component_type=component_type, component_id=component_name
+                )
             if not single_request.component_config:
                 self.logger.info(f"Component {component_name} not found for evaluation, skipping")
                 continue
@@ -219,7 +221,10 @@ class QAEngine:
         return final_results
 
     async def evaluate_by_config_id(
-        self, evaluation_config_id: str, executor: Optional["AuriteEngine"] = None
+        self,
+        evaluation_config_id: str,
+        executor: Optional["AuriteEngine"] = None,
+        test_cases_filter: Optional[str] = None,
     ) -> Dict[str, QAEvaluationResult]:
         """
         Evaluate components using a saved evaluation configuration.
@@ -231,6 +236,7 @@ class QAEngine:
         Args:
             evaluation_config_id: ID of the evaluation configuration to load
             executor: Optional AuriteEngine for component execution
+            test_cases_filter: Optional filter string for test cases (names, indices, or patterns)
 
         Returns:
             Dictionary mapping component names to QAEvaluationResult objects
@@ -245,7 +251,98 @@ class QAEngine:
 
         shared_fields = set(EvaluationRequest.model_fields.keys())
         request_data = {field: eval_config[field] for field in shared_fields if field in eval_config}
+
+        # Apply test case filtering if specified
+        if test_cases_filter and "test_cases" in request_data:
+            filtered_cases = self._filter_test_cases(request_data["test_cases"], test_cases_filter)
+            if not filtered_cases:
+                raise ValueError(f"No test cases matched filter: {test_cases_filter}")
+            self.logger.info(
+                f"QAEngine: Filtered from {len(request_data['test_cases'])} to {len(filtered_cases)} test cases"
+            )
+            request_data["test_cases"] = filtered_cases
+
         request = EvaluationRequest(**request_data)
 
         # Execute the evaluation
         return await self.evaluate_component(request, executor)
+
+    def _filter_test_cases(self, test_cases: list, filter_str: str) -> list:
+        """
+        Filter test cases based on the provided filter string.
+
+        Supports:
+        - Comma-separated names: "test1,test2"
+        - Index ranges: "0-2" (indices 0, 1, 2)
+        - Single indices: "0,2,4"
+        - Mixed: "test1,0-2,test5"
+        - Regex patterns: "/pattern/" or "regex:pattern"
+
+        Args:
+            test_cases: List of test case dictionaries
+            filter_str: Filter string
+
+        Returns:
+            Filtered list of test cases
+        """
+        import re
+
+        filtered = []
+        filters = [f.strip() for f in filter_str.split(",")]
+
+        for filter_item in filters:
+            # Check for regex pattern
+            if filter_item.startswith("/") and filter_item.endswith("/"):
+                # Regex pattern
+                pattern = filter_item[1:-1]
+                try:
+                    regex = re.compile(pattern, re.IGNORECASE)
+                    for case in test_cases:
+                        name = case.get("name", "")
+                        if regex.search(name) and case not in filtered:
+                            filtered.append(case)
+                except re.error as e:
+                    self.logger.warning(f"Invalid regex pattern '{pattern}': {e}")
+
+            elif filter_item.startswith("regex:"):
+                # Alternative regex syntax
+                pattern = filter_item[6:]
+                try:
+                    regex = re.compile(pattern, re.IGNORECASE)
+                    for case in test_cases:
+                        name = case.get("name", "")
+                        if regex.search(name) and case not in filtered:
+                            filtered.append(case)
+                except re.error as e:
+                    self.logger.warning(f"Invalid regex pattern '{pattern}': {e}")
+
+            elif "-" in filter_item and filter_item.replace("-", "").isdigit():
+                # Index range (e.g., "0-2")
+                parts = filter_item.split("-")
+                if len(parts) == 2:
+                    try:
+                        start = int(parts[0])
+                        end = int(parts[1])
+                        for i in range(start, min(end + 1, len(test_cases))):
+                            if test_cases[i] not in filtered:
+                                filtered.append(test_cases[i])
+                    except (ValueError, IndexError) as e:
+                        self.logger.warning(f"Invalid index range '{filter_item}': {e}")
+
+            elif filter_item.isdigit():
+                # Single index
+                try:
+                    idx = int(filter_item)
+                    if 0 <= idx < len(test_cases) and test_cases[idx] not in filtered:
+                        filtered.append(test_cases[idx])
+                except (ValueError, IndexError) as e:
+                    self.logger.warning(f"Invalid index '{filter_item}': {e}")
+
+            else:
+                # Test case name
+                for case in test_cases:
+                    if case.get("name", "") == filter_item and case not in filtered:
+                        filtered.append(case)
+
+        # Preserve original order
+        return [case for case in test_cases if case in filtered]
