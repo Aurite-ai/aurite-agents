@@ -266,7 +266,7 @@ def main():
     # Create schemas directory
     schemas_dir = Path("schemas")
     schemas_dir.mkdir(exist_ok=True)
-    logger.info(f"Creating schemas in {schemas_dir}/")
+    logger.info(f"Generating schemas in {schemas_dir}/")
 
     # Map component types to their Pydantic models
     models_map = {
@@ -283,7 +283,7 @@ def main():
 
     # Generate individual schemas for each component type
     for component_type, model_class in models_map.items():
-        logger.info(f"Generating schema for {component_type}...")
+        logger.debug(f"Generating schema for {component_type}...")
         base_schema = generate_schema_for_model(model_class, component_type)
 
         # Extract definitions if they exist
@@ -318,7 +318,7 @@ def main():
         schema_file = schemas_dir / f"aurite_{component_type}_schema.json"
         with open(schema_file, "w") as f:
             json.dump(schema, f, indent=2)
-        logger.info(f"  Saved to {schema_file}")
+        logger.debug(f"  Saved to {schema_file}")
 
     # Generate a combined schema for multi-component files
     logger.info("Generating combined schema for multi-component files...")

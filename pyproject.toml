@@ -76,6 +76,7 @@ pytest-benchmark = "^5.1.0"
 
 [project.scripts]
 aurite = "aurite.bin.cli:app"
+aurite-linter = "aurite.utils.generate_config_schemas:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
