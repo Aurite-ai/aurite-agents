@@ -297,7 +297,7 @@ def complete_runnable_component_name(incomplete: str):
     # This is a simplified example. A real implementation would use the
     # config manager to get a list of all runnable components.
     all_names = []
-    for comp_type in ["agent", "linear_workflow", "custom_workflow"]:
+    for comp_type in ["agent", "linear_workflow", "custom_workflow", "graph_workflow", "evaluation"]:
         all_names.extend(list_component_names(comp_type))
 
     for name in all_names:

@@ -39,12 +39,18 @@ async def run_component(
     """
     Finds a component by name, infers its type, and executes it with rich UI rendering.
     """
+    import logging
+
     os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
     output_mode = "default"
     if short:
         output_mode = "short"
     if debug:
         output_mode = "debug"
+    else:
+        # Suppress all Aurite logs unless in debug mode
+        logging.getLogger("aurite").setLevel(logging.WARNING)
+        logging.getLogger("ComponentQATester").setLevel(logging.WARNING)
 
     aurite = None
     try:
@@ -61,7 +67,8 @@ async def run_component(
             (
                 comp
                 for comp in found_components
-                if comp["component_type"] in ["agent", "linear_workflow", "custom_workflow"]
+                if comp["component_type"]
+                in ["agent", "linear_workflow", "custom_workflow", "graph_workflow", "evaluation"]
             ),
             found_components[0],
         )
@@ -135,6 +142,95 @@ async def run_component(
                     yield {"type": "workflow_step_end", "data": {"name": name}}
 
             await presenter.render_stream(workflow_streamer(), component_to_run)
+
+        elif component_type == "evaluation":
+            import logging
+
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+            from rich.table import Table
+
+            from ....testing.qa.qa_engine import QAEngine
+
+            # Control logging based on debug flag
+            if not debug:
+                # Suppress INFO logs unless in debug mode
+                logging.getLogger("aurite").setLevel(logging.WARNING)
+                logging.getLogger("ComponentQATester").setLevel(logging.WARNING)
+
+            # Initialize QA Engine with config manager
+            qa_engine = QAEngine(config_manager=aurite.kernel.config_manager)
+
+            # Show progress while running evaluation
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+                transient=True,  # Clear progress after completion
+            ) as progress:
+                task = progress.add_task(f"[cyan]Running evaluation: {name}[/cyan]", total=None)
+
+                try:
+                    # Run the evaluation
+                    # aurite.kernel.execution is the AuriteEngine instance
+                    results = await qa_engine.evaluate_by_config_id(
+                        evaluation_config_id=name, executor=aurite.kernel.execution
+                    )
+                    progress.update(task, completed=True)
+                except Exception as e:
+                    progress.stop()
+                    logger(f"\n[bold red]Evaluation failed:[/bold red] {str(e)}")
+                    return
+
+            # Ensure we're on a new line after progress completes
+            logger("")  # Empty line for spacing
+
+            # Display results for each component
+            for _component_name, result in results.items():
+                # Create a summary panel
+                panel_content = []
+                panel_content.append(f"[bold]Component:[/bold] {result.component_name}")
+                panel_content.append(f"[bold]Type:[/bold] {result.component_type}")
+                panel_content.append(
+                    f"[bold]Status:[/bold] {'✅ SUCCESS' if result.status == 'success' else '❌ FAILED'}"
+                )
+                panel_content.append(f"[bold]Overall Score:[/bold] {result.overall_score:.1f}%")
+                panel_content.append(
+                    f"[bold]Tests:[/bold] {result.passed_cases} passed, {result.failed_cases} failed (total: {result.total_cases})"
+                )
+
+                console.print(
+                    Panel(
+                        "\n".join(panel_content),
+                        title=f"[bold green]Evaluation Results: {name}[/bold green]",
+                        border_style="green" if result.status == "success" else "red",
+                    )
+                )
+
+                # Create detailed test results table if not in short mode
+                if not short and result.case_results:
+                    table = Table(title="Test Case Details", show_header=True, header_style="bold magenta")
+                    table.add_column("Test Case", style="cyan", no_wrap=True)
+                    table.add_column("Score", justify="right")
+                    table.add_column("Status", justify="center")
+                    table.add_column("Analysis")  # No width constraint for full text
+
+                    for case_name, case_result in result.case_results.items():
+                        # case_result is a CaseEvaluationResult object
+                        # Use grade field to determine pass/fail
+                        status_str = "✅" if case_result.grade == "PASS" else "❌"
+                        # Calculate score based on grade (100% for PASS, 0% for FAIL)
+                        score_str = "100%" if case_result.grade == "PASS" else "0%"
+                        analysis = case_result.analysis if case_result.analysis else "No analysis available"
+                        # Show full analysis text (no truncation)
+                        table.add_row(case_name, score_str, status_str, analysis)
+
+                    console.print(table)
+
+                # Show recommendations if any
+                if result.recommendations:
+                    console.print("\n[bold yellow]Recommendations:[/bold yellow]")
+                    for rec in result.recommendations:
+                        console.print(f"  • {rec}")
 
         else:
             logger(f"Component '{name}' is of type '{component_type}', which is not runnable.")
