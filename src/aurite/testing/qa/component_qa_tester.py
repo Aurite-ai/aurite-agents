@@ -62,6 +62,10 @@ class ComponentQATester:
             max_retries=1,
         )
         self.logger = logging.getLogger(self.__class__.__name__)
+        # Track failed MCP servers to prevent parallel retry attempts
+        self._failed_mcp_servers: List[str] = []
+        # Cache for MCP server test agents to reuse across test cases
+        self._mcp_test_agents: Dict[str, str] = {}
 
     async def test_component(
         self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
@@ -109,6 +113,9 @@ class ComponentQATester:
 
         # No cached evaluation found or caching disabled - proceed with execution
         self.logger.debug("No cached evaluation found, executing component tests")
+
+        # Pre-register MCP servers if this is an agent or MCP server evaluation
+        await self._pre_register_mcp_servers(request, executor)
 
         # Get LLM client for evaluation
         llm_client = await self._get_llm_client(request, executor)
@@ -250,7 +257,8 @@ class ComponentQATester:
             self.logger.debug(f"No cached result found for case {case.id}, executing component")
 
             # Get the output using the utility function (supports custom execution)
-            output = await execute_component(case, request, executor)
+            # Pass the MCP test agents cache for MCP server evaluations
+            output = await execute_component(case, request, executor, self._mcp_test_agents)
 
             # Validate schema if provided using utility function
             schema_result = None
@@ -350,6 +358,91 @@ class ComponentQATester:
         """
         config_manager = executor._config_manager if executor else None
         return await get_llm_client(request.review_llm, config_manager)
+
+    async def _pre_register_mcp_servers(self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None):
+        """
+        Pre-register MCP servers for agent evaluations to avoid race conditions.
+
+        This method extracts MCP server configurations from the agent config
+        and registers them once before parallel test execution begins.
+
+        Args:
+            request: The evaluation request containing component configuration
+            executor: Optional AuriteEngine with MCP host for server registration
+        """
+        # Only proceed if we have an executor with MCP host
+        if not executor or not hasattr(executor, "_host"):
+            return
+
+        # Proceed for agent evaluations with MCP servers OR MCP server evaluations
+        if request.component_type == "agent":
+            if not request.component_config:
+                return
+
+            # Extract MCP server names from agent configuration
+            mcp_servers = request.component_config.get("mcp_servers", [])
+        elif request.component_type == "mcp_server":
+            # For MCP server evaluations, register the MCP server being tested
+            if request.component_config:
+                server_name = request.component_config.get("name")
+                mcp_servers = [server_name] if server_name else []
+            else:
+                # Fall back to component_refs
+                mcp_servers = request.component_refs if request.component_refs else []
+        else:
+            return
+
+        if not mcp_servers:
+            return
+
+        self.logger.info(f"Pre-registering {len(mcp_servers)} MCP servers for agent evaluation")
+
+        # Get the config manager to load MCP server configs
+        config_manager = executor._config_manager if hasattr(executor, "_config_manager") else None
+        if not config_manager:
+            self.logger.warning("No config manager available to load MCP server configurations")
+            return
+
+        # Track servers that failed registration to prevent retry attempts
+        failed_servers = []
+
+        # Register each MCP server
+        for server_name in mcp_servers:
+            try:
+                # Check if already registered
+                if server_name in executor._host.registered_server_names:
+                    self.logger.debug(f"MCP server '{server_name}' already registered")
+                    continue
+
+                # Load server configuration
+                server_config = config_manager.get_config("mcp_server", server_name)
+                if not server_config:
+                    self.logger.warning(f"MCP server configuration not found for '{server_name}'")
+                    failed_servers.append(server_name)
+                    continue
+
+                # Import ClientConfig for creating the config object
+                from aurite.lib.models.config.components import ClientConfig
+
+                # Create ClientConfig from the loaded configuration
+                client_config = ClientConfig(**server_config)
+
+                # Register the server
+                self.logger.info(f"Pre-registering MCP server: {server_name}")
+                await executor._host.register_client(client_config)
+                self.logger.info(f"Successfully pre-registered MCP server: {server_name}")
+
+            except Exception as e:
+                self.logger.error(f"Failed to pre-register MCP server '{server_name}': {e}")
+                # Track this server as failed to prevent parallel registration attempts
+                failed_servers.append(server_name)
+                continue
+
+        # Store failed servers to prevent retry attempts during parallel execution
+        if failed_servers:
+            self._failed_mcp_servers.extend(failed_servers)
+            self.logger.warning(f"Failed to register {len(failed_servers)} MCP servers: {failed_servers}")
+            self.logger.warning("These servers will be skipped during test execution to prevent race conditions")
 
     def aggregate_scores(self, results: List[CaseEvaluationResult]) -> float:
         """

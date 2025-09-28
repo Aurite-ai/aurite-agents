@@ -291,6 +291,7 @@ async def execute_component(
     case: "EvaluationCase",
     request: "EvaluationRequest",
     executor: Optional["AuriteEngine"] = None,
+    mcp_test_agents: Optional[Dict[str, str]] = None,
 ) -> Any:
     """
     Generic component execution supporting multiple execution patterns.
@@ -376,27 +377,37 @@ async def execute_component(
             initial_input=case.input,
         )
     elif component_type == "mcp_server":
-        # generate an temp agent config with a hardcoded system prompt and access to only that mcp server
-        agent_name = f"qa_test_agent_{uuid.uuid4().hex}"
-        agent_config = {
-            "name": agent_name,
-            "type": "agent",
-            "mcp_servers": [component_name],
-            "llm_config_id": request.review_llm,
-            "system_prompt": f"""
-            You are an expert test engineer who has been tasked with testing an MCP server named {component_name}. You have access to the tools defined by that server.
-            The user will give you an message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.
-            Finally, respond with the information returned by the tool.""",
-        }
-        executor._config_manager.create_component(component_type="agent", component_config=agent_config)
+        # Check if we already have a test agent for this MCP server
+        if mcp_test_agents and component_name in mcp_test_agents:
+            # Reuse existing test agent
+            agent_name = mcp_test_agents[component_name]
+            logger.debug(f"Reusing existing test agent '{agent_name}' for MCP server '{component_name}'")
+        else:
+            # Create a new test agent for this MCP server
+            agent_name = f"qa_test_agent_{component_name}_{uuid.uuid4().hex[:8]}"
+            agent_config = {
+                "name": agent_name,
+                "type": "agent",
+                "mcp_servers": [component_name],
+                "llm_config_id": request.review_llm,
+                "system_prompt": f"""
+                You are an expert test engineer who has been tasked with testing an MCP server named {component_name}. You have access to the tools defined by that server.
+                The user will give you an message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.
+                Finally, respond with the information returned by the tool.""",
+            }
+            executor._config_manager.create_component(component_type="agent", component_config=agent_config)
+            logger.info(f"Created test agent '{agent_name}' for MCP server '{component_name}'")
+
+            # Store in cache if provided
+            if mcp_test_agents is not None:
+                mcp_test_agents[component_name] = agent_name
 
         result = await executor.run_agent(
             agent_name=agent_name,
             user_message=case.input,
         )
 
-        # delete the agent
-        executor._config_manager.delete_config(component_type="agent", component_name=agent_name)
+        # Note: We don't delete the agent here anymore since it will be reused
 
         # Return formatted conversation history for agents
         return _format_agent_conversation_history(result)
