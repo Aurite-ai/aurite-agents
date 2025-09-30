@@ -24,6 +24,8 @@ sdist/
 var/
 wheels/
 share/python-wheels/
+docs/coding_copilot_prompts/
+
 *.egg-info/
 .installed.cfg
 *.egg

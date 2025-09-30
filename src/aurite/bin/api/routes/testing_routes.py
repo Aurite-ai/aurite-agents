@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from ....execution.aurite_engine import AuriteEngine
 from ....lib.config.config_manager import ConfigManager
-from ....lib.models import EvaluationRequest
+from ....lib.models.config.components import EvaluationConfig
 from ....testing.qa.qa_engine import QAEngine
 from ....testing.security.security_engine import SecurityEngine
 from ....testing.security.security_models import (
@@ -134,7 +134,7 @@ class FullConfigurationAssessmentResponse(BaseModel):
 
 @router.post("/evaluate")
 async def evaluate_component(
-    request: EvaluationRequest,
+    request: EvaluationConfig,
     api_key: str = Security(get_api_key),
     qa_engine: QAEngine = Depends(get_qa_engine),
     engine: AuriteEngine = Depends(get_execution_facade),
