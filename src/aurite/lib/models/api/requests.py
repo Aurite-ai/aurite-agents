@@ -81,6 +81,14 @@ class EvaluationRequest(BaseModel):
     evaluation_config_id: Optional[str] = Field(
         default=None, description="ID of the evaluation configuration (used for cache key generation)"
     )
+    # Rate limiting configuration
+    max_concurrent_tests: int = Field(
+        default=3, description="Maximum number of test cases to run concurrently (default: 3)"
+    )
+    rate_limit_retry_count: int = Field(default=3, description="Number of retries for rate limit errors (default: 3)")
+    rate_limit_base_delay: float = Field(
+        default=1.0, description="Base delay in seconds for exponential backoff (default: 1.0)"
+    )
 
 
 # --- Component Configuration Request Models ---

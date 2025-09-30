@@ -7,6 +7,7 @@ This module provides a single, unified QA tester that handles all component type
 
 import asyncio
 import logging
+import random
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -67,6 +68,12 @@ class ComponentQATester:
         # Cache for MCP server test agents to reuse across test cases
         self._mcp_test_agents: Dict[str, str] = {}
 
+        # Rate limiting configuration
+        self._max_concurrent_tests = getattr(config, "max_concurrent_tests", 3)  # Default to 3 concurrent tests
+        self._rate_limit_retry_count = getattr(config, "rate_limit_retry_count", 3)  # Max retries for rate limits
+        self._rate_limit_base_delay = getattr(config, "rate_limit_base_delay", 1.0)  # Base delay in seconds
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
     async def test_component(
         self, request: EvaluationRequest, executor: Optional["AuriteEngine"] = None
     ) -> QAEvaluationResult:
@@ -120,8 +127,18 @@ class ComponentQATester:
         # Get LLM client for evaluation
         llm_client = await self._get_llm_client(request, executor)
 
+        # Initialize semaphore for rate limiting (if not already initialized)
+        if self._semaphore is None:
+            # Check if request has max_concurrent_tests parameter
+            max_concurrent = getattr(request, "max_concurrent_tests", self._max_concurrent_tests)
+            self._semaphore = asyncio.Semaphore(max_concurrent)
+            self.logger.info(f"Initialized rate limiting with max {max_concurrent} concurrent test cases")
+
+        # Create tasks with semaphore-controlled execution
         tasks = [
-            self._evaluate_single_case(case=case, llm_client=llm_client, request=request, executor=executor)
+            self._evaluate_single_case_with_semaphore(
+                case=case, llm_client=llm_client, request=request, executor=executor
+            )
             for case in request.test_cases
         ]
         case_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -201,6 +218,72 @@ class ComponentQATester:
             )
 
         return evaluation_result
+
+    async def _evaluate_single_case_with_semaphore(
+        self,
+        case,
+        llm_client,
+        request: EvaluationRequest,
+        executor: Optional["AuriteEngine"] = None,
+    ) -> CaseEvaluationResult:
+        """
+        Wrapper that uses semaphore to control concurrent execution.
+
+        Args:
+            case: The test case to evaluate
+            llm_client: LLM client for expectation analysis
+            request: The overall test request
+            executor: Optional AuriteEngine for component execution
+
+        Returns:
+            CaseEvaluationResult for this test case
+        """
+        # Ensure semaphore exists (shouldn't happen but defensive programming)
+        if self._semaphore is None:
+            max_concurrent = getattr(request, "max_concurrent_tests", self._max_concurrent_tests)
+            self._semaphore = asyncio.Semaphore(max_concurrent)
+
+        async with self._semaphore:
+            # Add retry logic for rate limit errors
+            last_exception = None
+            for retry_attempt in range(self._rate_limit_retry_count):
+                try:
+                    result = await self._evaluate_single_case(case, llm_client, request, executor)
+                    return result
+                except Exception as e:
+                    last_exception = e
+                    error_msg = str(e).lower()
+                    # Check if this is a rate limit error
+                    if any(
+                        rate_indicator in error_msg
+                        for rate_indicator in ["rate limit", "too many requests", "429", "rate_limit"]
+                    ):
+                        if retry_attempt < self._rate_limit_retry_count - 1:
+                            # Calculate exponential backoff with jitter
+                            delay = self._rate_limit_base_delay * (2**retry_attempt)
+                            jitter = random.uniform(0, delay * 0.3)  # Add up to 30% jitter
+                            total_delay = delay + jitter
+
+                            self.logger.warning(
+                                f"Rate limit hit for test case {case.id}, "
+                                f"retrying in {total_delay:.2f} seconds "
+                                f"(attempt {retry_attempt + 1}/{self._rate_limit_retry_count})"
+                            )
+                            await asyncio.sleep(total_delay)
+                            continue
+                        else:
+                            self.logger.error(f"Max retries exceeded for test case {case.id} due to rate limiting")
+                    # Re-raise the exception if not a rate limit or max retries exceeded
+                    raise
+
+            # If we get here, all retries failed - raise the last exception
+            if last_exception:
+                raise last_exception
+            else:
+                # This should never happen but provide a fallback
+                raise RuntimeError(
+                    f"Failed to evaluate test case {case.id} after {self._rate_limit_retry_count} attempts"
+                )
 
     async def _evaluate_single_case(
         self,

@@ -72,3 +72,7 @@ class ComponentQAConfig(BaseModel):
     default_timeout: float = Field(default=30.0, description="Default timeout for test execution in seconds")
     parallel_execution: bool = Field(default=True, description="Whether test cases can be executed in parallel")
     max_retries: int = Field(default=0, description="Maximum number of retries for failed test cases")
+    # Rate limiting configuration
+    max_concurrent_tests: int = Field(default=3, description="Maximum number of test cases to run concurrently")
+    rate_limit_retry_count: int = Field(default=3, description="Number of retries for rate limit errors")
+    rate_limit_base_delay: float = Field(default=1.0, description="Base delay in seconds for exponential backoff")

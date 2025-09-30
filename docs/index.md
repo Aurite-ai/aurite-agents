@@ -47,12 +47,12 @@ Navigate through the documentation using the tabs below to find what you need.
 
     An in-depth look at the features each component offers through JSON/YAML configuration.
 
-    - **[Projects and Workspaces](config/projects_and_workspaces.md)**: The foundation of your Aurite setup. **Start here!**
-    - **[LLM Configs](config/llm.md)**: Configure language model providers.
-    - **[MCP Server Configs](config/mcp_server.md)**: Connect tools and resources.
-    - **[Agent Configs](config/agent.md)**: Define agent behaviors.
-    - **[Linear Workflow Configs](config/linear_workflow.md)**: Create simple, sequential workflows.
-    - **[Custom Workflow Configs](config/custom_workflow.md)**: Implement complex logic in Python.
+    - **[Projects and Workspaces](usage/config/projects_and_workspaces.md)**: The foundation of your Aurite setup. **Start here!**
+    - **[LLM Configs](usage/config/llm.md)**: Configure language model providers.
+    - **[MCP Server Configs](usage/config/mcp_server.md)**: Connect tools and resources.
+    - **[Agent Configs](usage/config/agent.md)**: Define agent behaviors.
+    - **[Linear Workflow Configs](usage/config/linear_workflow.md)**: Create simple, sequential workflows.
+    - **[Custom Workflow Configs](usage/config/custom_workflow.md)**: Implement complex logic in Python.
 
 === ":material-console-line: Usage Guides"
 

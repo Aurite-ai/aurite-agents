@@ -559,7 +559,7 @@ The `AgentConfig` defines the structure for an agent configuration. Below are th
     | `api_base`       | `string`  | None    | Custom API endpoint base URL for the LLM provider. |
     | `api_key`        | `string`  | None    | Custom API key for the LLM provider. |
     | `api_version`    | `string`  | None    | Custom API version for the LLM provider. |
-    | *other fields*   | *various* | None    | Any other provider-specific parameters supported by the [LLM Configuration](llm.md). |
+    | *other fields*   | *various* | None    | Any other provider-specific parameters supported by the [LLM Configuration](../config/llm.md). |
 
     !!! abstract "LLM Overrides"
         Agent Configurations can include llm variables (See LLM Overrides in the table above). These variables will replace the corresponding values in the LLM Configuration referenced by `llm_config_id`. This allows for agent-specific customization while still using a shared LLM configuration.
@@ -701,7 +701,7 @@ The `LLMConfig` defines the structure for an LLM configuration. Below are the av
 
 While `LLMConfig` provides a central place for model settings, individual agents can override them at runtime using the same configuration variables inserted directly into the AgentConfig. This provides flexibility for agent-specific needs.
 
-!!! example "See the [Agent Configuration](agent.md) documentation for more details on how to apply these overrides."
+!!! example "See the [Agent Configuration](../config/agent.md) documentation for more details on how to apply these overrides."
 
 ---
 
