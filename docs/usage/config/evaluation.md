@@ -42,8 +42,19 @@ The `EvaluationConfig` defines the structure for an evaluation configuration. Be
 
     | Field | Type | Required | Description |
     | --- | --- | --- | --- |
-    | `run_agent` | `function\|string` | No | A custom function or filepath to a Python file for running the component. The file should contain a `run` function. If not provided, uses the built-in runner. |
+    | `mode` | `string` | No | Explicitly specify the evaluation mode: `"aurite"` (run Aurite components), `"manual"` (use pre-recorded outputs), or `"function"` (custom execution function). If not specified, mode is auto-detected based on provided fields. |
+    | `run_agent` | `function\|string` | No | A custom function or filepath to a Python file for running the component. The file should contain a `run` function. If not provided, uses the built-in runner. Setting this field automatically sets mode to "function". |
     | `run_agent_kwargs` | `object` | No | Additional keyword arguments to pass to the `run_agent` function beyond the input string. |
+
+=== ":material-speedometer: Rate Limiting Configuration"
+
+    These fields control parallel execution and rate limiting behavior to prevent API rate limit errors.
+
+    | Field | Type | Required | Default | Description |
+    | --- | --- | --- | --- | --- |
+    | `max_concurrent_tests` | `integer` | No | `3` | Maximum number of test cases to execute concurrently. Lower values reduce the risk of hitting rate limits. |
+    | `rate_limit_retry_count` | `integer` | No | `3` | Number of times to retry a test case if it encounters a rate limit error. |
+    | `rate_limit_base_delay` | `number` | No | `1.0` | Base delay in seconds for exponential backoff when retrying rate-limited requests. The actual delay increases exponentially with each retry. |
 
 === ":material-cached: Caching Configuration"
 

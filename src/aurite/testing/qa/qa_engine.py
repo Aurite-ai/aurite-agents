@@ -84,7 +84,7 @@ class QAEngine:
         a dictionary with component names as keys.
 
         Args:
-            request: The evaluation request containing test cases
+            request: The evaluation request (see EvaluationConfig) containing test cases
             executor: Optional AuriteEngine for component execution
 
         Returns:
@@ -99,31 +99,26 @@ class QAEngine:
         mode = request.resolve_mode()
         self.logger.info(f"QAEngine: Resolved evaluation mode: {mode}")
 
-        # Determine component type
-        component_type = request.component_type or "agent"  # Default to agent if not specified
-        self.logger.info(f"QAEngine: Resolved component type: {component_type}")
+        # default to agent testing if not specified
+        if not request.component_type:
+            request.component_type = "agent"
+            self.logger.warning("QAEngine: No component type specified, defaulting to 'agent'")
+        else:
+            self.logger.info(f"QAEngine: Resolved component type: {request.component_type}")
 
         # Handle multiple components if specified
         if request.component_refs and len(request.component_refs) > 1:
             return await self._evaluate_multiple_components(request, executor)
 
-        # Handle single component based on evaluation mode
-        component_name = None
+        if mode == "aurite":
+            # Handle single component based on evaluation mode
+            component_name = None
 
-        if mode == "manual":
-            # Manual output evaluation - no component loading needed
-            component_name = request.component_refs[0] if request.component_refs else "manual_evaluation"
-            self.logger.info(f"QAEngine: Manual mode - using component name: {component_name}")
-        elif mode == "function":
-            # Function-based evaluation - no component loading needed
-            component_name = request.component_refs[0] if request.component_refs else "function_evaluation"
-            self.logger.info(f"QAEngine: Function mode - using component name: {component_name}")
-        else:
             # Aurite mode - load component configuration
             if request.component_refs and len(request.component_refs) >= 1:
                 component_name = request.component_refs[0]
 
-            # Get component config - prefer provided config over loading from ConfigManager
+            # For passing an entire component config directly
             if request.component_config:
                 # Use the provided component configuration
                 component_name = request.component_config.get("name", component_name or "unknown")
@@ -131,13 +126,17 @@ class QAEngine:
             elif self.config_manager and component_name:
                 # Try to load from ConfigManager
                 try:
-                    self.logger.info(f"QAEngine: Loading component config for {component_type}.{component_name}")
-                    config = self.config_manager.get_config(component_type=component_type, component_id=component_name)
+                    self.logger.info(
+                        f"QAEngine: Loading component config for {request.component_type}.{component_name}"
+                    )
+                    config = self.config_manager.get_config(
+                        component_type=request.component_type, component_id=component_name
+                    )
                     if config:
                         request.component_config = config
                         self.logger.info("QAEngine: Successfully loaded component config")
                     else:
-                        self.logger.warning(f"QAEngine: No config found for {component_type}.{component_name}")
+                        self.logger.warning(f"QAEngine: No config found for {request.component_type}.{component_name}")
                 except Exception as e:
                     self.logger.warning(f"QAEngine: Could not load component config: {e}")
 
@@ -153,11 +152,13 @@ class QAEngine:
 
         # Save result to storage if we have a session manager
         if self.qa_session_manager:
-            config_id = component_name or "unknown"
+            # For storage, use component_name for Aurite mode, evaluation_config_id for others
+            config_id = component_name if component_name else (request.evaluation_config_id or f"{mode}_evaluation")
             self.qa_session_manager.save_test_result(result.model_dump(), config_id)
 
         # Return single result in dictionary format for consistency
-        return {component_name or "component": result}
+        result_key = component_name if component_name else f"{mode}_evaluation"
+        return {result_key: result}
 
     async def evaluate_by_config_id(
         self,
