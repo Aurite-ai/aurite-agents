@@ -232,6 +232,14 @@ class MCPHost:
                 try:
                     tools_response = await session.list_tools()
                     for tool in tools_response.tools:
+                        # Check if tool should be excluded before registration
+                        if not self._filtering_manager.is_registration_allowed(tool.name, config):
+                            logger.info(
+                                f"Skipping registration of tool '{tool.name}' from server '{config.name}' "
+                                f"due to exclude list."
+                            )
+                            continue
+
                         # include the mcp server name
                         tool.title = tool.name
                         tool.name = f"{config.name}-{tool.name}"
