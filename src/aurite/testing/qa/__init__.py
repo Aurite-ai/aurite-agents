@@ -16,7 +16,7 @@ from .qa_models import (
     SchemaValidationResult,
 )
 from .qa_session_manager import QASessionManager
-from .qa_utils import clean_llm_output, format_agent_conversation_history, validate_schema
+from .qa_utils import clean_llm_output, filter_test_cases, validate_schema
 
 __all__ = [
     # Core classes
@@ -30,5 +30,5 @@ __all__ = [
     # Utility functions
     "validate_schema",
     "clean_llm_output",
-    "format_agent_conversation_history",
+    "filter_test_cases",
 ]

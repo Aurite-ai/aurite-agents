@@ -69,6 +69,7 @@ def clean_llm_output(output: str) -> str:
     Clean LLM output to extract JSON.
 
     Removes thinking tags and other preambles to get clean JSON.
+    Also handles trailing content after the JSON object.
 
     Args:
         output: Raw LLM output
@@ -82,9 +83,50 @@ def clean_llm_output(output: str) -> str:
         output = output[index + len("</thinking>") :]
 
     # Find the first curly brace
-    index = output.find("{")
-    if index > 0:
-        output = output[index:]
+    start_index = output.find("{")
+    if start_index == -1:
+        # No JSON found
+        return output.strip()
+
+    # Find the matching closing brace using brace counting
+    brace_count = 0
+    end_index = -1
+    in_string = False
+    escape_next = False
+
+    for i in range(start_index, len(output)):
+        char = output[i]
+
+        # Handle string literals to avoid counting braces inside strings
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == "\\":
+            escape_next = True
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        # Only count braces outside of strings
+        if not in_string:
+            if char == "{":
+                brace_count += 1
+            elif char == "}":
+                brace_count -= 1
+                if brace_count == 0:
+                    # Found the matching closing brace
+                    end_index = i
+                    break
+
+    if end_index != -1:
+        # Extract just the JSON portion
+        output = output[start_index : end_index + 1]
+    else:
+        # Fallback to original behavior if we couldn't find matching brace
+        output = output[start_index:]
 
     # Remove newlines for cleaner parsing
     output = output.replace("\n", " ")
@@ -92,54 +134,82 @@ def clean_llm_output(output: str) -> str:
     return output.strip()
 
 
-def format_agent_conversation_history(result) -> str:
+def filter_test_cases(test_cases: list, filter_str: str) -> list:
     """
-    Format the full conversation history from an AgentRunResult for evaluation.
+    Filter test cases based on the provided filter string.
+
+    Supports:
+    - Comma-separated names: "test1,test2"
+    - Index ranges: "0-2" (indices 0, 1, 2)
+    - Single indices: "0,2,4"
+    - Mixed: "test1,0-2,test5"
+    - Regex patterns: "/pattern/" or "regex:pattern"
 
     Args:
-        result: AgentRunResult containing conversation history
+        test_cases: List of test case dictionaries
+        filter_str: Filter string
 
     Returns:
-        Formatted string representation of the full conversation including tool calls
+        Filtered list of test cases
     """
-    formatted_output = []
+    import re
 
-    # Add conversation history if available
-    if hasattr(result, "conversation_history") and result.conversation_history:
-        formatted_output.append("=== FULL CONVERSATION HISTORY ===\n")
+    filtered = []
+    filters = [f.strip() for f in filter_str.split(",")]
 
-        for _i, message in enumerate(result.conversation_history):
-            role = message.get("role", "unknown")
-            content = message.get("content", "")
+    for filter_item in filters:
+        # Check for regex pattern
+        if filter_item.startswith("/") and filter_item.endswith("/"):
+            # Regex pattern
+            pattern = filter_item[1:-1]
+            try:
+                regex = re.compile(pattern, re.IGNORECASE)
+                for case in test_cases:
+                    name = case.get("name", "")
+                    if regex.search(name) and case not in filtered:
+                        filtered.append(case)
+            except re.error as e:
+                logger.warning(f"Invalid regex pattern '{pattern}': {e}")
 
-            # Format based on role
-            if role == "user":
-                formatted_output.append(f"USER: {content}\n")
-            elif role == "assistant":
-                formatted_output.append(f"ASSISTANT: {content}\n")
-            elif role == "tool":
-                # Tool responses
-                tool_name = message.get("name", "unknown_tool")
-                formatted_output.append(f"TOOL RESPONSE ({tool_name}): {content}\n")
+        elif filter_item.startswith("regex:"):
+            # Alternative regex syntax
+            pattern = filter_item[6:]
+            try:
+                regex = re.compile(pattern, re.IGNORECASE)
+                for case in test_cases:
+                    name = case.get("name", "")
+                    if regex.search(name) and case not in filtered:
+                        filtered.append(case)
+            except re.error as e:
+                logger.warning(f"Invalid regex pattern '{pattern}': {e}")
 
-            # Check for tool calls in assistant messages
-            if role == "assistant" and "tool_calls" in message:
-                for tool_call in message["tool_calls"]:
-                    if isinstance(tool_call, dict):
-                        function = tool_call.get("function", {})
-                        tool_name = function.get("name", "unknown")
-                        tool_args = function.get("arguments", "{}")
-                        formatted_output.append(f"TOOL CALL: {tool_name}\n")
-                        formatted_output.append(f"ARGUMENTS: {tool_args}\n")
+        elif "-" in filter_item and filter_item.replace("-", "").isdigit():
+            # Index range (e.g., "0-2")
+            parts = filter_item.split("-")
+            if len(parts) == 2:
+                try:
+                    start = int(parts[0])
+                    end = int(parts[1])
+                    for i in range(start, min(end + 1, len(test_cases))):
+                        if test_cases[i] not in filtered:
+                            filtered.append(test_cases[i])
+                except (ValueError, IndexError) as e:
+                    logger.warning(f"Invalid index range '{filter_item}': {e}")
 
-        formatted_output.append("\n=== FINAL RESPONSE ===\n")
+        elif filter_item.isdigit():
+            # Single index
+            try:
+                idx = int(filter_item)
+                if 0 <= idx < len(test_cases) and test_cases[idx] not in filtered:
+                    filtered.append(test_cases[idx])
+            except (ValueError, IndexError) as e:
+                logger.warning(f"Invalid index '{filter_item}': {e}")
 
-    # Add the final response
-    if hasattr(result, "primary_text") and result.primary_text:
-        formatted_output.append(result.primary_text)
-    elif hasattr(result, "final_response") and result.final_response:
-        formatted_output.append(
-            str(result.final_response.content if hasattr(result.final_response, "content") else result.final_response)
-        )
+        else:
+            # Test case name
+            for case in test_cases:
+                if case.get("name", "") == filter_item and case not in filtered:
+                    filtered.append(case)
 
-    return "".join(formatted_output)
+    # Preserve original order
+    return [case for case in test_cases if case in filtered]

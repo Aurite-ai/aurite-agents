@@ -58,6 +58,7 @@ dependencies = [
 [tool.poetry.group.dev.dependencies]
 textual-dev = ">=1.7.0,<2.0.0"
 pytest = "^8.4.1"
+pytest-asyncio = "^1.1.0"
 pytest-mock = "^3.12.0"
 pytest-timeout = "^2.4.0"
 mypy = "^1.16.1"
@@ -111,6 +112,7 @@ poetry-plugin-export = ">=1.8"
 
 # PYTEST CONFIGURATION
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 anyio_mode = "asyncio"
 testpaths = ["tests"]
 python_files = ["test_*.py"]

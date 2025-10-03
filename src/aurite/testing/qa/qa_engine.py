@@ -7,22 +7,21 @@ execution, result caching, and LLM-based expectation analysis.
 """
 
 import asyncio
-import inspect
-import json
 import logging
-import random
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.config.config_manager import ConfigManager
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig, LLMConfig
 
-from ..runners.agent_runner import AgentRunner
-from .qa_models import CaseEvaluationResult, ExpectationAnalysisResult, QAEvaluationResult
+from .qa_evaluation_pipeline import EvaluationPipeline
+from .qa_mode_handlers import get_mode_handler
+from .qa_models import CaseEvaluationResult, QAEvaluationResult
+from .qa_rate_limiter import RateLimiter
 from .qa_session_manager import QASessionManager
-from .qa_utils import clean_llm_output, format_agent_conversation_history, validate_schema
+from .qa_utils import filter_test_cases
 
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
@@ -58,16 +57,13 @@ class QAEngine:
         self.qa_session_manager = session_manager
         self.logger = logging.getLogger(__name__)
 
+        # Initialize evaluation pipeline
+        self.evaluation_pipeline = EvaluationPipeline(session_manager=session_manager)
+
         # Track failed MCP servers to prevent parallel retry attempts
         self._failed_mcp_servers: List[str] = []
         # Cache for MCP server test agents to reuse across test cases
         self._mcp_test_agents: Dict[str, str] = {}
-
-        # Rate limiting configuration
-        self._max_concurrent_tests = 3  # Default value
-        self._rate_limit_retry_count = 3  # Default value
-        self._rate_limit_base_delay = 1.0  # Default value
-        self._semaphore: Optional[asyncio.Semaphore] = None
 
     # ============================================================================
     # Public Interface Methods
@@ -110,35 +106,13 @@ class QAEngine:
         if request.component_refs and len(request.component_refs) > 1:
             return await self._evaluate_multiple_components(request, executor)
 
-        if mode == "aurite":
-            # Handle single component based on evaluation mode
-            component_name = None
-
-            # Aurite mode - load component configuration
-            if request.component_refs and len(request.component_refs) >= 1:
-                component_name = request.component_refs[0]
-
-            # For passing an entire component config directly
-            if request.component_config:
-                # Use the provided component configuration
-                component_name = request.component_config.get("name", component_name or "unknown")
-                self.logger.info(f"QAEngine: Using provided component config for {component_name}")
-            elif self.config_manager and component_name:
-                # Try to load from ConfigManager
-                try:
-                    self.logger.info(
-                        f"QAEngine: Loading component config for {request.component_type}.{component_name}"
-                    )
-                    config = self.config_manager.get_config(
-                        component_type=request.component_type, component_id=component_name
-                    )
-                    if config:
-                        request.component_config = config
-                        self.logger.info("QAEngine: Successfully loaded component config")
-                    else:
-                        self.logger.warning(f"QAEngine: No config found for {request.component_type}.{component_name}")
-                except Exception as e:
-                    self.logger.warning(f"QAEngine: Could not load component config: {e}")
+        # Prepare configuration using mode handler
+        mode_handler = get_mode_handler(
+            mode=mode,
+            config_manager=self.config_manager,
+            mcp_test_agents=self._mcp_test_agents,
+        )
+        component_name = await mode_handler.prepare_config(request, executor)
 
         self.logger.info("QAEngine: Starting test execution")
         # Execute the evaluation
@@ -194,7 +168,7 @@ class QAEngine:
 
         # Apply test case filtering if specified
         if test_cases_filter and "test_cases" in request_data:
-            filtered_cases = self._filter_test_cases(request_data["test_cases"], test_cases_filter)
+            filtered_cases = filter_test_cases(request_data["test_cases"], test_cases_filter)
             if not filtered_cases:
                 raise ValueError(f"No test cases matched filter: {test_cases_filter}")
             self.logger.info(
@@ -258,16 +232,21 @@ class QAEngine:
         # Get LLM client for evaluation
         llm_client = await self._get_llm_client(request, executor)
 
-        # Initialize semaphore for rate limiting
-        if self._semaphore is None:
-            max_concurrent = getattr(request, "max_concurrent_tests", self._max_concurrent_tests)
-            self._semaphore = asyncio.Semaphore(max_concurrent)
-            self.logger.info(f"Initialized rate limiting with max {max_concurrent} concurrent test cases")
+        # Initialize rate limiter with request configuration
+        max_concurrent = getattr(request, "max_concurrent_tests", 3)
+        retry_count = getattr(request, "rate_limit_retry_count", 3)
+        base_delay = getattr(request, "rate_limit_base_delay", 1.0)
 
-        # Create tasks with semaphore-controlled execution
+        rate_limiter = RateLimiter(
+            max_concurrent=max_concurrent,
+            retry_count=retry_count,
+            base_delay=base_delay,
+        )
+
+        # Create tasks with rate-limited execution
         tasks = [
-            self._evaluate_single_case_with_semaphore(
-                case=case, llm_client=llm_client, request=request, executor=executor
+            self._evaluate_case_with_rate_limiting(
+                case=case, llm_client=llm_client, request=request, executor=executor, rate_limiter=rate_limiter
             )
             for case in request.test_cases
         ]
@@ -344,71 +323,35 @@ class QAEngine:
 
         return evaluation_result
 
-    async def _evaluate_single_case_with_semaphore(
+    async def _evaluate_case_with_rate_limiting(
         self,
         case: EvaluationCase,
         llm_client: LiteLLMClient,
         request: EvaluationConfig,
+        rate_limiter: RateLimiter,
         executor: Optional["AuriteEngine"] = None,
     ) -> CaseEvaluationResult:
         """
-        Wrapper that uses semaphore to control concurrent execution.
+        Wrapper that executes case evaluation with rate limiting and retry logic.
 
         Args:
             case: The test case to evaluate
             llm_client: LLM client for expectation analysis
             request: The overall test request
+            rate_limiter: RateLimiter instance for concurrency control
             executor: Optional AuriteEngine for component execution
 
         Returns:
             CaseEvaluationResult for this test case
         """
-        # Ensure semaphore exists
-        if self._semaphore is None:
-            max_concurrent = getattr(request, "max_concurrent_tests", self._max_concurrent_tests)
-            self._semaphore = asyncio.Semaphore(max_concurrent)
 
-        async with self._semaphore:
-            # Add retry logic for rate limit errors
-            last_exception = None
-            retry_count = getattr(request, "rate_limit_retry_count", self._rate_limit_retry_count)
-            base_delay = getattr(request, "rate_limit_base_delay", self._rate_limit_base_delay)
+        async def evaluate_operation():
+            return await self._evaluate_single_case(case, llm_client, request, executor)
 
-            for retry_attempt in range(retry_count):
-                try:
-                    result = await self._evaluate_single_case(case, llm_client, request, executor)
-                    return result
-                except Exception as e:
-                    last_exception = e
-                    error_msg = str(e).lower()
-                    # Check if this is a rate limit error
-                    if any(
-                        rate_indicator in error_msg
-                        for rate_indicator in ["rate limit", "too many requests", "429", "rate_limit"]
-                    ):
-                        if retry_attempt < retry_count - 1:
-                            # Calculate exponential backoff with jitter
-                            delay = base_delay * (2**retry_attempt)
-                            jitter = random.uniform(0, delay * 0.3)  # Add up to 30% jitter
-                            total_delay = delay + jitter
-
-                            self.logger.warning(
-                                f"Rate limit hit for test case {case.id}, "
-                                f"retrying in {total_delay:.2f} seconds "
-                                f"(attempt {retry_attempt + 1}/{retry_count})"
-                            )
-                            await asyncio.sleep(total_delay)
-                            continue
-                        else:
-                            self.logger.error(f"Max retries exceeded for test case {case.id} due to rate limiting")
-                    # Re-raise the exception if not a rate limit or max retries exceeded
-                    raise
-
-            # If we get here, all retries failed - raise the last exception
-            if last_exception:
-                raise last_exception
-            else:
-                raise RuntimeError(f"Failed to evaluate test case {case.id} after {retry_count} attempts")
+        return await rate_limiter.execute_with_retry(
+            operation=evaluate_operation,
+            operation_id=f"test case {case.id}",
+        )
 
     async def _evaluate_single_case(
         self,
@@ -420,6 +363,12 @@ class QAEngine:
         """
         Evaluate a single test case for any component type.
 
+        This method delegates to the evaluation pipeline which handles:
+        - Cache checking and storage
+        - Component execution via mode handlers
+        - Schema validation
+        - LLM-based expectation analysis
+
         Args:
             case: The test case to evaluate
             llm_client: LLM client for expectation analysis
@@ -429,113 +378,22 @@ class QAEngine:
         Returns:
             CaseEvaluationResult for this test case
         """
-        start_time = datetime.utcnow()
+        # Get the appropriate mode handler
+        mode = request.resolve_mode()
+        mode_handler = get_mode_handler(
+            mode=mode,
+            config_manager=self.config_manager,
+            mcp_test_agents=self._mcp_test_agents,
+        )
 
-        try:
-            # Check for cached result first
-            cached_result = None
-            if request.use_cache and not request.force_refresh and self.qa_session_manager:
-                cache_key = self.qa_session_manager.generate_case_cache_key(
-                    case_input=str(case.input),
-                    component_config=request.component_config,
-                    evaluation_config_id=request.evaluation_config_id,
-                    review_llm=request.review_llm,
-                    expectations=case.expectations,
-                )
-
-                cached_result = await self.qa_session_manager.get_cached_case_result(
-                    cache_key=cache_key,
-                    cache_ttl=request.cache_ttl,
-                )
-
-                if cached_result:
-                    self.logger.info(f"Using cached result for case {case.id}")
-                    # Update execution time to reflect cache hit
-                    cached_result.execution_time = (datetime.utcnow() - start_time).total_seconds()
-                    return cached_result
-
-            self.logger.debug(f"No cached result found for case {case.id}, executing component")
-
-            # Execute the component
-            output = await self._execute_component(case, request, executor)
-
-            # Validate schema if provided
-            schema_result = None
-            if request.expected_schema:
-                schema_result = validate_schema(output, request.expected_schema)
-                if not schema_result.is_valid:
-                    result = CaseEvaluationResult(
-                        case_id=str(case.id),
-                        input=case.input,
-                        output=output,
-                        grade="FAIL",
-                        analysis=f"Schema Validation Failed: {schema_result.error_message}",
-                        expectations_broken=[],
-                        schema_valid=False,
-                        schema_errors=schema_result.validation_errors,
-                        execution_time=(datetime.utcnow() - start_time).total_seconds(),
-                    )
-                    return result
-
-            # Analyze expectations using LLM
-            if case.expectations:
-                component_context = request.component_config or {}
-                expectation_result = await self._analyze_expectations(case, output, llm_client, component_context)
-
-                grade = "PASS" if not expectation_result.expectations_broken else "FAIL"
-
-                result = CaseEvaluationResult(
-                    case_id=str(case.id),
-                    input=case.input,
-                    output=output,
-                    grade=grade,
-                    analysis=expectation_result.analysis,
-                    expectations_broken=expectation_result.expectations_broken,
-                    schema_valid=schema_result.is_valid if schema_result else True,
-                    execution_time=(datetime.utcnow() - start_time).total_seconds(),
-                )
-            else:
-                # No expectations to check, just schema validation
-                result = CaseEvaluationResult(
-                    case_id=str(case.id),
-                    input=case.input,
-                    output=output,
-                    grade="PASS" if (not schema_result or schema_result.is_valid) else "FAIL",
-                    analysis=f"No expectations defined, {request.component_type} output generated successfully",
-                    expectations_broken=[],
-                    schema_valid=schema_result.is_valid if schema_result else True,
-                    execution_time=(datetime.utcnow() - start_time).total_seconds(),
-                )
-
-            # Store result in cache if successful
-            if request.use_cache and result.grade == "PASS" and self.qa_session_manager:
-                cache_key = self.qa_session_manager.generate_case_cache_key(
-                    case_input=str(case.input),
-                    component_config=request.component_config,
-                    evaluation_config_id=request.evaluation_config_id,
-                    review_llm=request.review_llm,
-                    expectations=case.expectations,
-                )
-
-                await self.qa_session_manager.store_cached_case_result(
-                    cache_key=cache_key,
-                    result=result,
-                )
-
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Error evaluating {request.component_type} case {case.id}: {e}")
-            return CaseEvaluationResult(
-                case_id=str(case.id),
-                input=case.input,
-                output=None,
-                grade="FAIL",
-                analysis=f"Evaluation failed: {str(e)}",
-                expectations_broken=case.expectations,
-                error=str(e),
-                execution_time=(datetime.utcnow() - start_time).total_seconds(),
-            )
+        # Delegate to evaluation pipeline
+        return await self.evaluation_pipeline.evaluate_case(
+            case=case,
+            request=request,
+            mode_handler=mode_handler,
+            llm_client=llm_client,
+            executor=executor,
+        )
 
     async def _evaluate_multiple_components(
         self, request: EvaluationConfig, executor: Optional["AuriteEngine"] = None
@@ -608,190 +466,6 @@ class QAEngine:
 
         self.logger.info(f"QAEngine: Completed parallel evaluation of {len(final_results)} components")
         return final_results
-
-    # ============================================================================
-    # Business Logic Methods
-    # ============================================================================
-
-    async def _execute_component(
-        self,
-        case: EvaluationCase,
-        request: EvaluationConfig,
-        executor: Optional["AuriteEngine"] = None,
-    ) -> Any:
-        """
-        Execute a component and get its output.
-
-        Supports multiple execution patterns:
-        1. Pre-recorded outputs (case.output is provided)
-        2. Custom execution functions (run_agent parameter)
-        3. Standard component execution via AuriteEngine
-
-        Args:
-            case: The test case to execute
-            request: The QA test request containing execution parameters
-            executor: Optional AuriteEngine for standard component execution
-
-        Returns:
-            The output from the component execution
-
-        Raises:
-            ValueError: If no execution method is available or configured
-        """
-        # If output is already provided, use it
-        if case.output is not None:
-            self.logger.debug(f"Using pre-recorded output for case {case.id}")
-            return case.output
-
-        # Check for custom execution function (legacy run_agent support)
-        run_agent = getattr(request, "run_agent", None)
-        if run_agent:
-            self.logger.debug(f"Using custom execution function for case {case.id}")
-            run_agent_kwargs = getattr(request, "run_agent_kwargs", {})
-
-            if isinstance(run_agent, str):
-                # It's an agent name
-                runner = AgentRunner(run_agent)
-                return await runner.execute(case.input, **run_agent_kwargs)
-            elif inspect.iscoroutinefunction(run_agent):
-                # It's an async function
-                return await run_agent(case.input, **run_agent_kwargs)
-            else:
-                # It's a regular callable
-                return run_agent(case.input, **run_agent_kwargs)
-
-        # Standard component execution via AuriteEngine
-        if not executor:
-            raise ValueError(f"Case {case.id}: No output provided and no executor available to run component")
-
-        if request.component_config:
-            component_name = request.component_config.get("name")
-
-        if not component_name and hasattr(request, "component_refs") and request.component_refs:
-            component_name = request.component_refs[0]
-
-        if not component_name:
-            raise ValueError(f"Case {case.id}: No component name specified for execution")
-
-        component_type = request.component_type
-        self.logger.debug(f"Executing {component_type} '{component_name}' for case {case.id}")
-
-        # Execute based on component type
-        if component_type == "agent":
-            result = await executor.run_agent(
-                agent_name=component_name,
-                user_message=case.input,
-            )
-            return format_agent_conversation_history(result)
-
-        elif component_type in ["workflow", "linear_workflow"]:
-            return await executor.run_linear_workflow(
-                workflow_name=component_name,
-                initial_input=case.input,
-            )
-
-        elif component_type == "custom_workflow":
-            return await executor.run_custom_workflow(
-                workflow_name=component_name,
-                initial_input=case.input,
-            )
-
-        elif component_type == "graph_workflow":
-            return await executor.run_graph_workflow(
-                workflow_name=component_name,
-                initial_input=case.input,
-            )
-
-        elif component_type == "mcp_server":
-            # Check if we already have a test agent for this MCP server
-            if self._mcp_test_agents and component_name in self._mcp_test_agents:
-                agent_name = self._mcp_test_agents[component_name]
-                self.logger.debug(f"Reusing existing test agent '{agent_name}' for MCP server '{component_name}'")
-            else:
-                # Create a new test agent for this MCP server
-                agent_name = f"qa_test_agent_{component_name}_{uuid.uuid4().hex[:8]}"
-                agent_config = {
-                    "name": agent_name,
-                    "type": "agent",
-                    "mcp_servers": [component_name],
-                    "llm_config_id": request.review_llm,
-                    "system_prompt": f"""You are an expert test engineer who has been tasked with testing an MCP server named {component_name}. You have access to the tools defined by that server.
-The user will give you a message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.
-Finally, respond with the information returned by the tool.""",
-                }
-                executor._config_manager.create_component(component_type="agent", component_config=agent_config)
-                self.logger.info(f"Created test agent '{agent_name}' for MCP server '{component_name}'")
-
-                # Store in cache
-                self._mcp_test_agents[component_name] = agent_name
-
-            result = await executor.run_agent(
-                agent_name=agent_name,
-                user_message=case.input,
-            )
-
-            return format_agent_conversation_history(result)
-
-        else:
-            raise ValueError(f"Unsupported component type for execution: {component_type}")
-
-    async def _analyze_expectations(
-        self,
-        case: EvaluationCase,
-        output: Any,
-        llm_client: LiteLLMClient,
-        component_context: Optional[Dict[str, Any]] = None,
-    ) -> ExpectationAnalysisResult:
-        """
-        Use an LLM to analyze whether the output meets the expectations.
-
-        Args:
-            case: The test case with expectations
-            output: The output to analyze
-            llm_client: The LLM client to use for analysis
-            component_context: Optional context about the component being tested
-
-        Returns:
-            ExpectationAnalysisResult with the analysis
-        """
-        expectations_str = "\n".join(case.expectations)
-
-        # Build system prompt based on component context
-        system_prompt = self._build_analysis_system_prompt(component_context)
-
-        analysis_output = await llm_client.create_message(
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Expectations:\n{expectations_str}\n\nInput: {case.input}\n\nOutput: {output}",
-                }
-            ],
-            tools=None,
-            system_prompt_override=system_prompt,
-        )
-
-        analysis_text = analysis_output.content
-
-        if analysis_text is None:
-            raise ValueError("Evaluation LLM returned no content")
-
-        try:
-            # Clean the output and parse JSON
-            cleaned_output = clean_llm_output(analysis_text)
-            analysis_json = json.loads(cleaned_output)
-
-            return ExpectationAnalysisResult(
-                analysis=analysis_json.get("analysis", "No analysis provided"),
-                expectations_broken=analysis_json.get("expectations_broken", []),
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error parsing LLM analysis output: {e}")
-            # Return a failed analysis
-            return ExpectationAnalysisResult(
-                analysis=f"Failed to parse LLM output: {str(e)}",
-                expectations_broken=case.expectations,  # Assume all failed if we can't parse
-            )
 
     # ============================================================================
     # Helper Methods
@@ -914,86 +588,6 @@ Finally, respond with the information returned by the tool.""",
             self._failed_mcp_servers.extend(failed_servers)
             self.logger.warning(f"Failed to register {len(failed_servers)} MCP servers: {failed_servers}")
 
-    def _filter_test_cases(self, test_cases: list, filter_str: str) -> list:
-        """
-        Filter test cases based on the provided filter string.
-
-        Supports:
-        - Comma-separated names: "test1,test2"
-        - Index ranges: "0-2" (indices 0, 1, 2)
-        - Single indices: "0,2,4"
-        - Mixed: "test1,0-2,test5"
-        - Regex patterns: "/pattern/" or "regex:pattern"
-
-        Args:
-            test_cases: List of test case dictionaries
-            filter_str: Filter string
-
-        Returns:
-            Filtered list of test cases
-        """
-        import re
-
-        filtered = []
-        filters = [f.strip() for f in filter_str.split(",")]
-
-        for filter_item in filters:
-            # Check for regex pattern
-            if filter_item.startswith("/") and filter_item.endswith("/"):
-                # Regex pattern
-                pattern = filter_item[1:-1]
-                try:
-                    regex = re.compile(pattern, re.IGNORECASE)
-                    for case in test_cases:
-                        name = case.get("name", "")
-                        if regex.search(name) and case not in filtered:
-                            filtered.append(case)
-                except re.error as e:
-                    self.logger.warning(f"Invalid regex pattern '{pattern}': {e}")
-
-            elif filter_item.startswith("regex:"):
-                # Alternative regex syntax
-                pattern = filter_item[6:]
-                try:
-                    regex = re.compile(pattern, re.IGNORECASE)
-                    for case in test_cases:
-                        name = case.get("name", "")
-                        if regex.search(name) and case not in filtered:
-                            filtered.append(case)
-                except re.error as e:
-                    self.logger.warning(f"Invalid regex pattern '{pattern}': {e}")
-
-            elif "-" in filter_item and filter_item.replace("-", "").isdigit():
-                # Index range (e.g., "0-2")
-                parts = filter_item.split("-")
-                if len(parts) == 2:
-                    try:
-                        start = int(parts[0])
-                        end = int(parts[1])
-                        for i in range(start, min(end + 1, len(test_cases))):
-                            if test_cases[i] not in filtered:
-                                filtered.append(test_cases[i])
-                    except (ValueError, IndexError) as e:
-                        self.logger.warning(f"Invalid index range '{filter_item}': {e}")
-
-            elif filter_item.isdigit():
-                # Single index
-                try:
-                    idx = int(filter_item)
-                    if 0 <= idx < len(test_cases) and test_cases[idx] not in filtered:
-                        filtered.append(test_cases[idx])
-                except (ValueError, IndexError) as e:
-                    self.logger.warning(f"Invalid index '{filter_item}': {e}")
-
-            else:
-                # Test case name
-                for case in test_cases:
-                    if case.get("name", "") == filter_item and case not in filtered:
-                        filtered.append(case)
-
-        # Preserve original order
-        return [case for case in test_cases if case in filtered]
-
     def aggregate_scores(self, results: List[CaseEvaluationResult]) -> float:
         """
         Calculate aggregate score using weighted average (QA approach).
@@ -1015,85 +609,3 @@ Finally, respond with the information returned by the tool.""",
         total = len(results)
 
         return (passed / total) * 100.0
-
-    def _build_analysis_system_prompt(self, component_context: Optional[Dict[str, Any]] = None) -> str:
-        """
-        Build a system prompt for expectation analysis based on component context.
-
-        Args:
-            component_context: Optional context about the component being tested
-
-        Returns:
-            System prompt string for the LLM
-        """
-        base_prompt = """You are an expert Quality Assurance Engineer. Your job is to review the output from a component and make sure it meets a list of expectations.
-Your output should be your analysis of its performance, and a list of which expectations were broken (if any). These strings should be identical to the original expectation strings.
-
-Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do NOT format it as a code block (```). Here is a template: {
-"analysis": "<your analysis here>",
-"expectations_broken": ["<broken expectation 1>", "<broken expectation 2>", "etc"]
-}"""
-
-        if not component_context:
-            return base_prompt
-
-        # Add component-specific context
-        component_type = component_context.get("type", "component")
-        component_name = component_context.get("name", "Unknown")
-
-        context_prompt = f"""You are an expert Quality Assurance Engineer specializing in {component_type} evaluation.
-
-You are evaluating a {component_type} with the following configuration:
-- Component Name: {component_name}
-- Component Type: {component_type}"""
-
-        # Add type-specific context
-        if component_type == "agent":
-            system_prompt_text = component_context.get("system_prompt", "Not specified")
-            truncated_prompt = system_prompt_text[:200] + "..." if len(system_prompt_text) > 200 else system_prompt_text
-
-            context_prompt += f"""
-- System Prompt: {truncated_prompt}
-- Tools Available: {", ".join(component_context.get("mcp_servers", [])) or "None"}
-- Temperature: {component_context.get("temperature", "Not specified")}
-
-Focus on:
-1. Goal Achievement: Did the agent accomplish what was asked?
-2. Response Quality: Is the response coherent, relevant, and complete?
-3. Tool Usage: If tools were available, were they used appropriately?
-4. System Prompt Adherence: Does the response follow the agent's behavioral guidelines?"""
-
-        elif component_type in ["workflow", "linear_workflow"]:
-            steps = component_context.get("steps", [])
-            step_names = []
-            if isinstance(steps, list):
-                for step in steps:
-                    if isinstance(step, dict):
-                        step_names.append(step.get("name", "unnamed"))
-                    elif isinstance(step, str):
-                        step_names.append(step)
-
-            context_prompt += f"""
-- Workflow Type: {component_context.get("type", "linear_workflow")}
-- Number of Steps: {len(steps)}
-- Step Names: {", ".join(step_names) if step_names else "Not specified"}
-- Timeout: {component_context.get("timeout_seconds", "Not specified")} seconds
-- Parallel Execution: {component_context.get("parallel_execution", False)}
-
-Focus on:
-1. End-to-End Execution: Did the workflow complete successfully from start to finish?
-2. Agent Coordination: Do the results show proper coordination between workflow steps?
-3. Data Flow Integrity: Is the data properly transformed and passed between steps?
-4. Step Validation: Are individual steps executing correctly?"""
-
-        context_prompt += f"""
-
-Your job is to review the {component_type}'s output and determine if it meets the specified expectations.
-
-Format your output as JSON. IMPORTANT: Do not include any other text before or after, and do NOT format it as a code block (```). Here is the template:
-{{
-"analysis": "<your detailed analysis here>",
-"expectations_broken": ["<broken expectation 1>", "<broken expectation 2>", "etc"]
-}}"""
-
-        return context_prompt
