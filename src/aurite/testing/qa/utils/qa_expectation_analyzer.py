@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.models.config.components import EvaluationCase
 
-from .qa_models import ExpectationAnalysisResult
+from ..qa_models import ExpectationAnalysisResult
 from .qa_utils import clean_llm_output
 
 logger = logging.getLogger(__name__)

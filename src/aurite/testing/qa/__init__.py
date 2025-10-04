@@ -16,7 +16,7 @@ from .qa_models import (
     SchemaValidationResult,
 )
 from .qa_session_manager import QASessionManager
-from .qa_utils import clean_llm_output, filter_test_cases, validate_schema
+from .utils.qa_utils import clean_llm_output, filter_test_cases, validate_schema
 
 __all__ = [
     # Core classes

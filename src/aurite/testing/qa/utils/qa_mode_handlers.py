@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from aurite.lib.config.config_manager import ConfigManager
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
 
-from ..runners.agent_runner import AgentRunner
+from ...runners.agent_runner import AgentRunner
 
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine

@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
-from aurite.testing.qa.qa_mode_handlers import (
+from aurite.testing.qa.utils.qa_mode_handlers import (
     AuriteModeHandler,
     FunctionModeHandler,
     ManualModeHandler,

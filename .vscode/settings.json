@@ -50,6 +50,7 @@
     "*.ipynb": "jupyter"
   },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.useEnvFile": true,
   "editor.formatOnSave": true,
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
@@ -128,7 +129,21 @@
         "!**/build/**",
         "!**/*.test.json",
         "!**/*.spec.json",
-        "!**/coverage/**"
+        "!**/coverage/**",
+        "!**/pnpm-lock.yaml",
+        "!**/bun.lockb",
+        "!**/yarn.lock",
+        "!**/lerna.json",
+        "!**/.eslintrc.json",
+        "!**/.prettierrc.json",
+        "!**/.stylelintrc.json",
+        "!**/.babelrc.json",
+        "!**/.lintstagedrc.json",
+        "!**/.commitlintrc.json",
+        "!**/renovate.json",
+        "!**/renovate.json5",
+        "!**/renovate.jsonc",
+        "!**/cline_mcp_settings.json",
       ],
       "url": "./schemas/aurite_schema.json"
     }

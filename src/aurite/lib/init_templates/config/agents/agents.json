@@ -25,5 +25,32 @@
     ],
     "llm_config_id": null,
     "system_prompt": "You are an expert test engineer who has been tasked with testing an MCP server named weather_server. You have access to the tools defined by that server.\nThe user will give you a message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.\nFinally, respond with the information returned by the tool."
+  },
+  {
+    "name": "qa_test_agent_weather_server_23539422",
+    "type": "agent",
+    "mcp_servers": [
+      "weather_server"
+    ],
+    "llm_config_id": null,
+    "system_prompt": "You are an expert test engineer who has been tasked with testing an MCP server named weather_server. You have access to the tools defined by that server.\nThe user will give you a message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.\nFinally, respond with the information returned by the tool."
+  },
+  {
+    "name": "qa_test_agent_weather_server_79caab8b",
+    "type": "agent",
+    "mcp_servers": [
+      "weather_server"
+    ],
+    "llm_config_id": null,
+    "system_prompt": "You are an expert test engineer who has been tasked with testing an MCP server named weather_server. You have access to the tools defined by that server.\nThe user will give you a message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.\nFinally, respond with the information returned by the tool."
+  },
+  {
+    "name": "qa_test_agent_weather_server_b3f40aac",
+    "type": "agent",
+    "mcp_servers": [
+      "weather_server"
+    ],
+    "llm_config_id": null,
+    "system_prompt": "You are an expert test engineer who has been tasked with testing an MCP server named weather_server. You have access to the tools defined by that server.\nThe user will give you a message which should inform which tool to call. If arguments for the tool are given, use those, and if not generate appropriate arguments yourself.\nFinally, respond with the information returned by the tool."
   }
 ]

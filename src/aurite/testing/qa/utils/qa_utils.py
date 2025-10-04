@@ -11,7 +11,7 @@ from typing import Any, Dict
 
 import jsonschema
 
-from .qa_models import SchemaValidationResult
+from ..qa_models import SchemaValidationResult
 
 logger = logging.getLogger(__name__)
 

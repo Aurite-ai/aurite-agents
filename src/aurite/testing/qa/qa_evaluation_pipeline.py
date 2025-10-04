@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, Any, Optional
 from aurite.lib.components.llm.litellm_client import LiteLLMClient
 from aurite.lib.models.config.components import EvaluationCase, EvaluationConfig
 
-from .qa_mode_handlers import BaseModeHandler
 from .qa_models import CaseEvaluationResult
 from .qa_session_manager import QASessionManager
-from .qa_utils import validate_schema
+from .utils.qa_mode_handlers import BaseModeHandler
+from .utils.qa_utils import validate_schema
 
 if TYPE_CHECKING:
     from aurite.execution.aurite_engine import AuriteEngine
@@ -174,7 +174,7 @@ class EvaluationPipeline:
         Returns:
             CaseEvaluationResult with analysis and grade
         """
-        from .qa_expectation_analyzer import analyze_expectations
+        from .utils.qa_expectation_analyzer import analyze_expectations
 
         component_context = request.component_config or {}
         expectation_result = await analyze_expectations(

@@ -16,7 +16,7 @@ from pathlib import Path
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from aurite.testing.qa.qa_utils import clean_llm_output
+from aurite.testing.qa.utils.qa_utils import clean_llm_output
 
 
 def test_clean_llm_output():

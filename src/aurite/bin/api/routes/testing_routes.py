@@ -38,6 +38,15 @@ router = APIRouter(prefix="/testing", tags=["Testing & Security"])
 # --- Request/Response Models ---
 
 
+class EvaluationRequest(EvaluationConfig):
+    """Request model for QA evaluation."""
+
+    name: Optional[str] = Field(default=None, description="Name of the evaluation")
+    type: Optional[str] = Field(default=None, description="Type of the evaluation")
+
+    pass  # Overrides name and type to become optional
+
+
 class SecurityAssessmentRequest(BaseModel):
     """Request model for security assessment."""
 
@@ -134,7 +143,7 @@ class FullConfigurationAssessmentResponse(BaseModel):
 
 @router.post("/evaluate")
 async def evaluate_component(
-    request: EvaluationConfig,
+    request: EvaluationRequest,
     api_key: str = Security(get_api_key),
     qa_engine: QAEngine = Depends(get_qa_engine),
     engine: AuriteEngine = Depends(get_execution_facade),
@@ -147,8 +156,13 @@ async def evaluate_component(
     Supports both single and multiple component evaluations.
     """
     try:
+        config = EvaluationConfig(**request.model_dump())
+        if not config.type:
+            config.type = "evaluation"
+        if not config.name:
+            config.name = "Unnamed"
         # Use QAEngine directly and return the full result
-        results = await qa_engine.evaluate_component(request, engine)
+        results = await qa_engine.evaluate_component(config, engine)
         # Convert dictionary of QAEvaluationResult objects to dictionary of dicts
         return {component_name: result.model_dump() for component_name, result in results.items()}
     except Exception as e:
