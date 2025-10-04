@@ -134,6 +134,7 @@
         "!**/bun.lockb",
         "!**/yarn.lock",
         "!**/lerna.json",
+        "!**/*settings.json",
         "!**/.eslintrc.json",
         "!**/.prettierrc.json",
         "!**/.stylelintrc.json",

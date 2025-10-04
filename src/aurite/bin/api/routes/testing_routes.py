@@ -156,13 +156,13 @@ async def evaluate_component(
     Supports both single and multiple component evaluations.
     """
     try:
-        config = EvaluationConfig(**request.model_dump())
-        if not config.type:
-            config.type = "evaluation"
-        if not config.name:
-            config.name = "Unnamed"
+        # Translate EvaluationRequest into EvaluationConfig, setting defaults
+        config_dict = request.model_dump()
+        config_dict["type"] = config_dict.get("type") or "evaluation"
+        config_dict["name"] = config_dict.get("name") or "Unnamed"
+        evaluation_config = EvaluationConfig(**config_dict)
         # Use QAEngine directly and return the full result
-        results = await qa_engine.evaluate_component(config, engine)
+        results = await qa_engine.evaluate_component(evaluation_config, engine)
         # Convert dictionary of QAEvaluationResult objects to dictionary of dicts
         return {component_name: result.model_dump() for component_name, result in results.items()}
     except Exception as e:
