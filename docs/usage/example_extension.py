@@ -15,7 +15,8 @@ To use this extension:
 from fastapi import APIRouter, Depends, Query, Security
 from typing import Dict, Any
 
-from aurite.bin.api import Extension, application
+# Import from extension submodule to avoid circular imports
+from aurite.bin.api.extension import Extension, application
 from aurite.bin.dependencies import (
     get_api_key,
     get_config_manager,

@@ -8,6 +8,7 @@ It exposes the core classes and functions for users to build and run AI agents.
 
 # Core classes for users
 from .aurite import Aurite
+from .bin.api.extension import Extension  # For convenience
 from .execution.aurite_engine import AuriteEngine
 
 # Import the models module as 'types' for convenient access
@@ -17,6 +18,7 @@ from .lib import models as types
 from .lib.models import *
 
 __all__ = [
+    "Extension",
     "Aurite",
     "AuriteEngine",
     "types",

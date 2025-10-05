@@ -20,7 +20,9 @@ Create a Python file with your extension class:
 ```python
 # my_extension.py
 from fastapi import APIRouter, Security
-from aurite.bin.api import Extension, application
+
+# Import from extension submodule to avoid circular imports
+from aurite.bin.api.extension import Extension, application
 from aurite.bin.dependencies import get_api_key
 
 
@@ -37,6 +39,8 @@ class MyExtension(Extension):
 
         app.include_router(router)
 ```
+
+**Important:** Always import `Extension` and `application` from `aurite.bin.api.extension` (not `aurite.bin.api`) to avoid circular import issues.
 
 ### 2. Load the Extension
 
@@ -67,7 +71,8 @@ Your custom endpoint will now be available at `http://localhost:8000/custom/hell
 All extensions must inherit from the `Extension` base class:
 
 ```python
-from aurite.bin.api import Extension
+# Use the extension submodule to avoid circular imports
+from aurite.bin.api.extension import Extension
 
 class MyExtension(Extension):
     def __call__(self, app):
@@ -81,12 +86,26 @@ class MyExtension(Extension):
         pass
 ```
 
+**⚠️ Avoiding Circular Imports**
+
+Always import from `aurite.bin.api.extension`:
+
+```python
+# ✅ Correct - no circular import
+from aurite.bin.api.extension import Extension, application
+
+# ❌ Incorrect - may cause circular import
+from aurite.bin.api import Extension, application
+```
+
+The extension module is loaded separately to prevent circular import issues when your extension is imported during API startup.
+
 ### Accessing Aurite Components
 
 Extensions can access the Aurite instance and all its components:
 
 ```python
-from aurite.bin.api import application
+from aurite.bin.api.extension import application
 
 # Inside your endpoint function
 aurite = application.get()
@@ -127,7 +146,7 @@ async def my_endpoint(
 
 ```python
 from fastapi import APIRouter, Depends, Query, Security
-from aurite.bin.api import Extension
+from aurite.bin.api.extension import Extension
 from aurite.bin.dependencies import get_api_key, get_execution_facade
 
 
@@ -158,7 +177,7 @@ class RAGExtension(Extension):
 ```python
 from fastapi import APIRouter, Depends, Security
 from pydantic import BaseModel
-from aurite.bin.api import Extension
+from aurite.bin.api.extension import Extension
 from aurite.bin.dependencies import get_api_key, get_execution_facade
 
 
@@ -196,7 +215,7 @@ class BatchExtension(Extension):
 
 ```python
 from fastapi import APIRouter, Depends, Security
-from aurite.bin.api import Extension, application
+from aurite.bin.api.extension import Extension, application
 from aurite.bin.dependencies import get_api_key
 
 

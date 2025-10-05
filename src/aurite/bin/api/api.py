@@ -33,7 +33,7 @@ from ..dependencies import (
 from ..studio.static_server import setup_studio_routes_with_static
 
 # Import extension system
-from .extension import ExtensionFactory, application
+from .extension import ExtensionFactory, application, discover_entry_point_extensions
 
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
@@ -126,31 +126,77 @@ async def health_check():
     return {"status": "ok"}
 
 
-# main routes
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {"message": "Welcome to the Aurite API"}
+
+
+# Include main built-in routes
 app.include_router(main_router)
 
 
-# --- Load API Extensions ---
-extensions_env = os.getenv("AURITE_API_EXTENSIONS", "").strip()
-if extensions_env:
-    logger.info(f"Loading API extensions from environment: {extensions_env}")
-    extension_paths = [path.strip() for path in extensions_env.split(",") if path.strip()]
+def _load_extensions():
+    """
+    Load API extensions from both entry points and environment variables.
 
-    for extension_path in extension_paths:
-        try:
-            # Get extension class and instantiate
-            extension_class = ExtensionFactory.get(extension_path)
-            extension = extension_class()
+    This function is called after module initialization to avoid circular imports
+    when extensions try to import from aurite.bin.api.
 
-            # Register extension with app
-            extension(app)
+    Loading order:
+    1. Auto-discover from entry points (installed packages)
+    2. Load from AURITE_API_EXTENSIONS environment variable (manual/local)
+    3. Skip duplicates (env var takes precedence)
+    """
+    loaded_extensions = set()
 
-            logger.info(f"✓ Successfully loaded extension: {extension_path}")
-        except Exception as e:
-            logger.error(f"✗ Failed to load extension '{extension_path}': {e}", exc_info=True)
-            # Continue loading other extensions even if one fails
-else:
-    logger.debug("No API extensions configured (AURITE_API_EXTENSIONS not set)")
+    # 1. Auto-discover extensions from entry points
+    try:
+        discovered = discover_entry_point_extensions()
+
+        for ext_name, extension_class in discovered.items():
+            try:
+                extension = extension_class()
+                extension(app)
+                loaded_extensions.add(ext_name)
+                logger.info(f"✓ Loaded extension from entry point: {ext_name}")
+            except Exception as e:
+                logger.error(f"✗ Failed to load entry point extension '{ext_name}': {e}", exc_info=True)
+                continue
+
+    except Exception as e:
+        logger.error(f"Error during entry point discovery: {e}", exc_info=True)
+
+    # 2. Load extensions from environment variable
+    extensions_env = os.getenv("AURITE_API_EXTENSIONS", "").strip()
+    if extensions_env:
+        logger.info(f"Loading API extensions from environment: {extensions_env}")
+        extension_paths = [path.strip() for path in extensions_env.split(",") if path.strip()]
+
+        for extension_path in extension_paths:
+            # Skip if already loaded from entry points
+            if extension_path in loaded_extensions:
+                logger.debug(f"Skipping '{extension_path}' - already loaded from entry point")
+                continue
+
+            try:
+                # Get extension class and instantiate
+                extension_class = ExtensionFactory.get(extension_path)
+                extension = extension_class()
+
+                # Register extension with app
+                extension(app)
+                loaded_extensions.add(extension_path)
+                logger.info(f"✓ Loaded extension from environment: {extension_path}")
+            except Exception as e:
+                logger.error(f"✗ Failed to load extension '{extension_path}': {e}", exc_info=True)
+                # Continue loading other extensions even if one fails
+
+    # Summary
+    if loaded_extensions:
+        logger.info(f"Total extensions loaded: {len(loaded_extensions)}")
+    else:
+        logger.debug("No extensions loaded (no entry points or AURITE_API_EXTENSIONS)")
 
 
 # Custom OpenAPI schema
@@ -364,8 +410,16 @@ except Exception as e:
 # --- Health Check Endpoint (Moved earlier) ---
 
 
+# Load extensions immediately after all core routes but BEFORE catch-all/static routes
+# This ensures:
+# 1. Extensions can access the Aurite instance via app.state (set in lifespan)
+# 2. Extension routes are registered before catch-all routes
+# 3. Extension routes reload automatically in development mode
+_load_extensions()
+
+
 # Setup static file serving for Aurite Studio if available
-# IMPORTANT: This must come AFTER all other API routes but BEFORE catch-all routes
+# IMPORTANT: This must come AFTER all other API routes (including extensions) but BEFORE catch-all routes
 try:
     studio_static_setup = setup_studio_routes_with_static(app)
     if studio_static_setup:
@@ -411,7 +465,7 @@ def start():
         logger.critical("Server configuration could not be loaded. Aborting startup.")
         raise RuntimeError("Server configuration could not be loaded. Aborting startup.")
 
-    # Determine reload mode based on environment. Default to development mode.
+    # Determine reload mode based on environment
     reload_mode = os.getenv("ENV", "development").lower() != "production"
 
     # In development (reload mode), it's more stable to hand off execution directly
