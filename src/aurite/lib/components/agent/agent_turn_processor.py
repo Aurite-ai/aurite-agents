@@ -506,10 +506,18 @@ class AgentTurnProcessor:
             return llm_response
 
         text_content = llm_response.content or ""
+
+        start = text_content.find("{")
+        end = text_content.rfind("}")
+
+        if start != -1 and end != -1 and start <= end:
+            text_content = text_content[start : end + 1]
+
         try:
             json_content = json.loads(text_content)
             validate(instance=json_content, schema=self.config.config_validation_schema)
             return llm_response
         except (json.JSONDecodeError, JsonSchemaValidationError) as e:
             logger.warning(f"Schema validation failed for final response: {e}")
+            logger.warning(f"Failing schema: {text_content}")
             return None
