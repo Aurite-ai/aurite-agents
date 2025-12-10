@@ -1,0 +1,51 @@
+- name: weather_server
+  type: mcp_server
+  description: MCP server for weather-related tools and prompts.
+  server_path: mcp_servers/examples/weather_server.py
+  capabilities:
+    - tools
+    - prompts
+  timeout: 15.0
+
+- name: planning_server
+  type: mcp_server
+  description: MCP server for planning, tools, prompts, and resources.
+  server_path: mcp_servers/examples/planning_server.py
+  capabilities:
+    - tools
+    - prompts
+    - resources
+  timeout: 15.0
+
+- name: Weather Agent
+  type: agent
+  description: Weather Agent for testing
+  system_prompt: >-
+    You are a helpful weather assistant. Your job is to use the weather_lookup tool to retrieve weather information and provide it in a structured format. If the tool does not work correctly, DO NOT make up data. Instead, return an error message indicating the issue.
+  llm_config_id: anthropic_claude_3_haiku
+  mcp_servers:
+    - weather_server
+  include_history: true
+
+- name: Weather Planning Workflow Step 2
+  type: agent
+  description: An agent that creates a plan based on the weather data provided by the Weather Agent. It uses the planning MCP server to generate a plan.
+  mcp_servers:
+    - planning_server
+  system_prompt: >-
+    You have been provided with a weather forecast. Your job is to create a plan explaining what to wear based on the provided weather data.
+  llm_config_id: anthropic_claude_3_haiku
+
+- name: Weather Planning Workflow
+  type: linear_workflow
+  description: A linear workflow to plan based on weather data.
+  include_history: true
+  steps:
+    - Weather Agent
+    - Weather Planning Workflow Step 2
+
+- name: ExampleCustomWorkflow
+  type: custom_workflow
+  description: Test workflow using Weather Agent and Weather MCP server.
+  module_path: custom_workflows/example_workflow.py
+  class_name: ExampleCustomWorkflow

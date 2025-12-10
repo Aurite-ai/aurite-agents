@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Linear Workflow Configuration",
+  "description": "Configuration schema for linear_workflow components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for linear_workflow components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "linear_workflow",
+            "default": "linear_workflow",
+            "title": "Type",
+            "type": "string"
+          },
+          "steps": {
+            "description": "List of component names or component objects to execute in sequence.",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/WorkflowComponent"
+                }
+              ]
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "include_history": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If set, overrides the include_history setting for all agents in this workflow.",
+            "title": "Include History"
+          },
+          "include_logging": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "If set, overrides the include_logging setting for all agents in this workflow.",
+            "title": "Include Logging"
+          }
+        },
+        "required": [
+          "name",
+          "steps"
+        ],
+        "title": "Aurite Linear Workflow Configuration",
+        "type": "object"
+      },
+      "description": "Array of linear_workflow configurations"
+    },
+    {
+      "description": "Configuration schema for linear_workflow components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "linear_workflow",
+          "default": "linear_workflow",
+          "title": "Type",
+          "type": "string"
+        },
+        "steps": {
+          "description": "List of component names or component objects to execute in sequence.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/WorkflowComponent"
+              }
+            ]
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "include_history": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "If set, overrides the include_history setting for all agents in this workflow.",
+          "title": "Include History"
+        },
+        "include_logging": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "If set, overrides the include_logging setting for all agents in this workflow.",
+          "title": "Include Logging"
+        }
+      },
+      "required": [
+        "name",
+        "steps"
+      ],
+      "title": "Aurite Linear Workflow Configuration",
+      "type": "object"
+    }
+  ],
+  "$defs": {
+    "WorkflowComponent": {
+      "properties": {
+        "name": {
+          "description": "The name of the component in the workflow step.",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the component.",
+          "enum": [
+            "agent",
+            "linear_workflow",
+            "custom_workflow"
+          ],
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "title": "WorkflowComponent",
+      "type": "object"
+    }
+  }
+}

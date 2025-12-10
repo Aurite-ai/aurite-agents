@@ -1,0 +1,476 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Agent Configuration",
+  "description": "Configuration schema for agent components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for agent components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "agent",
+            "default": "agent",
+            "title": "Type",
+            "type": "string"
+          },
+          "mcp_servers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of mcp_server names this agent can use.",
+            "title": "Mcp Servers"
+          },
+          "auto": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": false,
+            "description": "If true, an LLM will dynamically select client_ids for the agent at runtime.",
+            "title": "Auto"
+          },
+          "llm_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ID of the LLMConfig to use for this agent.",
+            "title": "Llm Config Id"
+          },
+          "llm": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LLMConfigOverrides"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "LLM parameters to override the base LLMConfig."
+          },
+          "system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The primary system prompt for the agent.",
+            "title": "System Prompt"
+          },
+          "config_validation_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "JSON schema for validating agent-specific configurations.",
+            "title": "Config Validation Schema"
+          },
+          "max_iterations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 50,
+            "description": "Max conversation turns before stopping.",
+            "title": "Max Iterations"
+          },
+          "include_history": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether to include the conversation history, or just the latest message.",
+            "title": "Include History"
+          },
+          "include_logging": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether to enable Langfuse logging for this agent, overriding global settings.",
+            "title": "Include Logging"
+          },
+          "exclude_components": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
+            "title": "Exclude Components"
+          },
+          "evaluation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
+            "title": "Evaluation"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Aurite Agent Configuration",
+        "type": "object"
+      },
+      "description": "Array of agent configurations"
+    },
+    {
+      "description": "Configuration schema for agent components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "agent",
+          "default": "agent",
+          "title": "Type",
+          "type": "string"
+        },
+        "mcp_servers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "List of mcp_server names this agent can use.",
+          "title": "Mcp Servers"
+        },
+        "auto": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "description": "If true, an LLM will dynamically select client_ids for the agent at runtime.",
+          "title": "Auto"
+        },
+        "llm_config_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ID of the LLMConfig to use for this agent.",
+          "title": "Llm Config Id"
+        },
+        "llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LLMConfigOverrides"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM parameters to override the base LLMConfig."
+        },
+        "system_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The primary system prompt for the agent.",
+          "title": "System Prompt"
+        },
+        "config_validation_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON schema for validating agent-specific configurations.",
+          "title": "Config Validation Schema"
+        },
+        "max_iterations": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 50,
+          "description": "Max conversation turns before stopping.",
+          "title": "Max Iterations"
+        },
+        "include_history": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to include the conversation history, or just the latest message.",
+          "title": "Include History"
+        },
+        "include_logging": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to enable Langfuse logging for this agent, overriding global settings.",
+          "title": "Include Logging"
+        },
+        "exclude_components": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of component names (tool, prompt, resource) to specifically exclude for this agent, even if provided by allowed clients.",
+          "title": "Exclude Components"
+        },
+        "evaluation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional runtime evaluation. Set to the name of a file in config/testing, or a prompt describing expected output for simple evaluation.",
+          "title": "Evaluation"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Aurite Agent Configuration",
+      "type": "object"
+    }
+  ],
+  "$defs": {
+    "LLMConfigOverrides": {
+      "additionalProperties": true,
+      "description": "A model for agent-specific overrides of LLM parameters.",
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides model from LLMConfig if specified.",
+          "title": "Model"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides temperature from LLMConfig if specified.",
+          "title": "Temperature"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides max_tokens from LLMConfig if specified.",
+          "title": "Max Tokens"
+        },
+        "system_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The primary system prompt for the agent.",
+          "title": "System Prompt"
+        },
+        "api_base": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the base URL for the LLM.",
+          "title": "Api Base"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the API key for the LLM.",
+          "title": "Api Key"
+        },
+        "api_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides the API version for the LLM.",
+          "title": "Api Version"
+        }
+      },
+      "title": "LLMConfigOverrides",
+      "type": "object"
+    }
+  }
+}

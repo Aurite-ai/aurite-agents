@@ -282,15 +282,23 @@ _qa_engine_instance: Optional[QAEngine] = None
 
 async def get_qa_engine(
     config_manager: ConfigManager = Depends(get_config_manager),
+    session_manager: SessionManager = Depends(get_session_manager),
 ) -> QAEngine:
     """
-    Dependency function to get or create QAEngine instance.
+    Dependency function to get or create QAEngine instance with QASessionManager.
     """
     global _qa_engine_instance
 
     if _qa_engine_instance is None:
-        _qa_engine_instance = QAEngine(config_manager=config_manager)
-        logger.info("QAEngine instance created with ConfigManager")
+        # Import QASessionManager here to avoid circular imports
+        from ..testing.qa.qa_session_manager import QASessionManager
+
+        # Create QASessionManager wrapper around SessionManager
+        qa_session_manager = QASessionManager(session_manager=session_manager)
+
+        # Create QAEngine with both managers
+        _qa_engine_instance = QAEngine(config_manager=config_manager, session_manager=qa_session_manager)
+        logger.info("QAEngine instance created with ConfigManager and QASessionManager")
 
     return _qa_engine_instance
 

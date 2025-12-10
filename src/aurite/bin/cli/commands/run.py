@@ -5,7 +5,6 @@ from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 
 from ....aurite import Aurite
 from ....utils.cli.ui_presenter import RunPresenter
@@ -35,16 +34,23 @@ async def run_component(
     session_id: Optional[str],
     short: bool,
     debug: bool,
+    test_cases: Optional[str] = None,
 ):
     """
     Finds a component by name, infers its type, and executes it with rich UI rendering.
     """
+    import logging
+
     os.environ["AURITE_CONFIG_FORCE_REFRESH"] = "false"
     output_mode = "default"
     if short:
         output_mode = "short"
     if debug:
         output_mode = "debug"
+    else:
+        # Suppress all Aurite logs unless in debug mode
+        logging.getLogger("aurite").setLevel(logging.WARNING)
+        logging.getLogger("ComponentQATester").setLevel(logging.WARNING)
 
     aurite = None
     try:
@@ -61,7 +67,8 @@ async def run_component(
             (
                 comp
                 for comp in found_components
-                if comp["component_type"] in ["agent", "linear_workflow", "custom_workflow"]
+                if comp["component_type"]
+                in ["agent", "linear_workflow", "custom_workflow", "graph_workflow", "evaluation"]
             ),
             found_components[0],
         )
@@ -135,6 +142,176 @@ async def run_component(
                     yield {"type": "workflow_step_end", "data": {"name": name}}
 
             await presenter.render_stream(workflow_streamer(), component_to_run)
+
+        elif component_type == "evaluation":
+            import logging
+
+            from rich.progress import Progress, SpinnerColumn, TextColumn
+
+            from ....testing.qa.qa_engine import QAEngine
+
+            # Control logging based on debug flag
+            if not debug:
+                # Suppress INFO logs unless in debug mode
+                logging.getLogger("aurite").setLevel(logging.WARNING)
+                logging.getLogger("ComponentQATester").setLevel(logging.WARNING)
+
+            # Initialize QA Engine with config manager
+            qa_engine = QAEngine(config_manager=aurite.kernel.config_manager)
+
+            # Get evaluation config to check test cases before filtering
+            eval_config = aurite.kernel.config_manager.get_config("evaluation", name)
+            total_test_cases = len(eval_config.get("test_cases", []))
+            filter_info = ""
+
+            if test_cases:
+                filter_info = f" with filter: {test_cases}"
+
+            # Show progress while running evaluation
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+                transient=True,  # Clear progress after completion
+            ) as progress:
+                task = progress.add_task(f"[cyan]Running evaluation: {name}{filter_info}[/cyan]", total=None)
+
+                try:
+                    # Run the evaluation with optional test case filter
+                    # aurite.kernel.execution is the AuriteEngine instance
+                    results = await qa_engine.evaluate_by_config_id(
+                        evaluation_config_id=name, executor=aurite.kernel.execution, test_cases_filter=test_cases
+                    )
+                    progress.update(task, completed=True)
+                except Exception as e:
+                    progress.stop()
+                    logger(f"\n[bold red]Evaluation failed:[/bold red] {str(e)}")
+                    return
+
+            # Ensure we're on a new line after progress completes
+            logger("")  # Empty line for spacing
+
+            # Display results for each component
+            for _component_name, result in results.items():
+                # Create a summary panel
+                panel_content = []
+                panel_content.append(f"[bold]Component:[/bold] {result.component_name}")
+                panel_content.append(f"[bold]Type:[/bold] {result.component_type}")
+                panel_content.append(
+                    f"[bold]Status:[/bold] {'✅ SUCCESS' if result.status == 'success' else '❌ FAILED'}"
+                )
+                panel_content.append(f"[bold]Overall Score:[/bold] {result.overall_score:.1f}%")
+
+                # Add Review LLM info
+                review_llm = eval_config.get("review_llm", "default")
+                panel_content.append(f"[bold]Review LLM:[/bold] {review_llm if review_llm else 'default'}")
+
+                # Show filtering info if applicable
+                if test_cases:
+                    panel_content.append(
+                        f"[bold]Tests:[/bold] {result.passed_cases} passed, {result.failed_cases} failed "
+                        f"(filtered: {result.total_cases}/{total_test_cases})"
+                    )
+                else:
+                    panel_content.append(
+                        f"[bold]Tests:[/bold] {result.passed_cases} passed, {result.failed_cases} failed (total: {result.total_cases})"
+                    )
+
+                console.print(
+                    Panel(
+                        "\n".join(panel_content),
+                        title=f"[bold green]Evaluation Results: {name}[/bold green]",
+                        border_style="green" if result.status == "success" else "red",
+                    )
+                )
+
+                # Create detailed test results table if not in short mode
+                if not short and result.case_results:
+                    # Get original test cases from config to match with results
+                    original_test_cases = eval_config.get("test_cases", []) if eval_config else []
+
+                    # Create a mapping of test cases by index
+                    test_case_map = {}
+                    for i, tc in enumerate(original_test_cases):
+                        # Results are keyed by UUID, but we can match by order
+                        test_case_map[i] = tc
+
+                    console.print("\n[bold cyan]Test Case Details:[/bold cyan]\n")
+
+                    # Process each test case result
+                    case_index = 0
+                    for case_id, case_result in result.case_results.items():
+                        # Get the original test case data if available
+                        original_tc = test_case_map.get(case_index, {})
+                        test_name = original_tc.get("name", f"Test {case_index + 1}")
+                        expectations = original_tc.get("expectations", [])
+
+                        # Merge status into score
+                        status_emoji = "✅" if case_result.grade == "PASS" else "❌"
+                        score_str = f"{status_emoji} 100%" if case_result.grade == "PASS" else f"{status_emoji} 0%"
+
+                        expectations_str = (
+                            "\n".join([f"• {exp}" for exp in expectations])
+                            if expectations
+                            else "No expectations defined"
+                        )
+                        input_str = json.dumps(case_result.input) if hasattr(case_result, "input") else "N/A"
+                        if len(input_str) > 100:  # Truncate very long inputs
+                            input_str = input_str[:100] + "..."
+                        analysis = case_result.analysis if case_result.analysis else "No analysis available"
+
+                        # Create the 3-row layout using a Panel with formatted text
+                        from rich.columns import Columns
+                        from rich.console import Group
+                        from rich.text import Text
+
+                        # Row 1: Test Name and Expectations
+                        row1 = Columns(
+                            [
+                                Text(f"[bold cyan]Test Name:[/bold cyan] {test_name}", overflow="fold"),
+                                Text(f"[bold cyan]Expectations:[/bold cyan]\n{expectations_str}", overflow="fold"),
+                            ],
+                            equal=True,
+                            expand=True,
+                        )
+
+                        # Row 2: UUID and Input
+                        row2 = Columns(
+                            [
+                                Text(f"[bold cyan]UUID:[/bold cyan] {case_id}", overflow="fold"),
+                                Text(f"[bold cyan]Input:[/bold cyan] {input_str}", overflow="fold"),
+                            ],
+                            equal=True,
+                            expand=True,
+                        )
+
+                        # Row 3: Score and Analysis
+                        row3 = Columns(
+                            [
+                                Text(f"[bold cyan]Score:[/bold cyan] {score_str}", overflow="fold"),
+                                Text(f"[bold cyan]Analysis:[/bold cyan] {analysis}", overflow="fold"),
+                            ],
+                            equal=True,
+                            expand=True,
+                        )
+
+                        # Group the rows together
+                        content = Group(row1, Text(""), row2, Text(""), row3)  # Empty Text for spacing
+
+                        # Wrap in a panel for each test case
+                        test_panel = Panel(content, title=f"[bold]Test #{case_index + 1}[/bold]", border_style="blue")
+
+                        console.print(test_panel)
+
+                        case_index += 1
+                        if case_index < len(result.case_results):
+                            console.print("")  # Add space between test cases
+
+                # Show recommendations if any
+                if result.recommendations:
+                    console.print("\n[bold yellow]Recommendations:[/bold yellow]")
+                    for rec in result.recommendations:
+                        console.print(f"  • {rec}")
 
         else:
             logger(f"Component '{name}' is of type '{component_type}', which is not runnable.")

@@ -1,0 +1,380 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Evaluation Configuration",
+  "description": "Configuration schema for evaluation components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for evaluation components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "component_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Type of component being tested (agent, llm, mcp_server, workflow)",
+            "title": "Component Type"
+          },
+          "component_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Configuration of the component being tested",
+            "title": "Component Config"
+          },
+          "test_cases": {
+            "description": "List of test cases to evaluate",
+            "items": {
+              "$ref": "#/$defs/EvaluationCase"
+            },
+            "title": "Test Cases",
+            "type": "array"
+          },
+          "review_llm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "LLM configuration ID to use for reviewing test results",
+            "title": "Review Llm"
+          },
+          "expected_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "JSON schema to validate output against",
+            "title": "Expected Schema"
+          },
+          "component_refs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "List of component names to evaluate (for multi-component testing)",
+            "title": "Component Refs"
+          },
+          "run_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.\n        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'",
+            "title": "Run Agent"
+          },
+          "run_agent_kwargs": {
+            "additionalProperties": true,
+            "description": "Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
+            "title": "Run Agent Kwargs",
+            "type": "object"
+          },
+          "use_cache": {
+            "default": true,
+            "description": "Whether to use cached results for test cases that have been evaluated before",
+            "title": "Use Cache",
+            "type": "boolean"
+          },
+          "cache_ttl": {
+            "default": 3600,
+            "description": "Time-to-live for cached results in seconds (default: 1 hour)",
+            "title": "Cache Ttl",
+            "type": "integer"
+          },
+          "force_refresh": {
+            "default": false,
+            "description": "Force re-execution of all test cases, bypassing cache",
+            "title": "Force Refresh",
+            "type": "boolean"
+          },
+          "evaluation_config_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ID of the evaluation configuration (used for cache key generation)",
+            "title": "Evaluation Config Id"
+          }
+        },
+        "required": [
+          "name",
+          "test_cases"
+        ],
+        "title": "Aurite Evaluation Configuration",
+        "type": "object"
+      },
+      "description": "Array of evaluation configurations"
+    },
+    {
+      "description": "Configuration schema for evaluation components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "component_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Type of component being tested (agent, llm, mcp_server, workflow)",
+          "title": "Component Type"
+        },
+        "component_config": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Configuration of the component being tested",
+          "title": "Component Config"
+        },
+        "test_cases": {
+          "description": "List of test cases to evaluate",
+          "items": {
+            "$ref": "#/$defs/EvaluationCase"
+          },
+          "title": "Test Cases",
+          "type": "array"
+        },
+        "review_llm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM configuration ID to use for reviewing test results",
+          "title": "Review Llm"
+        },
+        "expected_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON schema to validate output against",
+          "title": "Expected Schema"
+        },
+        "component_refs": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of component names to evaluate (for multi-component testing)",
+          "title": "Component Refs"
+        },
+        "run_agent": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.\n        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'",
+          "title": "Run Agent"
+        },
+        "run_agent_kwargs": {
+          "additionalProperties": true,
+          "description": "Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
+          "title": "Run Agent Kwargs",
+          "type": "object"
+        },
+        "use_cache": {
+          "default": true,
+          "description": "Whether to use cached results for test cases that have been evaluated before",
+          "title": "Use Cache",
+          "type": "boolean"
+        },
+        "cache_ttl": {
+          "default": 3600,
+          "description": "Time-to-live for cached results in seconds (default: 1 hour)",
+          "title": "Cache Ttl",
+          "type": "integer"
+        },
+        "force_refresh": {
+          "default": false,
+          "description": "Force re-execution of all test cases, bypassing cache",
+          "title": "Force Refresh",
+          "type": "boolean"
+        },
+        "evaluation_config_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ID of the evaluation configuration (used for cache key generation)",
+          "title": "Evaluation Config Id"
+        }
+      },
+      "required": [
+        "name",
+        "test_cases"
+      ],
+      "title": "Aurite Evaluation Configuration",
+      "type": "object"
+    }
+  ],
+  "$defs": {
+    "EvaluationCase": {
+      "properties": {
+        "id": {
+          "description": "A unique id for this evaluation test case",
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "User-friendly name for this test case",
+          "title": "Name"
+        },
+        "input": {
+          "description": "The user input supplied in this case",
+          "title": "Input",
+          "type": "string"
+        },
+        "output": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The response from the component",
+          "title": "Output"
+        },
+        "expectations": {
+          "description": "A list of expectations about the output, like \"The output contains the temperature in Celcius\" or \"The get_weather tool was called once\".",
+          "items": {
+            "type": "string"
+          },
+          "title": "Expectations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "input",
+        "expectations"
+      ],
+      "title": "EvaluationCase",
+      "type": "object"
+    }
+  }
+}
