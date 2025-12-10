@@ -85,6 +85,7 @@ build-backend = "poetry.core.masonry.api"
 [project.urls]
 Homepage = "https://aurite-ai.github.io/aurite-agents/"
 Repository = "https://github.com/Aurite-ai/aurite-agents"
+Documentation = "https://aurite-ai.github.io/aurite-agents/"
 
 
 # POETRY CONFIGURATION
