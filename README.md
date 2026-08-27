@@ -8,6 +8,10 @@
   <strong>A Python framework for building, testing, and running AI agents.</strong>
 </p>
 
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.16884557"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.16884557.svg" alt="DOI"/></a>
+</p>
+
 ---
 
 **Aurite Agents** is a powerful, configuration-driven framework designed for building and orchestrating sophisticated AI agents. It enables agents to interact with a variety of external tools, prompts, and resources through the Model Context Protocol (MCP), allowing them to perform complex, multi-step tasks.
@@ -157,6 +161,7 @@ If you use Aurite Agents in your research or projects, please cite:
   version={0.3.28},
   publisher={GitHub},
   url={https://github.com/Aurite-ai/aurite-agents},
+  doi={10.5281/zenodo.16884557},
   note={Configuration-driven AI agent framework with MCP integration and multi-LLM support},
   keywords={artificial intelligence, agents, python, framework, MCP, multi-LLM},
   abstract={A configuration-driven AI agent framework with Model Context Protocol (MCP) integration and multi-LLM support for building and orchestrating intelligent agents},
