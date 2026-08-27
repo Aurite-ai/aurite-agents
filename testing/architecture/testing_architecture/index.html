@@ -1,0 +1,3558 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for Aurite Agents, a framework for building AI agents.">
+      
+      
+        <meta name="author" content="Aurite AI">
+      
+      
+        <link rel="canonical" href="https://aurite-ai.github.io/aurite-agents/testing/architecture/testing_architecture/">
+      
+      
+        <link rel="prev" href="../../">
+      
+      
+        <link rel="next" href="../test_inheritance/">
+      
+      
+      <link rel="icon" href="../../../images/aurite_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Testing Architecture - Aurite Agents Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#testing-implementation-architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Aurite Agents Documentation" class="md-header__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Aurite Agents Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Testing Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Aurite Agents Documentation" class="md-nav__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    Aurite Agents Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/installation_guides/package_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Package Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/installation_guides/repository_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Repository Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/Tutorials_Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01: Introducing Aurite Agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/02_Agents_and_Tools.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02: Agents and Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/03_Agent_Challenge.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03: Agent Challenge
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    04: Agent Challenge Solutions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05: LLMs, Schemas, and Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/06_Building_Your_Own_MCP_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06: Building Your Own MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/tutorials/07_Understanding_Projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07: Understanding Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/api_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../usage/tui_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    TUI Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Configurations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Configurations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/projects_and_workspaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects and Workspaces
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/linear_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Linear Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/custom_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../config/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/design/aurite_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/design/config_manager_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Manager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/design/mcp_host_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Host
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Flow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Flow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/flow/aurite_engine_execution_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine Flow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/flow/config_index_building_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Index Building
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/flow/mcp_server_registration_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server Registration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../architecture/flow/session_management_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Testing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Testing Architecture
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Architecture
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Final File Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-level-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three-Level Architecture
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Three-Level Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#level-1-system-integration-test_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 1: System Integration (test_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-2-domain-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 2: Domain Orchestration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Level 2: Domain Orchestration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qa-engine-qaqa_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      QA Engine (qa/qa_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-engine-securitysecurity_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Engine (security/security_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-3-component-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 3: Component Testing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Level 3: Component Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#component-testers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Testers
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-integration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Integration Strategy
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Integration Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#framework-adapters-as-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Adapters as Runners
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benefits-of-this-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benefits of This Approach
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Integration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#leveraging-aurites-configuration-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Leveraging Aurite's Configuration System
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Flow
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-test-request-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standard Test Request Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#framework-specific-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework-Specific Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-responsibility-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Responsibility Matrix
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Points
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#api-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Integration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration Guide
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Migration Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#existing-code-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Existing Code Mapping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migration-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration Steps
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-route-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Route Updates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benefits-of-this-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benefits of This Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-security-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Security Monitoring
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Future Considerations
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compositional_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compositional Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test_inheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Test Inheritance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing_hierarchy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_1" id="__nav_6_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            LLM
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/llm/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/llm/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/llm/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_2" id="__nav_6_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            MCP Server
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/mcp_server/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/mcp_server/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_3" id="__nav_6_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agent/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agent/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agent/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/agent/composition_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Composition Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_4" id="__nav_6_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Workflow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Workflow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/workflow/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/workflow/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/workflow/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../components/workflow/integration_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Integration Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/development_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/runtime_monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime Monitoring
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/compliance_framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compliance Framework
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Security
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            User Security
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user_security/access_control.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Access Control
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#final-file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Final File Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-level-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Three-Level Architecture
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Three-Level Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#level-1-system-integration-test_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 1: System Integration (test_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-2-domain-orchestration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 2: Domain Orchestration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Level 2: Domain Orchestration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#qa-engine-qaqa_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      QA Engine (qa/qa_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security-engine-securitysecurity_enginepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Security Engine (security/security_engine.py)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#level-3-component-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Level 3: Component Testing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Level 3: Component Testing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#component-testers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Testers
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-integration-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Integration Strategy
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Integration Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#framework-adapters-as-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Adapters as Runners
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benefits-of-this-approach" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benefits of This Approach
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Integration
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#leveraging-aurites-configuration-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Leveraging Aurite's Configuration System
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Data Flow
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Flow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#standard-test-request-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Standard Test Request Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#framework-specific-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework-Specific Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#component-responsibility-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Responsibility Matrix
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Points
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#api-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#database-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Database Integration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration Guide
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Migration Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#existing-code-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Existing Code Mapping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migration-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Migration Steps
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-route-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      API Route Updates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benefits-of-this-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benefits of This Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-security-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runtime Security Monitoring
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Future Considerations
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="testing-implementation-architecture">Testing Implementation Architecture</h1>
+<h2 id="overview">Overview</h2>
+<p>The Aurite Testing Framework implements a three-level orchestration architecture that provides clear separation of concerns while enabling comprehensive testing across Quality Assurance (QA) and Security domains. This architecture supports both framework-agnostic and framework-specific testing, allowing validation of AI components independent of the specific agent framework being used.</p>
+<p>The framework integrates seamlessly with Aurite's existing configuration system and maintains a clean, focused structure that prioritizes the most essential components while keeping specialized features appropriately organized.</p>
+<h2 id="final-file-structure">Final File Structure</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>src/aurite/testing/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── __init__.py
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── README.md
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── test_engine.py               # Level 1: Main orchestrator
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── test_models.py               # Shared models between QA and Security
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── cache/                       # Test result caching
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── __init__.py
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   └── result_cache.py
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── runners/                     # Component execution (includes framework adapters)
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   ├── __init__.py
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── llm_guard.py            # LLM Guard tool
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── mcp_test_host.py        # MCP testing host
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── agent_runner.py         # Generic agent execution
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── adapters/               # Framework adapters
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│       ├── __init__.py
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│       ├── aurite_adapter.py       # Native Aurite execution
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│       ├── langchain_adapter.py    # LangChain framework execution
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│       └── autogen_adapter.py      # AutoGen framework execution
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── qa/                          # QA Domain
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│   ├── __init__.py
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│   ├── qa_engine.py            # Level 2: QA orchestrator
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│   ├── qa_models.py            # QA-specific models (includes framework field)
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│   ├── base_qa_tester.py       # Base class for QA testers
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│   └── components/             # Level 3: QA component testers
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│       ├── __init__.py
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│       ├── llm_qa_tester.py
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│       ├── mcp_qa_tester.py
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│       ├── agent_qa_tester.py
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│       └── workflow_qa_tester.py
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>└── security/                    # Security Domain
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>    ├── __init__.py
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>    ├── security_engine.py      # Level 2: Security orchestrator
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    ├── security_models.py      # Security-specific models
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    ├── base_security_tester.py # Base class for Security testers
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    ├── components/             # Level 3: Security component testers
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    │   ├── __init__.py
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    │   ├── llm_security_tester.py
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    │   ├── mcp_security_tester.py
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    │   ├── agent_security_tester.py
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>    │   └── workflow_security_tester.py
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>    └── runtime/                # Runtime security monitoring
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>        ├── __init__.py
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>        ├── monitor.py
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>        ├── filters.py
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>        └── alerts.py
+</code></pre></div>
+<h2 id="three-level-architecture">Three-Level Architecture</h2>
+<h3 id="level-1-system-integration-test_enginepy">Level 1: System Integration (<code>test_engine.py</code>)</h3>
+<p><strong>Primary Responsibility:</strong> Entry point for all testing requests and system integration.</p>
+<p><strong>Specific Responsibilities:</strong></p>
+<ul>
+<li><strong>API Integration:</strong> Handle all incoming requests from Aurite's API routes</li>
+<li><strong>Request Routing:</strong> Route requests to appropriate domain engines (QA or Security)</li>
+<li><strong>Framework Coordination:</strong> Select and coordinate framework adapters/runners for cross-framework testing</li>
+<li><strong>Result Storage:</strong> Manage test result caching and database storage</li>
+<li><strong>Session Management:</strong> Track test sessions and execution state</li>
+<li><strong>Cross-Domain Coordination:</strong> Handle requests that require both QA and Security testing</li>
+<li><strong>Metrics Aggregation:</strong> Collect and aggregate metrics across all test types</li>
+<li><strong>Configuration Integration:</strong> Interface with Aurite's ConfigManager for test configurations</li>
+</ul>
+<p><strong>Key Methods:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestEngine</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_manager</span><span class="p">:</span> <span class="n">ConfigManager</span><span class="p">):</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config_manager</span> <span class="o">=</span> <span class="n">config_manager</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">qa_engine</span> <span class="o">=</span> <span class="n">QAEngine</span><span class="p">()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">security_engine</span> <span class="o">=</span> <span class="n">SecurityEngine</span><span class="p">()</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_evaluation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eval_config_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationResult</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_security_assessment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">security_config_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SecurityResult</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_test_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TestStatus</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">cache_result</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">test_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">TestResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+<h3 id="level-2-domain-orchestration">Level 2: Domain Orchestration</h3>
+<h4 id="qa-engine-qaqa_enginepy">QA Engine (<code>qa/qa_engine.py</code>)</h4>
+<p><strong>Primary Responsibility:</strong> Orchestrate quality assurance testing across all component types.</p>
+<p><strong>Specific Responsibilities:</strong></p>
+<ul>
+<li><strong>Component Test Routing:</strong> Route QA requests to appropriate component testers</li>
+<li><strong>Test Case Management:</strong> Distribute and manage test cases across components</li>
+<li><strong>Schema Validation:</strong> Handle JSON schema validation for structured outputs</li>
+<li><strong>QA Metrics Aggregation:</strong> Calculate quality scores using weighted averages</li>
+<li><strong>Multi-Component Evaluation:</strong> Handle evaluations that span multiple components</li>
+<li><strong>Framework Runner Coordination:</strong> Select appropriate runners based on framework requirements</li>
+</ul>
+<p><strong>Key Methods:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">QAEngine</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">evaluate_component</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">QATestRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QAResult</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>        <span class="c1"># Get the appropriate runner based on framework</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="n">runner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_runner</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">framework</span><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="c1"># Runner handles framework-specific execution (or existing run function method etc.)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">runner</span><span class="o">.</span><span class="n">execute_component</span><span class="p">(</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>            <span class="n">request</span><span class="o">.</span><span class="n">component_type</span><span class="p">,</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>            <span class="n">request</span><span class="o">.</span><span class="n">component_config</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="p">)</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>        <span class="c1"># Engine handles framework-agnostic evaluation</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluate_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">request</span><span class="o">.</span><span class="n">test_cases</span><span class="p">)</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">validate_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">schema</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ValidationResult</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">aggregate_qa_scores</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+</code></pre></div>
+<h4 id="security-engine-securitysecurity_enginepy">Security Engine (<code>security/security_engine.py</code>)</h4>
+<p><strong>Primary Responsibility:</strong> Orchestrate security assessments across all component types.</p>
+<p><strong>Specific Responsibilities:</strong></p>
+<ul>
+<li><strong>Security Test Routing:</strong> Route security requests to appropriate component testers</li>
+<li><strong>Threat Analysis:</strong> Perform cross-component threat analysis</li>
+<li><strong>Security Score Calculation:</strong> Calculate security scores using minimum (weakest link) approach</li>
+<li><strong>Alert Generation:</strong> Generate and escalate security alerts based on threat levels</li>
+<li><strong>Compliance Checking:</strong> Validate compliance with security policies</li>
+<li><strong>Concurrent Assessment Management:</strong> Manage multiple concurrent security assessments</li>
+<li><strong>Cross-Component Vulnerability Detection:</strong> Identify vulnerabilities that span components</li>
+<li><strong>Runtime Monitoring Coordination:</strong> Interface with runtime security monitoring</li>
+</ul>
+<p><strong>Key Methods:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">SecurityEngine</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">assess_component_security</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SecurityResult</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">assess_full_configuration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SecurityResult</span><span class="p">]</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">analyze_cross_component_threats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SecurityThreat</span><span class="p">]</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_security_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">generate_alerts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threats</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Alert</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="level-3-component-testing">Level 3: Component Testing</h3>
+<h4 id="component-testers">Component Testers</h4>
+<p><strong>Primary Responsibility:</strong> Execute specific tests for their component type.</p>
+<p><strong>Specific Responsibilities:</strong></p>
+<ul>
+<li><strong>Test Category Management:</strong> Manage multiple test categories within the component</li>
+<li><strong>Test Execution:</strong> Execute individual test methods for each category</li>
+<li><strong>Runner Integration:</strong> Use appropriate runners for component execution</li>
+<li><strong>Result Standardization:</strong> Return results in standardized formats</li>
+<li><strong>Component-Specific Logic:</strong> Handle component-specific testing requirements</li>
+<li><strong>Configuration Validation:</strong> Validate component configurations before testing</li>
+</ul>
+<p><strong>Base Classes:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># qa/base_qa_tester.py</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">BaseQATester</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_component</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">test_cases</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">QATestResult</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">aggregate_qa_scores</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>  <span class="c1"># Weighted average</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">validate_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># security/base_security_tester.py</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">BaseSecurityTester</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">assess_security</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SecurityTestResult</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">calculate_security_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span>  <span class="c1"># Minimum (weakest link)</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">generate_threats</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SecurityThreat</span><span class="p">]</span>
+</code></pre></div>
+<h2 id="framework-integration-strategy">Framework Integration Strategy</h2>
+<h3 id="framework-adapters-as-runners">Framework Adapters as Runners</h3>
+<p>Framework adapters are specialized runners that handle framework-specific execution while maintaining framework-agnostic interfaces:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># In qa_models.py</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">QATestRequest</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">component_type</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">component_config</span><span class="p">:</span> <span class="nb">dict</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">test_cases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">TestCase</span><span class="p">]</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">framework</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;aurite&quot;</span>  <span class="c1"># Specifies which runner/adapter to use</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># In runners/langchain_adapter.py</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="k">class</span><span class="w"> </span><span class="nc">LangChainAdapter</span><span class="p">:</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ExecutionResult</span><span class="p">:</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="c1"># 1. Translate Aurite config to LangChain format</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="n">langchain_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">translate_to_langchain</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>        <span class="c1"># 2. Execute in LangChain</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>        <span class="n">langchain_result</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_langchain_agent</span><span class="p">(</span><span class="n">langchain_config</span><span class="p">)</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>        <span class="c1"># 3. Translate result back to Aurite format</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">translate_from_langchain</span><span class="p">(</span><span class="n">langchain_result</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="benefits-of-this-approach">Benefits of This Approach</h3>
+<ul>
+<li><strong>Framework-Agnostic Engines:</strong> QA and Security engines remain framework-independent</li>
+<li><strong>Specialized Execution:</strong> Framework adapters handle framework-specific details</li>
+<li><strong>Simple Integration:</strong> Users specify framework via configuration field</li>
+<li><strong>Shared Runners:</strong> Both QA and Security can use the same framework adapters</li>
+</ul>
+<h2 id="configuration-integration">Configuration Integration</h2>
+<h3 id="leveraging-aurites-configuration-system">Leveraging Aurite's Configuration System</h3>
+<p>Instead of creating a separate configuration system, the testing framework integrates with Aurite's existing ConfigManager:</p>
+<p><strong>Configuration Models</strong> (in <code>src/aurite/lib/models/config/components.py</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Existing - QA Testing</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">EvaluationConfig</span><span class="p">(</span><span class="n">BaseComponentConfig</span><span class="p">):</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="nb">type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;evaluation&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;evaluation&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">eval_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">eval_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">test_cases</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">EvaluationCase</span><span class="p">]</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">review_llm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">expected_schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">framework</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;aurite&quot;</span>  <span class="c1"># NEW: Framework specification</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># New - Security Testing</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="k">class</span><span class="w"> </span><span class="nc">SecurityAssessmentConfig</span><span class="p">(</span><span class="n">BaseComponentConfig</span><span class="p">):</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="nb">type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;security_assessment&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;security_assessment&quot;</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">component_name</span><span class="p">:</span> <span class="nb">str</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">component_type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># &quot;llm&quot;, &quot;mcp&quot;, &quot;agent&quot;, &quot;workflow&quot;</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    <span class="n">security_tests</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># Which tests to run</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    <span class="n">threat_thresholds</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    <span class="n">alert_settings</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">AlertSettings</span><span class="p">]</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    <span class="n">framework</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;aurite&quot;</span>  <span class="c1"># Framework specification</span>
+</code></pre></div>
+<p><strong>User Configuration Example:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># config/testing/llm_security.yaml</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">security_assessment</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">claude-security-check</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Security assessment for Claude LLM</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nt">component_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">claude-3-sonnet</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="nt">component_type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">llm</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nt">framework</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aurite</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span><span class="nt">security_tests</span><span class="p">:</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prompt_injection_basic</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">toxicity_detection</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">secrets_detection</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">  </span><span class="nt">threat_thresholds</span><span class="p">:</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="nt">critical</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="nt">high</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.7</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="nt">medium</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+</code></pre></div>
+<h2 id="data-flow">Data Flow</h2>
+<h3 id="standard-test-request-flow">Standard Test Request Flow</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>1. API Request
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>   POST /testing/security/assess
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>   {
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>     &quot;security_config_id&quot;: &quot;claude-security-check&quot;
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>   }
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>   ↓
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>2. TestEngine.run_security_assessment()
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>   - Gets config from Aurite&#39;s ConfigManager
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>   - Validates request
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>   - Checks cache for existing results
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>   - Routes to SecurityEngine
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>   ↓
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>3. SecurityEngine.assess_component_security()
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>   - Determines component tester needed
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>   - Instantiates LLMSecurityTester
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>   - Manages assessment execution
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>   ↓
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a>4. LLMSecurityTester.assess_security()
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a>   - Uses appropriate runner (based on framework field)
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a>   - Runs prompt_injection_basic()
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a>   - Runs toxicity_detection()
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a>   - Runs secrets_detection()
+<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a>   - Aggregates results
+<a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a>   ↓
+<a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a>
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a>5. Results flow back up
+<a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a>   LLMSecurityTester → SecurityEngine → TestEngine → API Response
+<a id="__codelineno-8-31" name="__codelineno-8-31" href="#__codelineno-8-31"></a>
+<a id="__codelineno-8-32" name="__codelineno-8-32" href="#__codelineno-8-32"></a>6. TestEngine caches results and stores in database
+</code></pre></div>
+<h3 id="framework-specific-execution-flow">Framework-Specific Execution Flow</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>1. QA Test Request (framework: &quot;langchain&quot;)
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>   ↓
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>2. QAEngine receives request
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>   ↓
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>3. QAEngine.get_runner(&quot;langchain&quot;)
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>   - Returns LangChainAdapter from runners/
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>   ↓
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>4. AgentQATester.test_component()
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>   - Uses LangChainAdapter for execution
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>   - LangChainAdapter translates config
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>   - Executes in LangChain environment
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>   - Translates results back
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>   ↓
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>5. QAEngine evaluates results (framework-agnostic)
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>   ↓
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>6. Results returned with framework metadata
+</code></pre></div>
+<h2 id="component-responsibility-matrix">Component Responsibility Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Component</th>
+<th>Primary Responsibilities</th>
+<th>Key Integrations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td><code>TestEngine</code></td>
+<td>API integration, request routing, caching, session management</td>
+<td>Aurite API, ConfigManager, Database</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><code>QAEngine</code></td>
+<td>QA test orchestration, schema validation, LLM evaluation</td>
+<td>Component QA Testers, Runners</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><code>SecurityEngine</code></td>
+<td>Security orchestration, threat analysis, alert generation</td>
+<td>Component Security Testers, Runtime</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>LLMQATester</code></td>
+<td>LLM quality tests, performance evaluation, accuracy testing</td>
+<td>Runners, Evaluation metrics</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>LLMSecurityTester</code></td>
+<td>LLM security tests, prompt injection, toxicity detection</td>
+<td>Runners, LLM Guard, Security scanners</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>MCPQATester</code></td>
+<td>MCP server quality tests, API compliance, performance</td>
+<td>MCP Test Host, API validators</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>MCPSecurityTester</code></td>
+<td>MCP server security tests, authentication, input validation</td>
+<td>Security scanners, Auth validators</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>AgentQATester</code></td>
+<td>Agent quality tests, goal achievement, tool usage</td>
+<td>Agent Runner, Framework adapters</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>AgentSecurityTester</code></td>
+<td>Agent security tests, permission boundaries, action auth</td>
+<td>Security policies, Auth systems</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>WorkflowQATester</code></td>
+<td>Workflow quality tests, business logic, end-to-end success</td>
+<td>Multiple agents, Business validators</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><code>WorkflowSecurityTester</code></td>
+<td>Workflow security tests, data isolation, audit compliance</td>
+<td>Audit systems, Data validators</td>
+</tr>
+</tbody>
+</table>
+<h2 id="integration-points">Integration Points</h2>
+<h3 id="api-integration">API Integration</h3>
+<p><strong>New API Routes:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Main testing endpoints</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">qa</span><span class="o">/</span><span class="n">evaluate</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">qa</span><span class="o">/</span><span class="n">evaluate</span><span class="o">/</span><span class="p">{</span><span class="n">evaluation_config_id</span><span class="p">}</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">assess</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">assess</span><span class="o">/</span><span class="p">{</span><span class="n">security_config_id</span><span class="p">}</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">GET</span>  <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">results</span><span class="o">/</span><span class="p">{</span><span class="n">test_id</span><span class="p">}</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">GET</span>  <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">status</span><span class="o">/</span><span class="p">{</span><span class="n">test_id</span><span class="p">}</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># Component-specific endpoints</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">qa</span><span class="o">/</span><span class="n">llm</span><span class="o">/</span><span class="p">{</span><span class="n">llm_id</span><span class="p">}</span><span class="o">/</span><span class="n">test</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">agent</span><span class="o">/</span><span class="p">{</span><span class="n">agent_id</span><span class="p">}</span><span class="o">/</span><span class="n">assess</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">runtime</span><span class="o">/</span><span class="n">monitor</span><span class="o">/</span><span class="n">start</span>
+</code></pre></div>
+<h3 id="database-integration">Database Integration</h3>
+<p><strong>New Tables:</strong></p>
+<ul>
+<li><code>test_sessions</code> - Track test execution sessions</li>
+<li><code>test_results</code> - Store detailed test results</li>
+<li><code>security_threats</code> - Log detected security threats</li>
+<li><code>qa_evaluations</code> - Store QA evaluation results</li>
+</ul>
+<h2 id="migration-guide">Migration Guide</h2>
+<h3 id="existing-code-mapping">Existing Code Mapping</h3>
+<table>
+<thead>
+<tr>
+<th>Current Location</th>
+<th>New Location</th>
+<th>Migration Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/aurite/lib/components/evaluation/evaluator.py</code></td>
+<td><code>src/aurite/testing/qa/qa_engine.py</code></td>
+<td>Core evaluation logic moves to QA engine</td>
+</tr>
+<tr>
+<td><code>src/aurite/lib/components/evaluation/agent_runner.py</code></td>
+<td><code>src/aurite/testing/runners/agent_runner.py</code></td>
+<td>Becomes shared runner for both QA and Security</td>
+</tr>
+<tr>
+<td><code>src/aurite/security/core/security_engine.py</code></td>
+<td><code>src/aurite/testing/security/security_engine.py</code></td>
+<td>Moves to Level 2 security orchestration</td>
+</tr>
+<tr>
+<td><code>src/aurite/security/components/llm_security/</code></td>
+<td><code>src/aurite/testing/security/components/</code></td>
+<td>Flattened structure, moves to Level 3</td>
+</tr>
+<tr>
+<td><code>src/aurite/security/core/base_tester.py</code></td>
+<td><code>src/aurite/testing/security/base_security_tester.py</code></td>
+<td>Becomes security-specific base class</td>
+</tr>
+<tr>
+<td><code>src/aurite/testing/mcp/testing_mcp_host.py</code></td>
+<td><code>src/aurite/testing/runners/mcp_test_host.py</code></td>
+<td>Becomes shared runner for MCP testing</td>
+</tr>
+<tr>
+<td><code>src/aurite/testing/cache/</code></td>
+<td><code>src/aurite/testing/cache/</code></td>
+<td>Moves to root level of testing framework</td>
+</tr>
+</tbody>
+</table>
+<h3 id="migration-steps">Migration Steps</h3>
+<ol>
+<li><strong>Create new directory structure</strong></li>
+<li><strong>Move and refactor Blake's evaluation code:</strong></li>
+<li>Extract orchestration logic to <code>qa/qa_engine.py</code></li>
+<li>Move <code>agent_runner.py</code> to <code>runners/</code></li>
+<li>Create <code>qa/base_qa_tester.py</code></li>
+<li><strong>Move and refactor Jiten's security code:</strong></li>
+<li>Extract orchestration logic to <code>security/security_engine.py</code></li>
+<li>Move component testers to <code>security/components/</code></li>
+<li>Create <code>security/base_security_tester.py</code></li>
+<li>Move <code>llm_guard.py</code> to <code>runners/</code></li>
+<li><strong>Create new <code>test_engine.py</code> as main orchestrator</strong></li>
+<li><strong>Move existing cache to <code>testing/cache/</code></strong></li>
+<li><strong>Update imports and API routes</strong></li>
+<li><strong>Add <code>SecurityAssessmentConfig</code> to components.py</strong></li>
+<li><strong>Test integration with existing Aurite framework</strong></li>
+</ol>
+<h3 id="api-route-updates">API Route Updates</h3>
+<p><strong>Current:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">POST</span> <span class="o">/</span><span class="n">execution</span><span class="o">/</span><span class="n">evaluate</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">POST</span> <span class="o">/</span><span class="n">execution</span><span class="o">/</span><span class="n">evaluate</span><span class="o">/</span><span class="p">{</span><span class="n">evaluation_config_id</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>New:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">qa</span><span class="o">/</span><span class="n">evaluate</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">qa</span><span class="o">/</span><span class="n">evaluate</span><span class="o">/</span><span class="p">{</span><span class="n">evaluation_config_id</span><span class="p">}</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">assess</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">POST</span> <span class="o">/</span><span class="n">testing</span><span class="o">/</span><span class="n">security</span><span class="o">/</span><span class="n">assess</span><span class="o">/</span><span class="p">{</span><span class="n">security_config_id</span><span class="p">}</span>
+</code></pre></div>
+<h2 id="benefits-of-this-architecture">Benefits of This Architecture</h2>
+<ol>
+<li><strong>Clean Root Directory:</strong> Only essential files and folders at the top level</li>
+<li><strong>Clear Separation of Concerns:</strong> Each level has distinct responsibilities</li>
+<li><strong>Framework Integration:</strong> Seamless integration with Aurite's configuration system</li>
+<li><strong>Shared Resources:</strong> Runners and cache are accessible to both QA and Security</li>
+<li><strong>Maintainable:</strong> Easy to modify individual components without affecting others</li>
+<li><strong>Testable:</strong> Each level can be unit tested independently</li>
+<li><strong>Extensible:</strong> New test types can be added at the appropriate level</li>
+<li><strong>Scalable:</strong> Can handle increasing complexity without architectural changes</li>
+<li><strong>Framework-Ready:</strong> Prepared for extraction to separate repository</li>
+<li><strong>Practical Focus:</strong> Root contains what developers interact with most</li>
+</ol>
+<h2 id="runtime-security-monitoring">Runtime Security Monitoring</h2>
+<p>Runtime monitoring is specifically focused on security concerns and is organized under <code>security/runtime/</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># security/runtime/monitor.py</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">SecurityMonitor</span><span class="p">:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">monitor_llm_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">:</span> <span class="n">LLMRequest</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SecurityResult</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">monitor_agent_execution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agent_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SecurityResult</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">start_monitoring</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">component_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># security/runtime/filters.py</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">SecurityFilters</span><span class="p">:</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">filter_prompt_injection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FilterResult</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">filter_toxic_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FilterResult</span>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">filter_secrets</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FilterResult</span>
+</code></pre></div>
+<p>This approach keeps runtime monitoring focused and avoids the complexity of trying to make it generic across QA and Security when 99% of runtime testing will be security-focused.</p>
+<h2 id="future-considerations">Future Considerations</h2>
+<ul>
+<li><strong>Microservice Extraction:</strong> The entire <code>testing/</code> directory can be moved to a separate repository</li>
+<li><strong>API Versioning:</strong> Testing APIs can be versioned independently</li>
+<li><strong>Plugin Architecture:</strong> Component testers can be developed as plugins</li>
+<li><strong>Distributed Testing:</strong> Architecture supports distributed test execution</li>
+<li><strong>Framework Expansion:</strong> Easy to add support for new agent frameworks through new runners</li>
+<li><strong>QA Runtime Features:</strong> If needed, can add <code>qa/runtime/</code> or refactor security runtime to be shared</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Aurite-ai" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/aurite-agents/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+    
+  </body>
+</html>

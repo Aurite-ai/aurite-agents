@@ -1,0 +1,3347 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for Aurite Agents, a framework for building AI agents.">
+      
+      
+        <meta name="author" content="Aurite AI">
+      
+      
+        <link rel="canonical" href="https://aurite-ai.github.io/aurite-agents/architecture/overview/">
+      
+      
+        <link rel="prev" href="../../config/mcp_server/">
+      
+      
+        <link rel="next" href="../design/aurite_engine_design/">
+      
+      
+      <link rel="icon" href="../../images/aurite_logo.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.16">
+    
+    
+      
+        <title>Overview - Aurite Agents Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.7e37652d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#aurite-framework-architecture-overview" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Aurite Agents Documentation" class="md-header__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Aurite Agents Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Overview
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Aurite Agents Documentation" class="md-nav__button md-logo" aria-label="Aurite Agents Documentation" data-md-component="logo">
+      
+  <img src="../../images/aurite_logo.png" alt="logo">
+
+    </a>
+    Aurite Agents Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Aurite-ai/aurite-agents" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Aurite-ai/aurite-agents
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation_guides/package_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Package Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation_guides/repository_installation_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Repository Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Tutorials
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/Tutorials_Overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/01_Introducing_Aurite_Agents.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01: Introducing Aurite Agents
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/02_Agents_and_Tools.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02: Agents and Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/03_Agent_Challenge.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03: Agent Challenge
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/04_Agent_Challenge_Solutions.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    04: Agent Challenge Solutions
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/05_LLMs_Schemas_and_Workflows.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05: LLMs, Schemas, and Workflows
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/06_Building_Your_Own_MCP_Server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06: Building Your Own MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/tutorials/07_Understanding_Projects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07: Understanding Projects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Usage
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/api_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/tui_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    TUI Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Configurations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Configurations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/projects_and_workspaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Projects and Workspaces
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/linear_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Linear Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/custom_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Custom Workflow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-framework-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Framework Components
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Framework Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#public-interface-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Public Interface Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kernel-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kernel Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#infrastructure-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infrastructure Layer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-integration-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Integration Patterns
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Integration Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lazy-initialization-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lazy Initialization Pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#component-coordination-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Coordination Pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-driven-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment-Driven Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-execution-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Execution Flows
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Execution Flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workflow Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-extension-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Extension Points
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Extension Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-component-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Programmatic Component Registration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-workflow-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Workflow Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Extensions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-scalability" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance &amp; Scalability
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance &amp; Scalability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimization Strategies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scalability-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scalability Considerations
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_2" id="__nav_5_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Design
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/aurite_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/config_manager_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Manager
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/mcp_host_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Host
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_3" id="__nav_5_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Flow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            Flow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow/aurite_engine_execution_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Aurite Engine Flow
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow/config_index_building_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Config Index Building
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow/mcp_server_registration_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MCP Server Registration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../flow/session_management_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Session Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Testing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/architecture/testing_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Architecture
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/architecture/compositional_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compositional Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/architecture/test_inheritance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Test Inheritance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/architecture/testing_hierarchy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing Hierarchy
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Components
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_1" id="__nav_6_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    LLM
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            LLM
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/llm/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/llm/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/llm/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_2" id="__nav_6_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    MCP Server
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            MCP Server
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/mcp_server/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/mcp_server/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_3" id="__nav_6_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Agent
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Agent
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/agent/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/agent/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/agent/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/agent/composition_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Composition Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3_4" id="__nav_6_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Workflow
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Workflow
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/workflow/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/workflow/quality_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quality Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/workflow/security_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/components/workflow/integration_tests.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Integration Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Guides
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/guides/development_testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/guides/runtime_monitoring.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Runtime Monitoring
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/guides/compliance_framework.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Compliance Framework
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Security
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            User Security
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/user_security/access_control.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Access Control
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Architecture
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-framework-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Framework Components
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Framework Components">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#public-interface-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Public Interface Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kernel-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kernel Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution Layer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#infrastructure-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Infrastructure Layer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-integration-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Integration Patterns
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Integration Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lazy-initialization-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lazy Initialization Pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#component-coordination-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      Component Coordination Pattern
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-driven-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Environment-Driven Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-execution-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Execution Flows
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Execution Flows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#agent-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Agent Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workflow-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workflow Execution Flow
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#framework-extension-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      Framework Extension Points
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Framework Extension Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-component-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Programmatic Component Registration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-workflow-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Workflow Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interface-extensions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Extensions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-scalability" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance &amp; Scalability
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance &amp; Scalability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimization Strategies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scalability-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scalability Considerations
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      References
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="aurite-framework-architecture-overview">Aurite Framework Architecture Overview</h1>
+<p><strong>Version:</strong> 1.0
+<strong>Date:</strong> 2025-08-02</p>
+<h2 id="overview">Overview</h2>
+<p>The Aurite Framework is a comprehensive system for building and executing AI agents and workflows with distributed tool access through the Model Context Protocol (MCP). The framework provides a unified interface for orchestrating complex AI interactions while maintaining clean separation of concerns through a layered architecture centered around the <code>Aurite</code> class and its internal <code>AuriteKernel</code>.</p>
+<p><strong>Key Problem Solved</strong>: Unified AI agent and workflow orchestration with distributed tool access, persistent session management, and comprehensive configuration management across complex project hierarchies.</p>
+<h2 id="framework-architecture">Framework Architecture</h2>
+<pre class="mermaid"><code>graph TD
+    A[Aurite Framework] --&gt; B[Public API Layer]
+    A --&gt; C[Kernel Layer]
+    A --&gt; D[Execution Layer]
+    A --&gt; E[Infrastructure Layer]
+
+    B --&gt; F[Aurite Class]
+    B --&gt; G[CLI Interface]
+    B --&gt; H[REST API]
+    B --&gt; I[TUI Interface]
+
+    C --&gt; J[AuriteKernel]
+    C --&gt; K[Lazy Initialization]
+    C --&gt; L[Lifecycle Management]
+
+    D --&gt; M[AuriteEngine]
+    D --&gt; N[Agent Execution]
+    D --&gt; O[Workflow Execution]
+    D --&gt; P[Streaming Support]
+
+    E --&gt; Q[ConfigManager]
+    E --&gt; R[MCPHost]
+    E --&gt; S[SessionManager]
+    E --&gt; T[Storage Systems]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style B fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style C fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style D fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style E fill:#FF9800,stroke:#F57C00,stroke-width:2px,color:#fff
+    style F fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style J fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style M fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff</code></pre>
+<h2 id="core-framework-components">Core Framework Components</h2>
+<p>The Aurite Framework is built around a two-tier architecture that separates public interfaces from internal implementation details while providing comprehensive AI orchestration capabilities.</p>
+<h3 id="public-interface-layer">Public Interface Layer</h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Aurite Class</label><label for="__tabbed_1_2">Interface Diversity</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><strong>Purpose</strong>: Main framework entrypoint providing a clean, async-native API for AI agent and workflow execution.</p>
+<p><strong>Key Responsibilities</strong>:
+- <strong>Lazy Initialization</strong>: Components initialized only when first used for optimal performance
+- <strong>Lifecycle Management</strong>: Automatic resource cleanup and graceful shutdown handling
+- <strong>Public API</strong>: Simple, intuitive methods for agent and workflow execution
+- <strong>Programmatic Registration</strong>: Runtime component registration for testing and notebooks
+- <strong>Context Management</strong>: Async context manager support for explicit resource control</p>
+<p><strong>Core API Methods</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Agent execution</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agent_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                   <span class="n">system_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                   <span class="n">session_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AgentRunResult</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># Streaming agent execution</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stream_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agent_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                      <span class="n">system_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                      <span class="n">session_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncGenerator</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># Workflow execution</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_linear_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                             <span class="n">initial_input</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LinearWorkflowExecutionResult</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_custom_workflow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workflow_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">initial_input</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                             <span class="n">session_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># Component registration</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">AgentConfig</span><span class="p">)</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register_llm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">LLMConfig</span><span class="p">)</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register_mcp_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">ClientConfig</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Design Patterns</strong>:
+- <strong>Wrapper Pattern</strong>: Encapsulates complex async lifecycle management
+- <strong>Lazy Initialization</strong>: Services started only when needed
+- <strong>Graceful Degradation</strong>: Continues operation even with partial component failures</p>
+</div>
+<div class="tabbed-block">
+<p><strong>CLI Interface</strong>: Command-line tools for development and operations
+- Component management (list, create, update, delete)
+- Execution commands for agents and workflows
+- Configuration validation and testing
+- Session management and cleanup</p>
+<p><strong>REST API</strong>: HTTP endpoints for web applications and integrations
+- RESTful component CRUD operations
+- Execution endpoints with streaming support
+- Session history and management APIs
+- Real-time execution monitoring</p>
+<p><strong>TUI Interface</strong>: Terminal-based interactive interface
+- Visual component browsing and management
+- Interactive execution with real-time feedback
+- Session exploration and debugging tools
+- Configuration editing and validation</p>
+<p><strong>Python API</strong>: Direct programmatic access
+- Jupyter notebook integration
+- Testing framework support
+- Custom application embedding
+- Programmatic component registration</p>
+</div>
+</div>
+</div>
+<h3 id="kernel-layer">Kernel Layer</h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">AuriteKernel</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><strong>Purpose</strong>: Internal framework kernel managing core component lifecycle and coordination.</p>
+<p><strong>Architecture Responsibilities</strong>:
+- <strong>Component Initialization</strong>: Manages startup sequence and dependencies
+- <strong>Resource Coordination</strong>: Coordinates between ConfigManager, MCPHost, and storage systems
+- <strong>Environment Configuration</strong>: Handles environment-based feature toggles and settings
+- <strong>Cleanup Management</strong>: Ensures proper resource cleanup including external library cleanup</p>
+<p><strong>Component Initialization Flow</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># AuriteKernel.__init__</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="bp">self</span><span class="o">.</span><span class="n">config_manager</span> <span class="o">=</span> <span class="n">ConfigManager</span><span class="p">(</span><span class="n">start_dir</span><span class="o">=</span><span class="n">start_dir</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="bp">self</span><span class="o">.</span><span class="n">project_root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_manager</span><span class="o">.</span><span class="n">project_root</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">MCPHost</span><span class="p">()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Conditional storage initialization</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AURITE_ENABLE_DB&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_db_engine</span> <span class="o">=</span> <span class="n">create_db_engine</span><span class="p">()</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">storage_manager</span> <span class="o">=</span> <span class="n">StorageManager</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db_engine</span><span class="p">)</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># Session management setup</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">cache_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_root</span> <span class="o">/</span> <span class="s2">&quot;.aurite_cache&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_root</span> <span class="k">else</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;.aurite_cache&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="bp">self</span><span class="o">.</span><span class="n">cache_manager</span> <span class="o">=</span> <span class="n">CacheManager</span><span class="p">(</span><span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># Observability integration</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;LANGFUSE_ENABLED&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">langfuse</span> <span class="o">=</span> <span class="n">Langfuse</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Central execution engine</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="bp">self</span><span class="o">.</span><span class="n">execution</span> <span class="o">=</span> <span class="n">AuriteEngine</span><span class="p">(</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    <span class="n">config_manager</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config_manager</span><span class="p">,</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="n">host_instance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>    <span class="n">storage_manager</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_manager</span><span class="p">,</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    <span class="n">cache_manager</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cache_manager</span><span class="p">,</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    <span class="n">langfuse</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">langfuse</span><span class="p">,</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Async Lifecycle Management</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="c1"># Database initialization</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_manager</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">storage_manager</span><span class="o">.</span><span class="n">init_db</span><span class="p">()</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="c1"># MCP Host startup</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="o">.</span><span class="fm">__aenter__</span><span class="p">()</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="c1"># External library cleanup (litellm)</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="c1"># MCP Host cleanup</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="c1"># Database connection cleanup</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="c1"># Resource disposal</span>
+</code></pre></div></p>
+<p><strong>Key Design Decisions</strong>:
+- <strong>Environment-Driven Configuration</strong>: Features enabled through environment variables
+- <strong>Graceful Degradation</strong>: Optional components (DB, Langfuse) don't prevent startup
+- <strong>Project-Aware Caching</strong>: Cache directory based on detected project structure
+- <strong>Comprehensive Cleanup</strong>: Handles cleanup of external libraries and resources</p>
+</div>
+</div>
+</div>
+<h3 id="execution-layer">Execution Layer</h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">AuriteEngine Integration</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><strong>Purpose</strong>: Central execution orchestrator coordinating all framework components for unified AI operations.</p>
+<p><strong>Integration Architecture</strong>:
+<pre class="mermaid"><code>graph TD
+    A[AuriteEngine] --&gt; B[ConfigManager Integration]
+    A --&gt; C[MCPHost Integration]
+    A --&gt; D[SessionManager Integration]
+    A --&gt; E[Component Execution]
+
+    B --&gt; F[Component Resolution]
+    B --&gt; G[Configuration Validation]
+    B --&gt; H[Path Resolution]
+
+    C --&gt; I[JIT Server Registration]
+    C --&gt; J[Tool Execution]
+    C --&gt; K[Resource Access]
+
+    D --&gt; L[History Management]
+    D --&gt; M[Result Persistence]
+    D --&gt; N[Session Lifecycle]
+
+    E --&gt; O[Agent Orchestration]
+    E --&gt; P[Workflow Coordination]
+    E --&gt; Q[Streaming Management]
+
+    style A fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style B fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style C fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style D fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style E fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff</code></pre></p>
+<p><strong>Orchestration Capabilities</strong>:
+- <strong>Unified Execution Interface</strong>: Single API for agents, linear workflows, and custom workflows
+- <strong>JIT Resource Provisioning</strong>: Dynamic MCP server registration based on component requirements
+- <strong>Session Coordination</strong>: Automatic session management with history persistence
+- <strong>Streaming Support</strong>: Real-time event streaming for interactive applications
+- <strong>Error Handling</strong>: Comprehensive error management with context preservation</p>
+<blockquote>
+<p>📋 <strong>Detailed Architecture</strong>: See <a href="../design/aurite_engine_design/">AuriteEngine Design</a> for complete design patterns and integration details.</p>
+</blockquote>
+</div>
+</div>
+</div>
+<h3 id="infrastructure-layer">Infrastructure Layer</h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:3"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><input id="__tabbed_4_3" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Configuration Management</label><label for="__tabbed_4_2">Distributed Tool Management</label><label for="__tabbed_4_3">Session &amp; Storage Management</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p><strong>ConfigManager</strong>: Hierarchical configuration discovery and management system.</p>
+<p><strong>Key Capabilities</strong>:
+- <strong>Project/Workspace Discovery</strong>: Automatic detection of project boundaries and hierarchies
+- <strong>Priority-Based Resolution</strong>: Context-aware configuration with proper precedence handling
+- <strong>Component Indexing</strong>: Comprehensive indexing of agents, LLMs, MCP servers, and workflows
+- <strong>CRUD Operations</strong>: Full component lifecycle management with validation
+- <strong>Path Resolution</strong>: Context-aware path resolution for relative configurations</p>
+<p><strong>Integration Points</strong>:
+- <strong>AuriteEngine</strong>: Primary configuration provider for all component resolution
+- <strong>API Endpoints</strong>: Configuration management through REST API
+- <strong>CLI Tools</strong>: Command-line configuration management and validation</p>
+<blockquote>
+<p>📋 <strong>Detailed Architecture</strong>: See <a href="../design/config_manager_design/">ConfigManager Design</a> for complete configuration patterns and indexing flows.</p>
+</blockquote>
+</div>
+<div class="tabbed-block">
+<p><strong>MCPHost</strong>: Model Context Protocol server management and tool orchestration.</p>
+<p><strong>Key Capabilities</strong>:
+- <strong>Multi-Transport Support</strong>: STDIO, local command, and HTTP stream transports
+- <strong>JIT Registration</strong>: Dynamic server registration based on agent requirements
+- <strong>Component Discovery</strong>: Automatic tool, prompt, and resource discovery
+- <strong>Security &amp; Filtering</strong>: Comprehensive access control and filtering systems
+- <strong>Session Management</strong>: Robust session lifecycle with proper cleanup</p>
+<p><strong>Integration Points</strong>:
+- <strong>AuriteEngine</strong>: Tool execution and resource access during agent/workflow execution
+- <strong>Agent Components</strong>: Direct tool access through unified interface
+- <strong>Configuration System</strong>: Server configuration resolution and validation</p>
+<blockquote>
+<p>📋 <strong>Detailed Architecture</strong>: See <a href="../design/mcp_host_design/">MCP Host Design</a> for complete server management and security patterns.</p>
+</blockquote>
+</div>
+<div class="tabbed-block">
+<p><strong>SessionManager + CacheManager</strong>: Persistent conversation and execution result management.</p>
+<p><strong>Key Capabilities</strong>:
+- <strong>Two-Tier Storage</strong>: High-level session operations with low-level file management
+- <strong>Metadata Tracking</strong>: Comprehensive session metadata with validation
+- <strong>Relationship Management</strong>: Parent-child relationships for workflow sessions
+- <strong>Retention Policies</strong>: Automatic cleanup with age and count-based policies
+- <strong>Partial ID Matching</strong>: Flexible session retrieval with ambiguity resolution</p>
+<p><strong>Storage Options</strong>:
+- <strong>File-Based (CacheManager)</strong>: JSON files with in-memory caching for development
+- <strong>Database (StorageManager)</strong>: PostgreSQL/SQLite for production environments</p>
+<blockquote>
+<p>📋 <strong>Detailed Architecture</strong>: See <a href="../flow/session_management_flow/">Session Management Flow</a> for complete session lifecycle and storage patterns.</p>
+</blockquote>
+</div>
+</div>
+</div>
+<h2 id="framework-integration-patterns">Framework Integration Patterns</h2>
+<h3 id="lazy-initialization-pattern">Lazy Initialization Pattern</h3>
+<p>The framework implements comprehensive lazy initialization to optimize startup performance and resource usage:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Aurite class initialization</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">disable_logging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="c1"># Only create kernel, don&#39;t initialize services</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span> <span class="o">=</span> <span class="n">AuriteKernel</span><span class="p">(</span><span class="n">start_dir</span><span class="o">=</span><span class="n">start_dir</span><span class="p">,</span> <span class="n">disable_logging</span><span class="o">=</span><span class="n">disable_logging</span><span class="p">)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_ensure_initialized</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="c1"># Services initialized only on first use</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span><span class="p">:</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="kc">True</span>
+</code></pre></div>
+<p><strong>Benefits</strong>:</p>
+<ul>
+<li><strong>Fast Startup</strong>: Framework ready immediately without waiting for service initialization</li>
+<li><strong>Resource Efficiency</strong>: Only needed services are started</li>
+<li><strong>Error Isolation</strong>: Initialization failures don't prevent framework instantiation</li>
+<li><strong>Development Friendly</strong>: Quick iteration cycles during development</li>
+</ul>
+<h3 id="component-coordination-pattern">Component Coordination Pattern</h3>
+<p>The framework coordinates between multiple specialized components through the AuriteEngine:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Component coordination in AuriteEngine</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_agent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">agent_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="c1"># 1. Configuration resolution through ConfigManager</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">agent_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config_manager</span><span class="o">.</span><span class="n">get_config</span><span class="p">(</span><span class="s2">&quot;agent&quot;</span><span class="p">,</span> <span class="n">agent_name</span><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="c1"># 2. JIT server registration through MCPHost</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="k">for</span> <span class="n">server_name</span> <span class="ow">in</span> <span class="n">agent_config</span><span class="o">.</span><span class="n">mcp_servers</span><span class="p">:</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="k">if</span> <span class="n">server_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_host</span><span class="o">.</span><span class="n">registered_server_names</span><span class="p">:</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_host</span><span class="o">.</span><span class="n">register_client</span><span class="p">(</span><span class="n">server_config</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="c1"># 3. Session management through SessionManager</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="k">if</span> <span class="n">session_id</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_manager</span><span class="p">:</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>        <span class="n">history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session_manager</span><span class="o">.</span><span class="n">get_session_history</span><span class="p">(</span><span class="n">session_id</span><span class="p">)</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="c1"># 4. Agent execution with coordinated resources</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="n">agent_instance</span> <span class="o">=</span> <span class="n">Agent</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">llm_config</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">initial_messages</span><span class="p">)</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">agent_instance</span><span class="o">.</span><span class="n">run_conversation</span><span class="p">()</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>    <span class="c1"># 5. Result persistence</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_session_manager</span><span class="o">.</span><span class="n">save_agent_result</span><span class="p">(</span><span class="n">session_id</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="environment-driven-configuration">Environment-Driven Configuration</h3>
+<p>The framework uses environment variables to enable optional features and integrations:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Optional database integration</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AURITE_ENABLE_DB&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_db_engine</span> <span class="o">=</span> <span class="n">create_db_engine</span><span class="p">()</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">storage_manager</span> <span class="o">=</span> <span class="n">StorageManager</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_db_engine</span><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Optional observability integration</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;LANGFUSE_ENABLED&quot;</span><span class="p">,</span> <span class="s2">&quot;false&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">langfuse</span> <span class="o">=</span> <span class="n">Langfuse</span><span class="p">(</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="n">secret_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;LANGFUSE_SECRET_KEY&quot;</span><span class="p">),</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="n">public_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;LANGFUSE_PUBLIC_KEY&quot;</span><span class="p">),</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="n">host</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;LANGFUSE_HOST&quot;</span><span class="p">),</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="p">)</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="c1"># Development vs production configuration</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="n">AURITE_CONFIG_FORCE_REFRESH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;AURITE_CONFIG_FORCE_REFRESH&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Configuration Variables</strong>:</p>
+<ul>
+<li><code>AURITE_ENABLE_DB</code>: Enable database storage backend</li>
+<li><code>LANGFUSE_ENABLED</code>: Enable Langfuse observability integration</li>
+<li><code>AURITE_CONFIG_FORCE_REFRESH</code>: Force configuration refresh on every operation</li>
+<li><code>LANGFUSE_USER_ID</code>: User ID for trace grouping</li>
+<li>Database connection variables for StorageManager</li>
+</ul>
+<h2 id="framework-execution-flows">Framework Execution Flows</h2>
+<h3 id="agent-execution-flow">Agent Execution Flow</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant User
+    participant Aurite
+    participant Kernel
+    participant Engine
+    participant Config
+    participant Host
+    participant Session
+
+    User-&gt;&gt;Aurite: run_agent(name, message)
+    Aurite-&gt;&gt;Aurite: _ensure_initialized()
+    Aurite-&gt;&gt;Kernel: initialize() [if needed]
+    Aurite-&gt;&gt;Engine: run_agent(name, message)
+    Engine-&gt;&gt;Config: get_config("agent", name)
+    Config--&gt;&gt;Engine: agent_config
+    Engine-&gt;&gt;Host: register_servers(mcp_servers)
+    Host--&gt;&gt;Engine: servers_registered
+    Engine-&gt;&gt;Session: get_session_history(session_id)
+    Session--&gt;&gt;Engine: conversation_history
+    Engine-&gt;&gt;Engine: execute_agent()
+    Engine-&gt;&gt;Session: save_agent_result(result)
+    Engine--&gt;&gt;Aurite: AgentRunResult
+    Aurite--&gt;&gt;User: result</code></pre>
+<h3 id="workflow-execution-flow">Workflow Execution Flow</h3>
+<pre class="mermaid"><code>sequenceDiagram
+    participant User
+    participant Aurite
+    participant Engine
+    participant Workflow
+    participant Agent
+
+    User-&gt;&gt;Aurite: run_linear_workflow(name, input)
+    Aurite-&gt;&gt;Engine: run_linear_workflow(name, input)
+    Engine-&gt;&gt;Engine: create_workflow_executor()
+    Engine-&gt;&gt;Workflow: execute(input, session_id)
+
+    loop For each step
+        Workflow-&gt;&gt;Engine: run_agent(step_name, step_input)
+        Engine-&gt;&gt;Agent: execute_with_tools()
+        Agent--&gt;&gt;Engine: step_result
+        Engine--&gt;&gt;Workflow: step_result
+    end
+
+    Workflow--&gt;&gt;Engine: workflow_result
+    Engine-&gt;&gt;Engine: save_workflow_result()
+    Engine--&gt;&gt;Aurite: LinearWorkflowExecutionResult
+    Aurite--&gt;&gt;User: result</code></pre>
+<h2 id="framework-extension-points">Framework Extension Points</h2>
+<h3 id="programmatic-component-registration">Programmatic Component Registration</h3>
+<p>The framework supports runtime component registration for testing and dynamic scenarios:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Register components programmatically</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">await</span> <span class="n">aurite</span><span class="o">.</span><span class="n">register_agent</span><span class="p">(</span><span class="n">AgentConfig</span><span class="p">(</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;dynamic_agent&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">llm_config_id</span><span class="o">=</span><span class="s2">&quot;gpt4&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;Dynamic agent for testing&quot;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">))</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">await</span> <span class="n">aurite</span><span class="o">.</span><span class="n">register_mcp_server</span><span class="p">(</span><span class="n">ClientConfig</span><span class="p">(</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;test_server&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">server_path</span><span class="o">=</span><span class="s2">&quot;./test_server.py&quot;</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">))</span>
+</code></pre></div>
+<h3 id="custom-workflow-integration">Custom Workflow Integration</h3>
+<p>Custom workflows can leverage the full framework through the execution engine:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">CustomWorkflow</span><span class="p">:</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_input</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">executor</span><span class="p">:</span> <span class="n">AuriteEngine</span><span class="p">,</span> <span class="n">session_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>        <span class="c1"># Access full framework capabilities</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>        <span class="n">agent_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">executor</span><span class="o">.</span><span class="n">run_agent</span><span class="p">(</span><span class="s2">&quot;analyzer&quot;</span><span class="p">,</span> <span class="n">initial_input</span><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>        <span class="n">processed_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_result</span><span class="p">(</span><span class="n">agent_result</span><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>        <span class="n">final_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">executor</span><span class="o">.</span><span class="n">run_agent</span><span class="p">(</span><span class="s2">&quot;summarizer&quot;</span><span class="p">,</span> <span class="n">processed_data</span><span class="p">)</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>        <span class="k">return</span> <span class="n">final_result</span>
+</code></pre></div>
+<h3 id="interface-extensions">Interface Extensions</h3>
+<p>The framework supports multiple interface types through consistent internal APIs:</p>
+<ul>
+<li><strong>CLI Extensions</strong>: New commands through the CLI router</li>
+<li><strong>API Extensions</strong>: Additional REST endpoints through FastAPI routers</li>
+<li><strong>TUI Extensions</strong>: New screens and components through the TUI framework</li>
+<li><strong>Custom Interfaces</strong>: Direct integration through the Aurite class API</li>
+</ul>
+<h2 id="performance-scalability">Performance &amp; Scalability</h2>
+<h3 id="optimization-strategies">Optimization Strategies</h3>
+<p><strong>Lazy Initialization</strong>: Components initialized only when needed
+<strong>JIT Resource Management</strong>: MCP servers registered dynamically based on requirements
+<strong>In-Memory Caching</strong>: Configuration and session data cached for fast access
+<strong>Connection Pooling</strong>: Reuse of LLM and database connections where possible
+<strong>Streaming Support</strong>: Real-time event streaming for interactive applications</p>
+<h3 id="scalability-considerations">Scalability Considerations</h3>
+<p><strong>Horizontal Scaling</strong>: Multiple framework instances can share database storage
+<strong>Resource Isolation</strong>: Each framework instance manages its own MCP server connections
+<strong>Session Distribution</strong>: Sessions can be distributed across instances through shared storage
+<strong>Configuration Sharing</strong>: Shared configuration repositories across development teams</p>
+<h2 id="references">References</h2>
+<ul>
+<li><strong>Core Implementation</strong>: <code>src/aurite/aurite.py</code> - Main Aurite class and AuriteKernel</li>
+<li><strong>Execution Orchestration</strong>: <a href="../design/aurite_engine_design/">AuriteEngine Design</a> - Central execution coordination</li>
+<li><strong>Configuration Management</strong>: <a href="../design/config_manager_design/">ConfigManager Design</a> - Hierarchical configuration system</li>
+<li><strong>Tool Management</strong>: <a href="../design/mcp_host_design/">MCP Host Design</a> - Distributed tool orchestration</li>
+<li><strong>Session Management</strong>: <a href="../flow/session_management_flow/">Session Management Flow</a> - Persistent conversation management</li>
+<li><strong>Execution Flows</strong>: <a href="../flow/aurite_engine_execution_flow/">AuriteEngine Execution Flow</a> - Detailed execution patterns</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/Aurite-ai" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/aurite-agents/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.0.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path fill="currentColor" d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.50899def.min.js"></script>
+      
+    
+  </body>
+</html>
