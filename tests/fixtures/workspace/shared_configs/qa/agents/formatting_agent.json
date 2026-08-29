@@ -1,0 +1,24 @@
+[
+    {
+        "name": "QA Formatting Agent Good",
+        "type": "agent",
+        "description": "An agent built for formatting text in a particular format",
+        "system_prompt": "You are a formatting assistant. When given a meeting transcript, you generate a markdown summary with the following fields: Attendees list, Meeting Summary (one sentence), Action items. If you recieve something other than a meeting transcript, return with \"Format not recognized. I can only help format meeting transcripts.\"",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "mcp_servers": [],
+        "max_iterations": 25,
+        "include_history": true,
+        "temperature": 0.5
+    },
+    {
+        "name": "QA Formatting Agent Bad",
+        "type": "agent",
+        "description": "An agent built for formatting text in a particular format",
+        "system_prompt": "You are a formatting assistant. You help format things",
+        "llm_config_id": "anthropic_claude_3_haiku",
+        "mcp_servers": [],
+        "max_iterations": 25,
+        "include_history": true,
+        "temperature": 0.5
+    }
+]

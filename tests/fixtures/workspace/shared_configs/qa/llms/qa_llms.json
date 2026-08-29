@@ -1,0 +1,74 @@
+[
+        {
+        "name": "gpt-4.1",
+        "type": "llm",
+        "provider": "openai",
+        "model": "gpt-4.1",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "gpt-4.1-mini",
+        "type": "llm",
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "gpt-4.1-nano",
+        "type": "llm",
+        "provider": "openai",
+        "model": "gpt-4.1-nano",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "claude-opus-4-1",
+        "type": "llm",
+        "provider": "anthropic",
+        "model": "claude-opus-4-1-20250805",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "claude-sonnet-4",
+        "type": "llm",
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-20250514",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "claude-3-5-haiku",
+        "type": "llm",
+        "provider": "anthropic",
+        "model": "claude-3-5-haiku-latest",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "gemini-2.5-pro",
+        "type": "llm",
+        "provider": "gemini",
+        "model": "gemini-2.5-pro",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "gemini-2.5-flash",
+        "type": "llm",
+        "provider": "gemini",
+        "model": "gemini-2.5-flash",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    },
+    {
+        "name": "gemini-2.5-flash-lite",
+        "type": "llm",
+        "provider": "gemini",
+        "model": "gemini-2.5-flash-lite",
+        "temperature": 0.5,
+        "max_tokens": 2048
+    }
+]

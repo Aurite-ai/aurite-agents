@@ -1,37 +1,71 @@
-{
-  "name": "function_weather_agents_evaluation",
-  "type": "evaluation",
-  "component_type": "agent",
-  "run_agent": "tests/fixtures/workspace/shared_configs/evaluation/run_function/test_weather_agent_function.py",
-  "run_agent_kwargs": {},
-  "review_llm": null,
-  "test_cases": [
-    {
-      "name": "weather_planning_sf_good",
-      "input": "What's the weather in San Francisco and create a plan for outdoor activities",
-      "expectations": [
-        "The response uses the weather_lookup tool to get San Francisco weather",
-        "The response provides temperature information",
-        "The response creates a structured plan based on weather conditions",
-        "The response uses planning tools to save the plan"
-      ]
-    },
-    {
-      "name": "weather_comparison_good",
-      "input": "Check the weather in London and Tokyo, then compare them",
-      "expectations": [
-        "The response uses weather_lookup for both London and Tokyo",
-        "The response provides temperature for both cities",
-        "The response compares the weather conditions between cities",
-        "The response is well-structured and informative"
-      ]
+[
+  {
+    "name": "function_weather_agents_evaluation",
+    "type": "evaluation",
+    "component_type": "agent",
+    "run_agent": "tests/fixtures/workspace/shared_configs/evaluation/run_function/test_weather_agent_function.py",
+    "run_agent_kwargs": {},
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf_good",
+        "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+        "expectations": [
+          "The response uses the weather_lookup tool to get San Francisco weather",
+          "The response provides temperature information",
+          "The response creates a structured plan based on weather conditions",
+          "The response uses planning tools to save the plan"
+        ]
+      },
+      {
+        "name": "weather_comparison_good",
+        "input": "Check the weather in London and Tokyo, then compare them",
+        "expectations": [
+          "The response uses weather_lookup for both London and Tokyo",
+          "The response provides temperature for both cities",
+          "The response compares the weather conditions between cities",
+          "The response is well-structured and informative"
+        ]
+      }
+    ],
+    "force_refresh": true,
+    "metadata": {
+      "description": "Function-based evaluation for weather agents - tests custom run function with different quality levels",
+      "evaluation_type": "run_function",
+      "quality_levels": ["good", "average", "poor"],
+      "notes": "This configuration uses a custom run function to simulate different agent quality levels"
     }
-  ],
-  "force_refresh": true,
-  "metadata": {
-    "description": "Function-based evaluation for weather agents - tests custom run function with different quality levels",
-    "evaluation_type": "run_function",
-    "quality_levels": ["good", "average", "poor"],
-    "notes": "This configuration uses a custom run function to simulate different agent quality levels"
+  },
+  {
+    "name": "does_not_exist_function_evaluation",
+    "type": "evaluation",
+    "component_type": "agent",
+    "run_agent": "does/not/exist.py",
+    "run_agent_kwargs": {},
+    "review_llm": null,
+    "test_cases": [
+      {
+        "name": "weather_planning_sf_good",
+        "input": "What's the weather in San Francisco and create a plan for outdoor activities",
+        "expectations": [
+          "The response uses the weather_lookup tool to get San Francisco weather",
+          "The response provides temperature information",
+          "The response creates a structured plan based on weather conditions",
+          "The response uses planning tools to save the plan"
+        ]
+      },
+      {
+        "name": "weather_comparison_good",
+        "input": "Check the weather in London and Tokyo, then compare them",
+        "expectations": [
+          "The response uses weather_lookup for both London and Tokyo",
+          "The response provides temperature for both cities",
+          "The response compares the weather conditions between cities",
+          "The response is well-structured and informative"
+        ]
+      }
+    ],
+    "force_refresh": true
   }
-}
+
+]

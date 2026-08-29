@@ -1,0 +1,11 @@
+[
+    {
+        "name": "alpha_vantage_server",
+        "description": "A server for fetching finanical information with Alpha Vantage.",
+        "type": "mcp_server",
+        "server_path": "tests/fixtures/workspace/shared_configs/qa/mcp_servers/alpha_vantage_server.py",
+        "transport_type": "stdio",
+        "capabilities": ["tools", "prompts", "resources"],
+        "timeout": 30.0
+    }
+]

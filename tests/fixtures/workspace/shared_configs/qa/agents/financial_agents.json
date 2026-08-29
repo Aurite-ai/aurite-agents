@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Financial Assistant Agent Good Prompt",
+        "type": "agent",
+        "system_prompt": "You are an expert financial assistant, with access to tools to look up financial information using Alpha Vantage. When a user asks about a stock by full name (e.g. microsoft), always use the symbol_search tool first to find out what symbol to use with the other tools. Only call the tools necessary to answer the user's question.",
+        "llm_config_id": "claude-sonnet-4",
+        "mcp_servers": ["alpha_vantage_server"],
+        "max_iterations": 25,
+        "include_history": true,
+        "temperature": 0.5
+    },
+    {
+        "name": "Financial Assistant Agent Poor Prompt",
+        "type": "agent",
+        "system_prompt": "Use the tools you have to answer questions.",
+        "llm_config_id": "claude-sonnet-4",
+        "mcp_servers": ["alpha_vantage_server"],
+        "max_iterations": 25,
+        "include_history": true,
+        "temperature": 0.5
+    },
+    {
+        "name": "Financial Assistant Agent Excess Tools",
+        "type": "agent",
+        "system_prompt": "You are an expert financial assistant, with access to tools to look up financial information using Alpha Vantage. When a user asks about a stock by full name (e.g. microsoft), always use the symbol_search tool first to find out what symbol to use with the other tools. Only call the tools necessary to answer the user's question.",
+        "llm_config_id": "claude-sonnet-4",
+        "mcp_servers": ["alpha_vantage_server", "weather_server", "planning_server"],
+        "max_iterations": 25,
+        "include_history": true,
+        "temperature": 0.5
+    }
+]

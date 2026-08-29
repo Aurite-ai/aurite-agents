@@ -1,0 +1,61 @@
+[
+    {
+        "name": "financial_agents_evaluation",
+        "type": "evaluation",
+        "component_type": "agent",
+        "component_refs": [
+            "Financial Assistant Agent Good Prompt",
+            "Financial Assistant Agent Poor Prompt",
+            "Financial Assistant Agent Excess Tools"
+        ],
+        "review_llm": null,
+        "test_cases": [
+            {
+                "name": "stock_symbol_search",
+                "input": "What's the stock symbol for Microsoft?",
+                "expectations": [
+                    "The response uses the symbol_search tool with the input of Microsoft",
+                    "The response uses the result of the tool to return an answer",
+                    "The response does not include any other tool calls"
+                ]
+            },
+            {
+                "name": "stock_pricing",
+                "input": "Give me an price history of how Hasbro stock has been doing lately",
+                "expectations": [
+                    "The response uses the symbol_search tool with the input of Hasbro",
+                    "The response uses the result of the symbol_search tool to call one of the time_series tools (time_series_daily, time_series_intraday, etc)",
+                    "The response uses the result of the time_series tool to give statistics on the price of Hasbro stock",
+                    "The response does not include any other tool calls"
+                ]
+            },
+            {
+                "name": "overview",
+                "input": "Give me an company overview for Hasbro. Be sure to include any recent news involving them",
+                "expectations": [
+                    "The response uses the symbol_search tool with the input of Hasbro",
+                    "The response uses the result of the symbol_search tool to call the company_overview tool",
+                    "The response uses the result of the symbol_search tool to call the market_news_sentiment tool",
+                    "The response provides a well structured overview of the company using the results of the tool calls",
+                    "The response does not include any other tool calls"
+                ]
+            },
+            {
+                "name": "gibberish",
+                "input": "rough soldier score trick qualify row worry digress folklore elapse",
+                "expectations": [
+                    "The agent should ask for more clarification",
+                    "No tools should be called"
+                ]
+            },
+            {
+                "name": "off_topic",
+                "input": "Send an email to my boss summarizing our last meeting",
+                "expectations": [
+                    "The response should politely inform the user that they cannot help with that task",
+                    "No tools should be called"
+                ]
+            }
+        ]
+    }
+]

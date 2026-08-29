@@ -81,28 +81,42 @@ class QAFunctionalTester:
         # Get API key from environment or use default
         self.api_key = os.getenv("API_KEY", "test-api-key")
 
-        # Predefined evaluation configurations
+        # Predefined evaluation configurations with expected pass rates (default 100%)
         self.agent_evaluations = [
-            "weather_agents_evaluation",  # Single config that tests all three agents
-            "single_weather_agent_evaluation",
+            {
+                "config": "weather_agents_evaluation",
+                "expected_pass_rate": 50.0,
+            },  # Single config that tests all three agents
+            {"config": "single_weather_agent_evaluation", "expected_pass_rate": 100.0},
+            {"config": "formatting_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "formatting_evaluation_bad", "expected_pass_rate": 0.0},
+            {"config": "financial_agents_evaluation", "expected_pass_rate": 70.0},
+            {"config": "llm_weather_agents_evaluation", "expected_pass_rate": 100.0},
         ]
 
         self.manual_agent_evaluations = [
-            "manual_weather_agents_evaluation"  # Manual output evaluation
+            {"config": "manual_weather_agents_evaluation", "expected_pass_rate": 100.0},  # Manual output evaluation
+            {"config": "manual_email_formatting_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "manual_email_formatting_evaluation_poor", "expected_pass_rate": 0.0},
+            {"config": "email_formatting_security_evaluation_good", "expected_pass_rate": 100.0},
+            {"config": "email_formatting_security_evaluation_bad", "expected_pass_rate": 0.0},
+            {"config": "evaluator_prompt_injection_attempt", "expected_pass_rate": 0.0},
         ]
 
         self.function_agent_evaluations = [
-            "function_weather_agents_evaluation"  # Function-based evaluation
+            {"config": "function_weather_agents_evaluation", "expected_pass_rate": 100.0},  # Function-based evaluation
+            {"config": "does_not_exist_function_evaluation", "expected_pass_rate": 0.0},
         ]
 
         self.workflow_evaluations = [
-            "weather_workflow_evaluation",
-            "weather_custom_workflow_evaluation",
-            "weather_graph_workflow_evaluation",
+            {"config": "weather_workflow_evaluation", "expected_pass_rate": 100.0},
+            {"config": "weather_custom_workflow_evaluation", "expected_pass_rate": 100.0},
+            {"config": "weather_graph_workflow_evaluation", "expected_pass_rate": 100.0},
         ]
 
         self.mcp_evaluations = [
-            "weather_mcp_evaluation",
+            {"config": "weather_mcp_evaluation", "expected_pass_rate": 100.0},
+            {"config": "does_not_exist_mcp_evaluation", "expected_pass_rate": 0.0},
         ]
 
     async def run_all_tests(self, component_type: str = "all") -> Dict[str, Any]:
@@ -143,6 +157,15 @@ class QAFunctionalTester:
 
         return self.results
 
+    async def run_tests_from_config(self, config_name: str) -> Dict[str, Any]:
+        self._print_header()
+
+        self.results[config_name] = await self._test([config_name])
+
+        self._generate_summary_report()
+
+        return self.results
+
     def _print_header(self):
         """Print a formatted header for the test run."""
         logger.info("=" * 80)
@@ -172,28 +195,55 @@ class QAFunctionalTester:
 
     async def _test(self, evaluations_to_run) -> Dict[str, Any]:
         results = {}
+
+        async def run_single_evaluation(client, eval_config):
+            # Handle both old string format and new dict format
+            if isinstance(eval_config, str):
+                config_name = eval_config
+                expected_pass_rate = 100.0  # Default
+            else:
+                config_name = eval_config["config"]
+                expected_pass_rate = eval_config.get("expected_pass_rate", 100.0)
+
+            logger.info(f"\n  📋 Testing {config_name}...")
+
+            try:
+                # Use the API endpoint that loads evaluation configs directly
+                response = await client.post(
+                    f"{self.api_url}/testing/evaluate/{config_name}", headers={"X-API-Key": self.api_key}
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    processed_result = self._process_result(result)
+                    processed_result["expected_pass_rate"] = expected_pass_rate
+                    self._print_result_summary(config_name, processed_result)
+                    return config_name, processed_result
+                else:
+                    error_msg = f"API returned status {response.status_code}: {response.text}"
+                    logger.error(f"    ❌ {config_name}: {error_msg}")
+                    return config_name, {"status": "error", "error": error_msg}
+
+            except Exception as e:
+                logger.error(f"    ❌ {config_name}: Failed - {str(e)}")
+                return config_name, {"status": "error", "error": str(e)}
+
         async with httpx.AsyncClient(timeout=60.0) as client:
-            for config_name in evaluations_to_run:
-                logger.info(f"\n  📋 Testing {config_name}...")
+            # Create tasks for all evaluations
+            tasks = [run_single_evaluation(client, eval_config) for eval_config in evaluations_to_run]
 
-                try:
-                    # Use the API endpoint that loads evaluation configs directly
-                    response = await client.post(
-                        f"{self.api_url}/testing/evaluate/{config_name}", headers={"X-API-Key": self.api_key}
-                    )
+            # Run all tasks in parallel
+            task_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                    if response.status_code == 200:
-                        result = response.json()
-                        results[config_name] = self._process_result(result)
-                        self._print_result_summary(config_name, results[config_name])
-                    else:
-                        error_msg = f"API returned status {response.status_code}: {response.text}"
-                        logger.error(f"    ❌ {config_name}: {error_msg}")
-                        results[config_name] = {"status": "error", "error": error_msg}
+            # Process results
+            for task_result in task_results:
+                if isinstance(task_result, Exception):
+                    logger.error(f"    ❌ Task failed with exception: {str(task_result)}")
+                    # You might want to handle this case differently based on your needs
+                    continue
 
-                except Exception as e:
-                    logger.error(f"    ❌ {config_name}: Failed - {str(e)}")
-                    results[config_name] = {"status": "error", "error": str(e)}
+                config_name, result = task_result
+                results[config_name] = result
 
         return results
 
@@ -315,11 +365,32 @@ class QAFunctionalTester:
                     "case_results": result.get("case_results", {}),
                 }
 
+    def _get_status_color_and_emoji(self, actual_score: float, expected_pass_rate: float) -> str:
+        """
+        Determine status color and emoji based on actual score vs expected pass rate.
+
+        Args:
+            actual_score: The actual score achieved
+            expected_pass_rate: The expected pass rate
+
+        Returns:
+            Formatted status emoji with color
+        """
+        # Calculate deviation from expected
+        deviation = abs(actual_score - expected_pass_rate)
+
+        if deviation <= 10.0:
+            return f"{Colors.GREEN}✅{Colors.END}"
+        elif deviation <= 30.0:
+            return f"{Colors.YELLOW}⚠️{Colors.END}"
+        else:
+            return f"{Colors.RED}❌{Colors.END}"
+
     def _print_result_summary(self, eval_name: str, result: Dict[str, Any]):
         """
         Print a summary of evaluation results.
 
-        Now handles both single and multi-component results.
+        Now handles both single and multi-component results with expected pass rate comparison.
 
         Args:
             eval_name: Name of the evaluation
@@ -327,6 +398,8 @@ class QAFunctionalTester:
         """
         if result.get("status") == "error":
             return
+
+        expected_pass_rate = result.get("expected_pass_rate", 100.0)
 
         if result.get("type") == "multi_component":
             # Multi-component result
@@ -336,16 +409,13 @@ class QAFunctionalTester:
             total = summary.get("total_cases", 0)
             component_count = summary.get("component_count", 0)
 
-            # Determine status emoji based on score
-            if score >= 75:
-                status_emoji = f"{Colors.GREEN}✅{Colors.END}"
-            elif score >= 50:
-                status_emoji = f"{Colors.YELLOW}⚠️{Colors.END}"
-            else:
-                status_emoji = f"{Colors.RED}❌{Colors.END}"
+            # Determine status emoji based on expected pass rate
+            status_emoji = self._get_status_color_and_emoji(score, expected_pass_rate)
 
+            # Show expected vs actual in the output
+            expected_info = f" (expected: {expected_pass_rate:.1f}%)" if expected_pass_rate != 100.0 else ""
             logger.info(
-                f"    {status_emoji} {eval_name}: {score:.1f}% avg ({passed}/{total} passed across {component_count} components)"
+                f"    {status_emoji} {eval_name}: {score:.1f}% avg{expected_info} ({passed}/{total} passed across {component_count} components)"
             )
 
             # Print individual component results
@@ -355,12 +425,8 @@ class QAFunctionalTester:
                 comp_passed = component_result.get("passed_cases", 0)
                 comp_total = component_result.get("total_cases", 0)
 
-                if comp_score >= 75:
-                    comp_emoji = f"{Colors.GREEN}✅{Colors.END}"
-                elif comp_score >= 50:
-                    comp_emoji = f"{Colors.YELLOW}⚠️{Colors.END}"
-                else:
-                    comp_emoji = f"{Colors.RED}❌{Colors.END}"
+                # Use same expected rate for individual components
+                comp_emoji = self._get_status_color_and_emoji(comp_score, expected_pass_rate)
 
                 logger.info(
                     f"      {comp_emoji} {component_name}: {comp_score:.1f}% ({comp_passed}/{comp_total} passed)"
@@ -377,15 +443,12 @@ class QAFunctionalTester:
             passed = result.get("passed_cases", 0)
             total = result.get("total_cases", 0)
 
-            # Determine status emoji based on score
-            if score >= 75:
-                status_emoji = f"{Colors.GREEN}✅{Colors.END}"
-            elif score >= 50:
-                status_emoji = f"{Colors.YELLOW}⚠️{Colors.END}"
-            else:
-                status_emoji = f"{Colors.RED}❌{Colors.END}"
+            # Determine status emoji based on expected pass rate
+            status_emoji = self._get_status_color_and_emoji(score, expected_pass_rate)
 
-            logger.info(f"    {status_emoji} {eval_name}: {score:.1f}% ({passed}/{total} passed)")
+            # Show expected vs actual in the output
+            expected_info = f" (expected: {expected_pass_rate:.1f}%)" if expected_pass_rate != 100.0 else ""
+            logger.info(f"    {status_emoji} {eval_name}: {score:.1f}%{expected_info} ({passed}/{total} passed)")
 
             # Print detailed results if verbose
             if self.verbose and result.get("case_results"):
@@ -481,7 +544,7 @@ class QAFunctionalTester:
         """
         Print summary for a category of tests.
 
-        Now handles both single and multi-component results.
+        Now handles both single and multi-component results with expected pass rate comparison.
 
         Args:
             results: Category results dictionary
@@ -496,16 +559,15 @@ class QAFunctionalTester:
                 passed = summary.get("passed_cases", 0)
                 total = summary.get("total_cases", 0)
                 component_count = summary.get("component_count", 0)
+                expected_pass_rate = result.get("expected_pass_rate", 100.0)
 
-                if score >= 75:
-                    status = f"{Colors.GREEN}✅{Colors.END}"
-                elif score >= 50:
-                    status = f"{Colors.YELLOW}⚠️{Colors.END}"
-                else:
-                    status = f"{Colors.RED}❌{Colors.END}"
+                # Use expected pass rate for status determination
+                status = self._get_status_color_and_emoji(score, expected_pass_rate)
 
+                # Show expected vs actual in the output
+                expected_info = f" (expected: {expected_pass_rate:.1f}%)" if expected_pass_rate != 100.0 else ""
                 logger.info(
-                    f"   {status} {eval_name}: {score:.1f}% avg ({passed}/{total} passed across {component_count} components)"
+                    f"   {status} {eval_name}: {score:.1f}% avg{expected_info} ({passed}/{total} passed across {component_count} components)"
                 )
 
                 # Show individual component summaries
@@ -515,12 +577,8 @@ class QAFunctionalTester:
                     comp_passed = component_result.get("passed_cases", 0)
                     comp_total = component_result.get("total_cases", 0)
 
-                    if comp_score >= 75:
-                        comp_status = f"{Colors.GREEN}✅{Colors.END}"
-                    elif comp_score >= 50:
-                        comp_status = f"{Colors.YELLOW}⚠️{Colors.END}"
-                    else:
-                        comp_status = f"{Colors.RED}❌{Colors.END}"
+                    # Use same expected rate for individual components
+                    comp_status = self._get_status_color_and_emoji(comp_score, expected_pass_rate)
 
                     logger.info(
                         f"     {comp_status} {component_name}: {comp_score:.1f}% ({comp_passed}/{comp_total} passed)"
@@ -530,15 +588,14 @@ class QAFunctionalTester:
                 score = result.get("overall_score", 0)
                 passed = result.get("passed_cases", 0)
                 total = result.get("total_cases", 0)
+                expected_pass_rate = result.get("expected_pass_rate", 100.0)
 
-                if score >= 75:
-                    status = f"{Colors.GREEN}✅{Colors.END}"
-                elif score >= 50:
-                    status = f"{Colors.YELLOW}⚠️{Colors.END}"
-                else:
-                    status = f"{Colors.RED}❌{Colors.END}"
+                # Use expected pass rate for status determination
+                status = self._get_status_color_and_emoji(score, expected_pass_rate)
 
-                logger.info(f"   {status} {eval_name}: {score:.1f}% ({passed}/{total} passed)")
+                # Show expected vs actual in the output
+                expected_info = f" (expected: {expected_pass_rate:.1f}%)" if expected_pass_rate != 100.0 else ""
+                logger.info(f"   {status} {eval_name}: {score:.1f}%{expected_info} ({passed}/{total} passed)")
 
     def _print_overall_assessment(self):
         """Print overall assessment of the QA system."""
@@ -618,6 +675,11 @@ def main():
         default="live",
         help="Evaluation mode: 'live' runs components, 'manual' uses pre-recorded outputs, 'function' uses custom run function (default: live)",
     )
+    parser.add_argument(
+        "--eval-config",
+        default=None,
+        help="Specify a specific evaluation config to run by name (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -625,7 +687,10 @@ def main():
     tester = QAFunctionalTester(api_url=args.api_url, verbose=args.verbose, evaluation_mode=args.evaluation_mode)
 
     try:
-        results = asyncio.run(tester.run_all_tests(args.component_type))
+        if args.eval_config:
+            results = asyncio.run(tester.run_tests_from_config(args.eval_config))
+        else:
+            results = asyncio.run(tester.run_all_tests(args.component_type))
 
         # Exit with appropriate code
         if any("error" in str(result) for result in results.values()):
