@@ -1,0 +1,261 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Llm Configuration",
+  "description": "Configuration schema for llm components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "additionalProperties": true,
+        "description": "Configuration schema for llm components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "llm",
+            "default": "llm",
+            "title": "Type",
+            "type": "string"
+          },
+          "provider": {
+            "description": "The LLM provider (e.g., 'anthropic', 'openai', 'gemini').",
+            "title": "Provider",
+            "type": "string"
+          },
+          "model": {
+            "description": "The specific model name for the provider.",
+            "title": "Model",
+            "type": "string"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Default sampling temperature.",
+            "title": "Temperature"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Default maximum tokens to generate.",
+            "title": "Max Tokens"
+          },
+          "default_system_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A default system prompt for this LLM configuration.",
+            "title": "Default System Prompt"
+          },
+          "api_key_env_var": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).",
+            "title": "Api Key Env Var"
+          },
+          "api_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The base URL for the LLM.",
+            "title": "Api Base"
+          },
+          "api_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The API version for the LLM.",
+            "title": "Api Version"
+          }
+        },
+        "required": [
+          "name",
+          "provider",
+          "model"
+        ],
+        "title": "Aurite Llm Configuration",
+        "type": "object"
+      },
+      "description": "Array of llm configurations"
+    },
+    {
+      "additionalProperties": true,
+      "description": "Configuration schema for llm components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "llm",
+          "default": "llm",
+          "title": "Type",
+          "type": "string"
+        },
+        "provider": {
+          "description": "The LLM provider (e.g., 'anthropic', 'openai', 'gemini').",
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "description": "The specific model name for the provider.",
+          "title": "Model",
+          "type": "string"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default sampling temperature.",
+          "title": "Temperature"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Default maximum tokens to generate.",
+          "title": "Max Tokens"
+        },
+        "default_system_prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A default system prompt for this LLM configuration.",
+          "title": "Default System Prompt"
+        },
+        "api_key_env_var": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment variable name for the API key (if not using default like ANTHROPIC_API_KEY).",
+          "title": "Api Key Env Var"
+        },
+        "api_base": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The base URL for the LLM.",
+          "title": "Api Base"
+        },
+        "api_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The API version for the LLM.",
+          "title": "Api Version"
+        }
+      },
+      "required": [
+        "name",
+        "provider",
+        "model"
+      ],
+      "title": "Aurite Llm Configuration",
+      "type": "object"
+    }
+  ]
+}

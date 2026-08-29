@@ -30,7 +30,7 @@ This creates your workspace, first project, and example configurations.
 
 <!-- prettier-ignore -->
 !!! info "Learn More"
-    For details on projects and workspaces, see [Projects and Workspaces](../config/projects_and_workspaces.md).
+    For details on projects and workspaces, see [Projects and Workspaces](../usage/config/projects_and_workspaces.md).
 
 ---
 

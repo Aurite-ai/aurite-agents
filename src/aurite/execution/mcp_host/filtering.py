@@ -37,6 +37,9 @@ class FilteringManager:
         """
         Checks if a component should be registered based on the client's exclude list.
 
+        Supports both unprefixed names (e.g., "weather_lookup") and prefixed names
+        (e.g., "weather_server-weather_lookup") in the exclude list.
+
         Args:
             component_name: The name of the component (tool, prompt, resource).
             client_config: The configuration of the client providing the component.
@@ -44,12 +47,26 @@ class FilteringManager:
         Returns:
             True if the component is allowed to be registered, False otherwise.
         """
-        if client_config.exclude and component_name in client_config.exclude:
+        if not client_config.exclude:
+            return True
+
+        # Check if the unprefixed name is in the exclude list
+        if component_name in client_config.exclude:
             logger.debug(
                 f"Component '{component_name}' registration denied for client "
-                f"'{client_config.name}' due to ClientConfig.exclude."
+                f"'{client_config.name}' due to ClientConfig.exclude (unprefixed match)."
             )
             return False
+
+        # Also check if the prefixed name (server_name-component_name) is in the exclude list
+        prefixed_name = f"{client_config.name}-{component_name}"
+        if prefixed_name in client_config.exclude:
+            logger.debug(
+                f"Component '{component_name}' registration denied for client "
+                f"'{client_config.name}' due to ClientConfig.exclude (prefixed match: '{prefixed_name}')."
+            )
+            return False
+
         return True
 
     def filter_clients_for_request(self, available_clients: List[str], agent_config: AgentConfig) -> List[str]:

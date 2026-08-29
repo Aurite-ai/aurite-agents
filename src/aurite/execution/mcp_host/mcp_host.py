@@ -49,6 +49,8 @@ class MCPHost:
         self._prompts: Dict[str, types.Prompt] = {}
         self._resources: Dict[str, types.Resource] = {}
         self._tool_to_session: Dict[str, ClientSession] = {}
+        # Track failed registration attempts to prevent race conditions
+        self._failed_registrations: set[str] = set()
 
     @property
     def prompts(self) -> dict[str, types.Prompt]:
@@ -70,6 +72,20 @@ class MCPHost:
         """Returns a list of the names of all registered servers."""
         return list(self._sessions.keys())
 
+    def has_registration_been_attempted(self, server_name: str) -> bool:
+        """
+        Check if a server registration has been attempted (successful or failed).
+
+        This is useful for preventing race conditions during parallel test execution.
+
+        Args:
+            server_name: The name of the server to check
+
+        Returns:
+            True if the server is registered or has failed registration, False otherwise
+        """
+        return server_name in self._sessions or server_name in self._failed_registrations
+
     async def __aenter__(self):
         logger.debug("Initializing MCP Host...")
         return self
@@ -85,8 +101,33 @@ class MCPHost:
         self, name: str, args: dict[str, Any], agent_config: Optional[AgentConfig] = None
     ) -> types.CallToolResult:
         """Executes a tool given its name and arguments."""
+        # First, try direct lookup with the provided name
         if name not in self._tool_to_session:
-            raise KeyError(f"Tool '{name}' not found or its server is not registered.")
+            # If direct lookup fails, try to find a matching tool by checking unprefixed names
+            matching_tools = []
+            for tool_name in self._tools.keys():
+                # Check if the tool name ends with the unprefixed name
+                # Format is "server_name-tool_name", so check the part after the last hyphen
+                if "-" in tool_name:
+                    _, unprefixed_name = tool_name.rsplit("-", 1)
+                    if unprefixed_name == name:
+                        matching_tools.append(tool_name)
+                elif tool_name == name:
+                    matching_tools.append(tool_name)
+
+            if not matching_tools:
+                raise KeyError(f"Tool '{name}' not found or its server is not registered.")
+            elif len(matching_tools) > 1:
+                # Multiple matches - ambiguous
+                servers = [t.split("-", 1)[0] for t in matching_tools if "-" in t]
+                raise KeyError(
+                    f"Tool '{name}' is ambiguous. Multiple servers provide this tool: {servers}. "
+                    f"Please use the full tool name with server prefix (e.g., 'server_name-{name}')."
+                )
+            else:
+                # Single match - use it
+                logger.debug(f"Resolved unprefixed tool name '{name}' to '{matching_tools[0]}'")
+                name = matching_tools[0]
 
         # Security check: Ensure agent has access to this tool's server
         if agent_config and agent_config.mcp_servers is not None:
@@ -129,6 +170,11 @@ class MCPHost:
         logger.info(f"Attempting to dynamically register client: {config.name}")
         if config.name in self._sessions:
             logger.warning(f"Client '{config.name}' is already registered.")
+            return
+
+        # Check if registration was already attempted and failed
+        if config.name in self._failed_registrations:
+            logger.warning(f"Client '{config.name}' has already failed registration. Skipping re-attempt.")
             return
 
         session_stack = AsyncExitStack()
@@ -186,6 +232,14 @@ class MCPHost:
                 try:
                     tools_response = await session.list_tools()
                     for tool in tools_response.tools:
+                        # Check if tool should be excluded before registration
+                        if not self._filtering_manager.is_registration_allowed(tool.name, config):
+                            logger.info(
+                                f"Skipping registration of tool '{tool.name}' from server '{config.name}' "
+                                f"due to exclude list."
+                            )
+                            continue
+
                         # include the mcp server name
                         tool.title = tool.name
                         tool.name = f"{config.name}-{tool.name}"
@@ -207,6 +261,8 @@ class MCPHost:
                     f"Failed to dynamically register client '{config.name}': {e}",
                     exc_info=True,
                 )
+                # Mark this server as failed to prevent race conditions in parallel execution
+                self._failed_registrations.add(config.name)
                 await session_stack.aclose()
                 raise
 
@@ -235,6 +291,8 @@ class MCPHost:
                 logger.debug(f"Exception during session stack cleanup: {e}")
                 # Don't re-raise cleanup errors, just log them
 
+            # Mark this server as failed to prevent race conditions in parallel execution
+            self._failed_registrations.add(config.name)
             raise MCPServerTimeoutError(
                 server_name=config.name, timeout_seconds=config.registration_timeout, operation="registration"
             ) from asyncio.TimeoutError

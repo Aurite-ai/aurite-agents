@@ -106,7 +106,7 @@ This guide walks you through installing the `aurite` Python package and setting 
 
     The `init` command populates your project with a rich set of examples, including multiple agent, LLM, and workflow configurations located in the `config/` directory. It also provides runnable Python source code for custom workflows and MCP servers.
 
-    For a deeper understanding of how projects and workspaces function, see the [Projects and Workspaces guide](../../config/projects_and_workspaces.md).
+    For a deeper understanding of how projects and workspaces function, see the [Projects and Workspaces guide](../../usage/config/projects_and_workspaces.md).
 
 === "Start Building"
 
@@ -170,6 +170,6 @@ This guide walks you through installing the `aurite` Python package and setting 
     aurite edit agents
     ```
 
-    You can also edit these configurations directly in the `config/` directory using your preferred text editor. See the [Component Configurations guide](../../config/projects_and_workspaces.md) for more details on the configuration structure.
+    You can also edit these configurations directly in the `config/` directory using your preferred text editor. See the [Component Configurations guide](../../usage/config/projects_and_workspaces.md) for more details on the configuration structure.
 
 ---

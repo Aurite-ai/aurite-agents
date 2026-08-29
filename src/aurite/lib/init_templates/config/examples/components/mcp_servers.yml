@@ -1,0 +1,26 @@
+- name: weather_server
+  type: mcp_server
+  description: MCP server for weather-related tools and prompts.
+  server_path: mcp_servers/examples/weather_server.py
+  capabilities:
+    - tools
+    - prompts
+  timeout: 15.0
+
+- name: planning_server
+  type: mcp_server
+  description: MCP server for planning, tools, prompts, and resources.
+  server_path: mcp_servers/examples/planning_server.py
+  capabilities:
+    - tools
+    - prompts
+    - resources
+  timeout: 15.0
+
+- name: math_server
+  type: mcp_server
+  description: A server for performing simple math operations.
+  http_endpoint: http://127.0.0.1:8088/mcp
+  capabilities:
+    - tools
+    - prompts

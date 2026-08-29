@@ -63,12 +63,3 @@ class QAEvaluationResult(BaseModel):
     started_at: datetime = Field(description="Timestamp when the evaluation started")
     completed_at: Optional[datetime] = Field(default=None, description="Timestamp when the evaluation completed")
     duration_seconds: Optional[float] = Field(default=None, description="Total duration of the evaluation in seconds")
-
-
-class ComponentQAConfig(BaseModel):
-    """Configuration for component-specific QA testing."""
-
-    component_type: str = Field(description="Type of component this config applies to")
-    default_timeout: float = Field(default=30.0, description="Default timeout for test execution in seconds")
-    parallel_execution: bool = Field(default=True, description="Whether test cases can be executed in parallel")
-    max_retries: int = Field(default=0, description="Maximum number of retries for failed test cases")

@@ -14,7 +14,7 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 4. **Interfaces & Usage** - How to interact with the framework (API, CLI, TUI, Studio)
 5. **Architecture & Design** - Technical architecture and design decisions
 6. **Frontend** - Frontend client, examples, and usage
-7. **Testing & Security** - Comprehensive testing and security framework
+7. **Testing** - Testing Strategy
 8. **Internal Resources** - Implementation plans and external references
 9. **Copilot Guides** - Specialized guides for development and testing workflows
 
@@ -129,27 +129,14 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 - `frontend/packages/api-client/examples/README.md` - Detailed guide to API client examples
 - `frontend/packages/aurite-studio/README.md` - React-based web UI documentation
 
-### 7. Testing & Security
+### 7. Testing
 
-**Purpose:** Comprehensive testing and security framework documentation (Kahuna Testing & Security Framework)
+**Purpose:** Testing Documentation
 **Audience:** Developers writing tests, security engineers, and administrators
 **Location:** `docs/testing/` + `tests/` + root directory
 **Documents:**
 
 - `SECURITY.md` - Security policies and vulnerability reporting
-- `docs/testing/README.md` - Kahuna Testing & Security Framework overview
-- `docs/testing/architecture/` - Testing architecture and patterns
-  - `compositional_testing.md` - Compositional testing approach
-  - `test_inheritance.md` - Test inheritance patterns
-  - `testing_architecture.md` - Overall testing architecture
-  - `testing_hierarchy.md` - Test hierarchy and organization
-- `docs/testing/components/` - Component-specific testing and security
-  - `llm/README.md` - LLM testing overview
-  - `llm/quality_tests.md` - Quality test specifications
-  - `llm/security_tests.md` - Security test specifications
-  - Additional component folders for MCP servers, agents, and workflows
-- `docs/testing/guides/` - Practical testing guides
-- `docs/testing/user_security/` - User access and RBAC documentation
 - `tests/README.md` - Test suite documentation and running instructions
 
 ### 8. Internal Resources
@@ -195,7 +182,6 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 | Develop a new feature          | `.clinerules/01_DEVELOPMENT_RULES.md`                                    |
 | Fix a bug                      | `.clinerules/DEBUGGING_RULES.md`                                         |
 | Refactor existing code         | `.clinerules/REFACTORING_RULES.md`                                       |
-| Add or improve tests           | `docs/testing/README.md`                                                 |
 | Update documentation           | `.clinerules/02_DOCUMENTATION_GUIDE.md`                                  |
 | Use the CLI                    | `docs/usage/cli_reference.md`                                            |
 | Use the API                    | `docs/usage/api_reference.md`                                            |
@@ -207,7 +193,6 @@ This guide helps developers navigate the Aurite Framework documentation and ensu
 | Choose an interface            | `docs/usage/api_reference.md`                                            |
 | Understand projects/workspaces | `docs/config/projects_and_workspaces.md`                                 |
 | Configure evaluation           | `docs/config/evaluation.md`                                              |
-| Test LLM components            | `docs/testing/components/llm/README.md`                                  |
 | Implement security             | `SECURITY.md`                                                            |
 
 ### Documentation Update Checklist

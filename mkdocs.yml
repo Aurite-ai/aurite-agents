@@ -61,7 +61,6 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - attr_list
   - md_in_html
-
 nav:
   - "Home": "index.md"
   - "Getting Started":
@@ -82,14 +81,19 @@ nav:
       - "CLI Reference": "usage/cli_reference.md"
       - "API Reference": "usage/api_reference.md"
       - "TUI Guide": "usage/tui_guide.md"
-  - "Configurations":
-      - "Projects and Workspaces": "config/projects_and_workspaces.md"
-      - "Components":
-          - "Agent": "config/agent.md"
-          - "LLM": "config/llm.md"
-          - "Linear Workflow": "config/linear_workflow.md"
-          - "Custom Workflow": "config/custom_workflow.md"
-          - "MCP Server": "config/mcp_server.md"
+      - "Database Guide": "usage/database_guide.md"
+      - "Copilot Guides":
+          - "Aurite Agents LLM Full": "usage/copilot_guides/aurite-agents-llm-full.md"
+          - "MCP Server Testing Guide": "usage/copilot_guides/mcp_server_testing_guide.md"
+      - "Configurations":
+          - "Projects and Workspaces": "usage/config/projects_and_workspaces.md"
+          - "Agent": "usage/config/agent.md"
+          - "LLM": "usage/config/llm.md"
+          - "Linear Workflow": "usage/config/linear_workflow.md"
+          - "Custom Workflow": "usage/config/custom_workflow.md"
+          - "Graph Workflow": "usage/config/graph_workflow.md"
+          - "Evaluation": "usage/config/evaluation.md"
+          - "MCP Server": "usage/config/mcp_server.md"
   - "Architecture":
       - "Overview": "architecture/overview.md"
       - "Design":
@@ -101,40 +105,19 @@ nav:
           - "Config Index Building": "architecture/flow/config_index_building_flow.md"
           - "MCP Server Registration": "architecture/flow/mcp_server_registration_flow.md"
           - "Session Management": "architecture/flow/session_management_flow.md"
-  - "Testing":
-      - "Overview": "testing/README.md"
-      - "Architecture":
-          - "Testing Architecture": "testing/architecture/testing_architecture.md"
-          - "Compositional Testing": "testing/architecture/compositional_testing.md"
-          - "Test Inheritance": "testing/architecture/test_inheritance.md"
-          - "Testing Hierarchy": "testing/architecture/testing_hierarchy.md"
-      - "Components":
-          - "LLM":
-              - "Overview": "testing/components/llm/README.md"
-              - "Quality Tests": "testing/components/llm/quality_tests.md"
-              - "Security Tests": "testing/components/llm/security_tests.md"
-          - "MCP Server":
-              - "Overview": "testing/components/mcp_server/README.md"
-              - "Quality Tests": "testing/components/mcp_server/quality_tests.md"
-              - "Security Tests": "testing/components/mcp_server/security_tests.md"
-          - "Agent":
-              - "Overview": "testing/components/agent/README.md"
-              - "Quality Tests": "testing/components/agent/quality_tests.md"
-              - "Security Tests": "testing/components/agent/security_tests.md"
-              - "Composition Tests": "testing/components/agent/composition_tests.md"
-          - "Workflow":
-              - "Overview": "testing/components/workflow/README.md"
-              - "Quality Tests": "testing/components/workflow/quality_tests.md"
-              - "Security Tests": "testing/components/workflow/security_tests.md"
-              - "Integration Tests": "testing/components/workflow/integration_tests.md"
-      - "Guides":
-          - "Development Testing": "testing/guides/development_testing.md"
-          - "Runtime Monitoring": "testing/guides/runtime_monitoring.md"
-          - "Compliance Framework": "testing/guides/compliance_framework.md"
-      - "User Security":
-          - "Access Control": "testing/user_security/access_control.md"
+  - "Deployment":
+      - "Docker":
+          - "Overview": "deployment/docker/README.md"
+          - "Testing": "deployment/docker/TESTING.md"
+      - "Build Release": "deployment/build-release.yml"
+      - "Publish API Client": "deployment/publish-api-client.yml"
+      - "Publish NPM": "deployment/publish-npm.yml"
+      - "Publish PyPI": "deployment/publish-pypi.yml"
+      - "Publish Python": "deployment/publish-python.yml"
+      - "Test Build": "deployment/test-build.yml"
+  - "News":
+      - "GitHub Release Instructions": "news/GITHUB_RELEASE_INSTRUCTIONS.md"
 
 exclude_docs: |
   internal/
   /internal/*
-  copilot_guides/

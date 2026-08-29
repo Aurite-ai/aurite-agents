@@ -1,0 +1,104 @@
+- name: license_plate_agent_evaluation
+  type: evaluation
+  component_type: agent
+  component_refs:
+    - Tool-Based License Plate Agent
+  review_llm: anthropic_claude_3_haiku
+  test_cases:
+    # Test 1: Complete workflow for single unpicked plate
+    - name: single_plate_workflow
+      input: "Process license plate notifications"
+      expectations:
+        - "The agent calls get_unpicked_license_plates to retrieve unpicked plates"
+        - "The agent generates personalized email content based on the ready date"
+        - "The agent uses gmail-create_draft to create an email draft"
+        - "The agent uses gmail-send_draft to send the email"
+        - "The agent creates an email queue entry for tracking"
+        - "The agent marks the email as sent in the database"
+
+    # Test 2: Handle multiple unpicked plates
+    - name: multiple_plates_workflow
+      input: "Check for unpicked license plates and send all necessary notifications"
+      expectations:
+        - "The agent retrieves all unpicked license plates from the database"
+        - "The agent processes each plate individually"
+        - "The agent generates different email content based on days waiting (new vs reminder vs urgent)"
+        - "The agent sends emails to multiple customers"
+        - "The agent creates tracking records for each email sent"
+        - "The agent limits processing to maximum 10 plates per run"
+
+    # Test 3: Personalized content based on wait time
+    - name: escalation_based_content
+      input: "Send notifications for plates that have been waiting different amounts of time"
+      expectations:
+        - "The agent calculates days since ready_date for each plate"
+        - "For new plates (0-2 days), subject includes 'is ready for pickup!'"
+        - "For 3-6 day old plates, subject includes 'Reminder'"
+        - "For 7-13 day old plates, subject mentions 'waiting for a week'"
+        - "For 14+ day old plates, subject includes 'Final Notice'"
+        - "Email body tone matches the urgency level"
+
+    # Test 4: Customer personalization
+    - name: customer_personalization
+      input: "Send personalized notifications to customers"
+      expectations:
+        - "Email greeting uses customer's first name only"
+        - "Email includes the specific license plate number"
+        - "Email mentions the exact ready date"
+        - "Email includes pickup location and hours"
+        - "Email includes contact information"
+        - "Email ends with 'Thank you for choosing Smyth Volvo!'"
+
+    # Test 5: Database tracking
+    - name: database_tracking_workflow
+      input: "Process plates and ensure all database tracking is completed"
+      expectations:
+        - "The agent creates email queue entries with agent_type='license_plate'"
+        - "The agent includes the correct related_id (plate_id) in queue entries"
+        - "The agent includes the correct customer_id in queue entries"
+        - "The agent determines and sets appropriate followup_number (1-4)"
+        - "The agent marks queue entries as sent after successful email delivery"
+
+    # Test 6: Error handling for missing data
+    - name: handle_missing_email
+      input: "Process license plates including ones without email addresses"
+      expectations:
+        - "The agent identifies plates without valid email addresses"
+        - "The agent skips plates with missing email addresses"
+        - "The agent continues processing other valid plates"
+        - "The agent reports which plates were skipped"
+
+    # Test 7: Old plate handling
+    - name: handle_old_plates
+      input: "Process plates including ones that have been waiting over 30 days"
+      expectations:
+        - "The agent identifies plates waiting more than 30 days"
+        - "The agent flags these plates but does not send emails"
+        - "The agent reports which plates were flagged as too old"
+        - "The agent continues processing other valid plates"
+
+    # Test 8: Complete summary report
+    - name: workflow_summary_report
+      input: "Process all pending notifications and provide a summary"
+      expectations:
+        - "The agent provides a summary of total plates processed"
+        - "The agent reports number of emails sent successfully"
+        - "The agent reports any failures or skipped plates"
+        - "The agent indicates completion of the workflow"
+
+  metadata:
+    description: Evaluation for the Tool-Based License Plate Agent that manages the complete workflow autonomously
+    expected_performance: high
+    tool_requirements:
+      - get_unpicked_license_plates
+      - create_email_queue_entry
+      - mark_email_as_sent
+      - gmail-create_draft
+      - gmail-send_draft
+    notes: |
+      This evaluation tests the fully automated license plate notification agent that:
+      1. Queries the database for unpicked plates
+      2. Generates personalized emails based on wait time
+      3. Sends emails via Gmail MCP server
+      4. Tracks all actions in the database
+      The agent should handle the complete workflow without external orchestration.

@@ -139,15 +139,21 @@ class AuriteEngine:
         # JIT Registration of MCP Servers
         if agent_config_for_run.mcp_servers:
             for server_name in agent_config_for_run.mcp_servers:
-                if server_name not in self._host.registered_server_names:
+                # Check if registration has already been attempted (successful or failed)
+                # This prevents race conditions during parallel test execution
+                if not self._host.has_registration_been_attempted(server_name):
                     server_config_dict = self._config_manager.get_config("mcp_server", server_name)
                     if not server_config_dict:
                         raise ConfigurationError(
                             f"MCP Server '{server_name}' required by agent '{agent_name}' not found."
                         )
                     server_config = ClientConfig(**server_config_dict)
-                    await self._host.register_client(server_config)
-                    dynamically_registered_servers.append(server_name)
+                    try:
+                        await self._host.register_client(server_config)
+                        dynamically_registered_servers.append(server_name)
+                    except Exception as e:
+                        # Log the error but don't fail immediately - let the agent handle missing tools
+                        logger.warning(f"Failed to register MCP server '{server_name}' for agent '{agent_name}': {e}")
 
         llm_config_id = agent_config_for_run.llm_config_id
         if not llm_config_id:

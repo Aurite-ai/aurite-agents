@@ -1,0 +1,12 @@
+- name: weather_mcp_evaluation
+  type: evaluation
+  component_type: mcp_server
+  component_refs:
+    - weather_server
+  review_llm: null
+  test_cases:
+    - name: weather_planning_sf
+      input: "What's the weather in San Francisco"
+      expectations:
+        - "The weather_lookup tool is called once with the input of San Francisco"
+        - "The response from the tool provides temperature information"

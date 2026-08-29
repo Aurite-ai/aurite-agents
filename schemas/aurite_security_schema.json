@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Aurite Security Configuration",
+  "description": "Configuration schema for security components (supports both single objects and arrays)",
+  "oneOf": [
+    {
+      "type": "array",
+      "items": {
+        "description": "Configuration schema for security components in Aurite Agents",
+        "properties": {
+          "name": {
+            "description": "The unique name of the component.",
+            "title": "Name",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A brief description of the component.",
+            "title": "Description"
+          },
+          "type": {
+            "const": "security",
+            "default": "security",
+            "title": "Type",
+            "type": "string"
+          },
+          "config_dict": {
+            "additionalProperties": true,
+            "description": "Security configuration dictionary to be loaded by SecurityEngine",
+            "title": "Config Dict",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Aurite Security Configuration",
+        "type": "object"
+      },
+      "description": "Array of security configurations"
+    },
+    {
+      "description": "Configuration schema for security components in Aurite Agents",
+      "properties": {
+        "name": {
+          "description": "The unique name of the component.",
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A brief description of the component.",
+          "title": "Description"
+        },
+        "type": {
+          "const": "security",
+          "default": "security",
+          "title": "Type",
+          "type": "string"
+        },
+        "config_dict": {
+          "additionalProperties": true,
+          "description": "Security configuration dictionary to be loaded by SecurityEngine",
+          "title": "Config Dict",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Aurite Security Configuration",
+      "type": "object"
+    }
+  ]
+}

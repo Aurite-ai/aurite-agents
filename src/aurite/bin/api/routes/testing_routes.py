@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from ....execution.aurite_engine import AuriteEngine
 from ....lib.config.config_manager import ConfigManager
-from ....lib.models import EvaluationRequest
+from ....lib.models.config.components import EvaluationConfig
 from ....testing.qa.qa_engine import QAEngine
 from ....testing.security.security_engine import SecurityEngine
 from ....testing.security.security_models import (
@@ -36,6 +36,15 @@ router = APIRouter(prefix="/testing", tags=["Testing & Security"])
 
 
 # --- Request/Response Models ---
+
+
+class EvaluationRequest(EvaluationConfig):
+    """Request model for QA evaluation."""
+
+    name: Optional[str] = Field(default=None, description="Name of the evaluation")
+    type: Optional[str] = Field(default=None, description="Type of the evaluation")
+
+    pass  # Overrides name and type to become optional
 
 
 class SecurityAssessmentRequest(BaseModel):
@@ -147,8 +156,13 @@ async def evaluate_component(
     Supports both single and multiple component evaluations.
     """
     try:
+        # Translate EvaluationRequest into EvaluationConfig, setting defaults
+        config_dict = request.model_dump()
+        config_dict["type"] = config_dict.get("type") or "evaluation"
+        config_dict["name"] = config_dict.get("name") or "Unnamed"
+        evaluation_config = EvaluationConfig(**config_dict)
         # Use QAEngine directly and return the full result
-        results = await qa_engine.evaluate_component(request, engine)
+        results = await qa_engine.evaluate_component(evaluation_config, engine)
         # Convert dictionary of QAEvaluationResult objects to dictionary of dicts
         return {component_name: result.model_dump() for component_name, result in results.items()}
     except Exception as e:

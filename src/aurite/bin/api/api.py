@@ -32,6 +32,9 @@ from ..dependencies import (
 )
 from ..studio.static_server import setup_studio_routes_with_static
 
+# Import extension system
+from .extension import ExtensionFactory, application
+
 # Ensure host models are imported correctly (up two levels from src/bin/api)
 # Import the new routers (relative to current file's directory)
 from .routes import main_router
@@ -64,6 +67,10 @@ async def lifespan(app: FastAPI):
     # The __aenter__ will trigger the lazy initialization.
     await aurite_instance.__aenter__()
     app.state.aurite_instance = aurite_instance
+
+    # Set global application state for extensions
+    application.set(aurite_instance)
+
     logger.info("Aurite initialized and ready.")
 
     yield  # Server runs here
@@ -121,6 +128,29 @@ async def health_check():
 
 # main routes
 app.include_router(main_router)
+
+
+# --- Load API Extensions ---
+extensions_env = os.getenv("AURITE_API_EXTENSIONS", "").strip()
+if extensions_env:
+    logger.info(f"Loading API extensions from environment: {extensions_env}")
+    extension_paths = [path.strip() for path in extensions_env.split(",") if path.strip()]
+
+    for extension_path in extension_paths:
+        try:
+            # Get extension class and instantiate
+            extension_class = ExtensionFactory.get(extension_path)
+            extension = extension_class()
+
+            # Register extension with app
+            extension(app)
+
+            logger.info(f"✓ Successfully loaded extension: {extension_path}")
+        except Exception as e:
+            logger.error(f"✗ Failed to load extension '{extension_path}': {e}", exc_info=True)
+            # Continue loading other extensions even if one fails
+else:
+    logger.debug("No API extensions configured (AURITE_API_EXTENSIONS not set)")
 
 
 # Custom OpenAPI schema

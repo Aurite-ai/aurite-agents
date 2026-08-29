@@ -16,7 +16,6 @@ keywords = ["ai", "agent", "mcp", "framework", "llm", "anthropic"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -59,6 +58,7 @@ dependencies = [
 [tool.poetry.group.dev.dependencies]
 textual-dev = ">=1.7.0,<2.0.0"
 pytest = "^8.4.1"
+pytest-asyncio = "^1.1.0"
 pytest-mock = "^3.12.0"
 pytest-timeout = "^2.4.0"
 mypy = "^1.16.1"
@@ -77,6 +77,7 @@ pytest-benchmark = "^5.1.0"
 
 [project.scripts]
 aurite = "aurite.bin.cli:app"
+aurite-linter = "aurite.utils.generate_config_schemas:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -112,6 +113,7 @@ poetry-plugin-export = ">=1.8"
 
 # PYTEST CONFIGURATION
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 anyio_mode = "asyncio"
 testpaths = ["tests"]
 python_files = ["test_*.py"]

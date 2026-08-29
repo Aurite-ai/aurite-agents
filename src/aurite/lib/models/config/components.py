@@ -13,15 +13,16 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
+    Callable,
     Dict,
     List,
     Literal,
     Optional,
 )
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator  # Use model_validator
-
-from aurite.lib.models.api.requests import EvaluationRequest
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ __all__ = [
     "WorkflowConfig",
     "CustomWorkflowConfig",
     "BaseCustomWorkflow",
+    "EvaluationCase",
     "EvaluationConfig",
     "SecurityConfig",
 ]
@@ -54,7 +56,9 @@ class RootConfig(BaseModel):
 
     uri: str = Field(description="The URI of the root.")
     name: str = Field(description="The name of the root.")
-    capabilities: List[str] = Field(description="A list of capabilities provided by this root.")
+    capabilities: List[Literal["tools", "prompts", "resources"]] = Field(
+        description="A list of capabilities provided by this root. Must be one or more of: 'tools', 'prompts', 'resources'."
+    )
 
 
 class ClientConfig(BaseComponentConfig):
@@ -389,8 +393,109 @@ class BaseCustomWorkflow:
 # --- Evaluation Config ---
 
 
-class EvaluationConfig(BaseComponentConfig, EvaluationRequest):
+class EvaluationCase(BaseModel):
+    """Model for a single test case in an evaluation."""
+
+    id: UUID = Field(default_factory=uuid4, description="A unique id for this evaluation test case")
+    name: Optional[str] = Field(default=None, description="User-friendly name for this test case")
+    input: str = Field(description="The user input supplied in this case")
+    output: Optional[Any] = Field(default=None, description="The response from the component")
+    expectations: list[str] = Field(
+        description='A list of expectations about the output, like "The output contains the temperature in Celcius" or "The get_weather tool was called once".'
+    )
+
+
+class EvaluationConfig(BaseComponentConfig):
+    """Configuration model for QA testing and evaluation."""
+
     type: Literal["evaluation"] = "evaluation"
+
+    # Evaluation mode - explicit specification preferred, falls back to auto-detection
+    mode: Optional[Literal["aurite", "manual", "function"]] = Field(
+        default=None,
+        description="Evaluation mode: 'aurite' for Aurite components, 'manual' for pre-provided outputs, 'function' for custom run functions",
+    )
+
+    component_type: Optional[str] = Field(
+        default=None, description="Type of component being tested (agent, llm, mcp_server, workflow)"
+    )
+    component_config: Optional[Dict[str, Any]] = Field(
+        default=None, description="Configuration of the component being tested"
+    )
+    test_cases: List[EvaluationCase] = Field(description="List of test cases to evaluate")
+    review_llm: Optional[str] = Field(
+        default=None, description="LLM configuration ID to use for reviewing test results"
+    )
+    expected_schema: Optional[Dict[str, Any]] = Field(
+        default=None, description="JSON schema to validate output against"
+    )
+    component_refs: Optional[List[str]] = Field(
+        default=None, description="List of component names to evaluate (for multi-component testing)"
+    )
+    run_agent: Optional[Callable[..., Any] | Callable[..., Awaitable[Any]] | str] = Field(
+        default=None,
+        description="""A function that takes a string input and any number of additional arguments (see run_agent_kwargs) and returns the result of calling the agent.
+        This will be used for cases that do not have an output. If str, it will be treated as the filepath to a python file with the function named 'run'""",
+    )
+    run_agent_kwargs: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional keyword arguments to pass to the run_agent function beyond the required input string first argument",
+    )
+
+    # Caching configuration
+    use_cache: bool = Field(
+        default=True, description="Whether to use cached results for test cases that have been evaluated before"
+    )
+    cache_ttl: int = Field(default=3600, description="Time-to-live for cached results in seconds (default: 1 hour)")
+    force_refresh: bool = Field(default=False, description="Force re-execution of all test cases, bypassing cache")
+    evaluation_config_id: Optional[str] = Field(
+        default=None, description="ID of the evaluation configuration (used for cache key generation)"
+    )
+
+    # Rate limiting configuration
+    max_concurrent_tests: int = Field(
+        default=3, description="Maximum number of test cases to run concurrently (default: 3)"
+    )
+    rate_limit_retry_count: int = Field(default=3, description="Number of retries for rate limit errors (default: 3)")
+    rate_limit_base_delay: float = Field(
+        default=1.0, description="Base delay in seconds for exponential backoff (default: 1.0)"
+    )
+
+    # Testing behavior configuration
+    default_timeout: float = Field(
+        default=90.0, description="Default timeout for test execution in seconds (default: 90.0)"
+    )
+    parallel_execution: bool = Field(
+        default=True, description="Whether test cases can be executed in parallel (default: True)"
+    )
+    max_retries: int = Field(default=1, description="Maximum number of retries for failed test cases (default: 1)")
+
+    def resolve_mode(self) -> Literal["aurite", "manual", "function"]:
+        """
+        Resolve the evaluation mode based on configuration fields.
+
+        If mode is explicitly set, use it. Otherwise, determine mode based on:
+        - manual: All test cases have outputs and no component_refs
+        - function: run_agent is provided and no component_refs
+        - aurite: Default mode for Aurite components
+
+        Returns:
+            The resolved evaluation mode
+        """
+        # If mode is explicitly set, use it
+        if self.mode:
+            return self.mode
+
+        # Check if all test cases have manual outputs
+        has_manual_outputs = all(case.output is not None for case in self.test_cases)
+
+        # Determine mode based on configuration
+        if has_manual_outputs and not self.component_refs:
+            return "manual"
+        elif self.run_agent is not None and not self.component_refs:
+            return "function"
+        else:
+            return "aurite"
 
 
 # --- Security Config ---

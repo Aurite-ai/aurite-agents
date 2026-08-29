@@ -1,35 +1,34 @@
-from .component_qa_tester import ComponentQATester
+"""
+QA Testing Module for the Aurite Framework.
+
+This module provides the Quality Assurance testing system with:
+- QAEngine: Main orchestration and execution class
+- QASessionManager: Cache and session management
+- Result models for evaluation tracking
+- Utility functions for schema validation and formatting
+"""
+
 from .qa_engine import QAEngine
 from .qa_models import (
     CaseEvaluationResult,
-    ComponentQAConfig,
     ExpectationAnalysisResult,
     QAEvaluationResult,
     SchemaValidationResult,
 )
-from .qa_utils import (
-    analyze_expectations,
-    clean_llm_output,
-    execute_component,
-    get_llm_client,
-    validate_schema,
-)
+from .qa_session_manager import QASessionManager
+from .utils.qa_utils import clean_llm_output, filter_test_cases, validate_schema
 
 __all__ = [
-    # From component_qa_tester
-    "ComponentQATester",
-    # From qa_engine
+    # Core classes
     "QAEngine",
-    # From qa_models
+    "QASessionManager",
+    # Result models
     "SchemaValidationResult",
     "ExpectationAnalysisResult",
     "CaseEvaluationResult",
     "QAEvaluationResult",
-    "ComponentQAConfig",
-    # From qa_utils
-    "execute_component",
+    # Utility functions
     "validate_schema",
-    "analyze_expectations",
     "clean_llm_output",
-    "get_llm_client",
+    "filter_test_cases",
 ]
